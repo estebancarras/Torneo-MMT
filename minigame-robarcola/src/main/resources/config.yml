@@ -1,0 +1,22 @@
+# Configuración del plugin RobarCola
+# Este archivo se genera automáticamente
+
+# Configuración del spawn del minijuego
+# Se establecerá automáticamente cuando uses /setGameSpawn
+gameSpawn:
+  world: ""
+  x: 0.0
+  y: 0.0
+  z: 0.0
+  yaw: 0.0
+  pitch: 0.0
+
+# Configuración del spawn del lobby
+# Se establecerá automáticamente cuando uses /setLobby
+lobbySpawn:
+  world: ""
+  x: 0.0
+  y: 0.0
+  z: 0.0
+  yaw: 0.0
+  pitch: 0.0

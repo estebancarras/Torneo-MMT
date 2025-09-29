@@ -1,0 +1,8 @@
+name: Memorias
+version: '1.0-SNAPSHOT'
+main: los5fantasticos.memorias.Main
+api-version: '1.20'
+commands:
+  pattern:
+    description: Comandos del minijuego de patrones
+    usage: /<command>
