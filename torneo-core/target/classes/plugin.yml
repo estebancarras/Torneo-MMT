@@ -1,4 +1,45 @@
-name: CadenaPlugin
-version: '1.0-SNAPSHOT'
-main: los5fantasticos.cadenaPlugin.CadenaPlugin
+﻿name: TorneoMMT
+version: ''
+main: los5fantasticos.torneo.TorneoPlugin
 api-version: '1.20'
+description: Sistema de torneo de Minecraft con múltiples minijuegos y ranking global
+author: Los5Fantasticos
+
+commands:
+  # Comandos del Core
+  ranking:
+    description: Muestra el ranking del torneo
+    usage: /ranking [minijuego|top <número>]
+    aliases: [torneo, rank]
+    
+  # Comandos de RobarCola
+  givetail:
+    description: Da una cola a un jugador
+    usage: /givetail <jugador>
+    aliases: [givecola, darCola]
+    
+  setgamespawn:
+    description: Establece el spawn del minijuego RobarCola
+    usage: /setgamespawn
+    aliases: [robarcolasetspawn]
+    
+  setlobby:
+    description: Establece el spawn del lobby de RobarCola
+    usage: /setlobby
+    aliases: [robarcolasetlobby]
+    
+  startgame:
+    description: Inicia el minijuego RobarCola manualmente
+    usage: /startgame
+    aliases: [robarcolastartgame, iniciarjuego]
+    
+  stopgame:
+    description: Detiene el minijuego RobarCola
+    usage: /stopgame
+    aliases: [robarcolastopgame, detener juego]
+    
+  # Comandos de Memorias
+  pattern:
+    description: Comandos del minijuego de patrones de memoria
+    usage: /pattern [start|stop|join]
+    aliases: [memoria, memorias, patron]

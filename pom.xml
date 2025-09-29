@@ -16,6 +16,7 @@
         <module>torneo-core</module>
         <module>minigame-robarcola</module>
         <module>minigame-memorias</module>
+        <module>torneo-assembly</module>
     </modules>
 
     <properties>
