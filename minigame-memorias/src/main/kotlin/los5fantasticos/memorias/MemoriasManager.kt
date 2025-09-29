@@ -29,8 +29,8 @@ class MemoriasManager(private val torneoPlugin: TorneoPlugin) : MinigameModule {
         // Registrar eventos
         plugin.server.pluginManager.registerEvents(PlayerListener(gameManager), plugin)
         
-        // Registrar comandos
-        plugin.getCommand("pattern")?.setExecutor(PatternCommand(gameManager))
+        // Registrar comandos (se registran desde TorneoPlugin)
+        torneoPlugin.getCommand("pattern")?.setExecutor(PatternCommand(gameManager))
         
         plugin.logger.info("✓ $name v$version habilitado")
     }

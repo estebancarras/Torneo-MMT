@@ -1,5 +1,6 @@
 package los5fantasticos.memorias
-// hola
+
+import org.bukkit.Location
 import org.bukkit.Material
 
-data class BlockData(val material: Material)
+data class BlockData(val location: Location, val material: Material)

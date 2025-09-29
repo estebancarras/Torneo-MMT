@@ -1,4 +1,0 @@
-name: CadenaPlugin
-version: '1.0-SNAPSHOT'
-main: los5fantasticos.cadenaPlugin.CadenaPlugin
-api-version: '1.20'
