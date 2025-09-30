@@ -1,14 +1,14 @@
-# 📋 Resumen de la Refactorización del Proyecto Torneo MMT
+# Resumen de la Refactorización del Proyecto Torneo MMT
 
-## ✅ Trabajo Completado
+## Trabajo Completado
 
-### 1. **Arquitectura Modular Implementada**
-- ✅ Creada la API del Core con interfaces `MinigameModule`, `TorneoManager` y `PlayerScore`
-- ✅ Plugin principal refactorizado: `CadenaPlugin` → `TorneoPlugin`
-- ✅ Sistema de puntaje global centralizado
-- ✅ Persistencia de datos en archivos YAML
+### 1. Arquitectura Modular Implementada
+- Creada la API del Core con interfaces `MinigameModule`, `TorneoManager` y `PlayerScore`
+- Plugin principal refactorizado: `CadenaPlugin` → `TorneoPlugin`
+- Sistema de puntaje global centralizado
+- Persistencia de datos en archivos YAML
 
-### 2. **Estructura del Proyecto**
+### 2. Estructura del Proyecto
 ```
 torneo-duoc-uc/
 ├── torneo-core/              # Plugin principal (JavaPlugin)
@@ -36,11 +36,11 @@ torneo-duoc-uc/
     └── pom.xml               # Genera el JAR único
 ```
 
-### 3. **Plugin.yml Unificado**
-- ✅ Todos los comandos consolidados en `torneo-core/src/main/resources/plugin.yml`
-- ✅ Eliminados los `plugin.yml` de los módulos de minijuegos
+### 3. Plugin.yml Unificado
+- Todos los comandos consolidados en `torneo-core/src/main/resources/plugin.yml`
+- Eliminados los `plugin.yml` de los módulos de minijuegos
 
-### 4. **Comandos Registrados**
+### 4. Comandos Registrados
 #### Core:
 - `/ranking` - Muestra el ranking global
 - `/ranking <minijuego>` - Ranking de un minijuego específico
@@ -61,13 +61,13 @@ torneo-duoc-uc/
 - `/pattern admin setguessarea` - Configurar área de adivinanza
 - `/pattern admin createarena` - Crear arena
 
-### 5. **Sistema de Puntaje Global**
-- ✅ Los minijuegos otorgan puntos a través del `TorneoManager`
-- ✅ Persistencia automática en `scores.yml`
-- ✅ Ranking global y por minijuego
-- ✅ Estadísticas: juegos jugados, ganados, ratio de victoria
+### 5. Sistema de Puntaje Global
+- Los minijuegos otorgan puntos a través del `TorneoManager`
+- Persistencia automática en `scores.yml`
+- Ranking global y por minijuego
+- Estadísticas: juegos jugados, ganados, ratio de victoria
 
-## ⚠️ Problemas Encontrados Durante la Compilación
+## Problemas Encontrados Durante la Compilación
 
 ### Problema 1: Dependencia Cíclica
 **Error**: `torneo-core` dependía de los minijuegos, y los minijuegos dependían del core.
@@ -77,14 +77,14 @@ torneo-duoc-uc/
 **Error**: Problemas con secuencias de escape en strings de Kotlin al usar PowerShell.
 **Estado**: Archivo necesita ser recreado manualmente con encoding correcto.
 
-## ✅ Refactorización Completada
+## Refactorización Completada
 
 ### Estado Final
-- ✅ Todos los archivos residuales eliminados
-- ✅ `RobarColaManager.kt` recreado y funcional
-- ✅ `Game.kt` creado para el módulo de Memorias
-- ✅ `BlockData.kt` actualizado con Location
-- ✅ Compilación exitosa sin errores
+- Todos los archivos residuales eliminados
+- `RobarColaManager.kt` recreado y funcional
+- `Game.kt` creado para el módulo de Memorias
+- `BlockData.kt` actualizado con Location
+- Compilación exitosa sin errores
 
 ### Compilar el Proyecto
 ```bash
@@ -99,7 +99,7 @@ El JAR final está en: `torneo-assembly/target/TorneoMMT-1.0-SNAPSHOT.jar`
 copy torneo-assembly\target\TorneoMMT-1.0-SNAPSHOT.jar C:\Users\fuige\OneDrive\Escritorio\MinecraftServer\plugins\
 ```
 
-## 📊 Ventajas de la Nueva Arquitectura
+## Ventajas de la Nueva Arquitectura
 
 1. **Un Solo Plugin**: El servidor solo carga un JAR
 2. **Modularidad**: Fácil añadir nuevos minijuegos
@@ -108,21 +108,21 @@ copy torneo-assembly\target\TorneoMMT-1.0-SNAPSHOT.jar C:\Users\fuige\OneDrive\E
 5. **Mantenibilidad**: Código organizado y profesional
 6. **Carga Dinámica**: Los minijuegos se cargan automáticamente si están presentes
 
-## 🎯 Cómo Añadir un Nuevo Minijuego
+## Cómo Añadir un Nuevo Minijuego
 
 1. Crear un nuevo módulo Maven
 2. Implementar la interfaz `MinigameModule`
 3. Registrar comandos en el `plugin.yml` del core
 4. El `TorneoPlugin` lo cargará automáticamente mediante reflexión
 
-## 📝 Notas Importantes
+## Notas Importantes
 
 - Los minijuegos ya NO son `JavaPlugin`, son clases normales que implementan `MinigameModule`
 - El sistema de puntos se gestiona centralmente a través de `TorneoManager`
 - Los datos se persisten automáticamente en `plugins/TorneoMMT/scores.yml`
 - El ranking se puede ver con `/ranking` en el juego
 
-## 🐛 Debugging
+## Debugging
 
 Si un minijuego no se carga:
 1. Verificar los logs del servidor al iniciar
@@ -130,7 +130,7 @@ Si un minijuego no se carga:
 3. Si no aparece, verificar que la clase esté en el classpath correcto
 4. Verificar que implemente correctamente `MinigameModule`
 
-## 📞 Próximos Pasos
+## Próximos Pasos
 
 1. Corregir los errores de encoding en los archivos Kotlin
 2. Compilar el proyecto completo
