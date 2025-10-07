@@ -1,0 +1,210 @@
+# Maven
+target/
+!**/src/main/**/target/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.settings/
+.classpath
+.project
+
+# Archivos de compilación
+*.jar
+!**/src/main/**/*.jar
+*.class
+
+# Archivos de configuración local
+*.properties
+*.yml
+debug.log
+logs/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos específicos de Minecraft
+*.db
+*.dat
+*.dat_old
+*.log
+*.log.lck
+*.log.gz
+*.log.*
+crash-reports/
+world/
+world_nether/
+world_the_end/
+
+# Archivos de caché de Maven
+.m2/
+
+# Archivos temporales
+*.tmp
+*.bak
+*.swp
+*~
+
+# Archivos de configuración local (pueden contener datos sensibles)
+config.yml
+bukkit.yml
+spigot.yml
+paper-world-defaults.yml
+
+# Archivos de configuración de IDE
+.vscode/
+*.code-workspace
+
+# Archivos de caché de Kotlin
+.kotlin/
+.kotlin_module
+
+# Archivos de dependencias descargadas
+libs/
+plugins/
+
+# Archivos de usuario
+*.sublime-workspace
+*.sublime-project
+
+# Archivos de servidor (si los tienes en el mismo directorio)
+server.properties
+eula.txt
+whitelist.json
+banned-ips.json
+banned-players.json
+usercache.json
+ops.json
+
+# Archivos de caché de Maven (alternativa)
+repository/
+
+# Archivos de logs de Maven
+mvnw.cmd
+mvnw
+mvn-wrapper.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Archivos de configuración de CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Archivos de configuración de Docker (si usas)
+Dockerfile
+docker-compose.yml
+
+# Archivos de configuración de editor
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Archivos de configuración de VS Code
+.vscode/
+
+# Archivos de configuración de Eclipse
+.settings/
+.classpath
+.project
+
+# Archivos de configuración de NetBeans
+nbproject/
+build/
+dist/
+nbdist/
+
+# Archivos de configuración de Gradle (si los tienes)
+.gradle/
+build/
+
+# Archivos de configuración de Node.js (si usas algo relacionado)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos de configuración de Python (si usas algo relacionado)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+ENV/
+
+# Archivos de configuración de Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Archivos de configuración de macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Archivos de configuración de Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Archivos de configuración de Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Archivos de configuración de JetBrains IDEs
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Archivos de configuración de Maven (alternativa)
+.mvn/wrapper/maven-wrapper.jar
+
+# Archivos de configuración de Gradle (alternativa)
+.gradle/
+build/
+
+# Archivos de configuración de Node.js (alternativa)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos de configuración de Python (alternativa)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+ENV/
+
+# Archivos de configuración de Windows (alternativa)
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Archivos de configuración de macOS (alternativa)
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Archivos de configuración de Linux (alternativa)
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
