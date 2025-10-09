@@ -1,0 +1,74 @@
+Cadena — Minijuego Cooperativo por Equipos
+
+Descripción general:
+Cadena es un minijuego cooperativo competitivo para equipos de 2 a 4 jugadores.
+Todos los miembros del equipo estarán permanentemente unidos por una cadena invisible, que mantiene una distancia máxima fija entre ellos.
+Esto significa que ningún jugador puede alejarse demasiado del grupo: si uno avanza o cae, los demás serán arrastrados con él, lo que obliga a mantener una coordinación constante.
+
+ Objetivo del juego
+
+Completar un desafiante recorrido de parkour en equipo mientras permanecen encadenados, alcanzando la meta antes de que se agote el tiempo.
+La clave del éxito está en la cooperación, sincronización y comunicación: si un jugador falla un salto, todo el equipo paga las consecuencias.
+
+ Mecánicas principales
+ Encadenamiento permanente
+
+Los jugadores del mismo equipo estarán conectados entre sí por una cadena invisible o un efecto visual configurable.
+
+La distancia máxima permitida entre jugadores es fija (por ejemplo, 4 bloques).
+
+Si uno intenta alejarse más allá de ese límite, los demás serán tirados o empujados hacia él, manteniendo la conexión.
+
+La cadena nunca se rompe, sin importar lo que ocurra durante la partida.
+
+ Parkour cooperativo
+
+El circuito de parkour está diseñado para que los jugadores coordinen saltos y movimientos.
+
+Si uno de los miembros del equipo cae al vacío o toca el suelo designado como “fallo”, todo el equipo será reiniciado al punto de inicio o al último checkpoint alcanzado.
+
+Cada equipo debe avanzar en conjunto; no se puede progresar dejando a un jugador atrás.
+
+ Tiempo límite
+
+Cada partida tiene un temporizador global.
+
+El juego termina cuando el tiempo llega a cero o cuando todos los equipos han cruzado la meta.
+
+Si el tiempo se agota antes de que un equipo llegue, no obtiene puntos.
+
+ Sistema de puntuación
+
+Los equipos son clasificados según el orden en que llegan a la meta.
+
+Todos los equipos que logren completar el parkour antes de que acabe el tiempo reciben puntos, pero en diferentes cantidades:
+
+ 1er lugar: Puntuación máxima (por ejemplo, 100 puntos)
+
+ 2do lugar: Puntuación reducida (por ejemplo, 75 puntos)
+
+ 3er lugar: 50 puntos
+
+4to lugar en adelante: 25 puntos cada uno
+
+Si un equipo no alcanza la meta, obtiene 0 puntos.
+
+No se eliminan ni mueren los jugadores al perder; simplemente termina su participación al agotarse el tiempo o tras cruzar la meta.
+
+ Lobby y selección de equipos
+
+El acceso al juego se realiza desde un cartel interactivo o comando (/cadena join).
+
+Los jugadores serán enviados a un lobby de espera, donde podrán unirse o crear equipos.
+
+Cuando haya suficientes jugadores o se alcance el tiempo límite del lobby, la partida comenzará automáticamente.
+
+ Resumen de las claves del diseño
+
+Juego cooperativo basado en coordinación física.
+
+Encadenamiento permanente entre los miembros del equipo.
+
+Sin muertes ni eliminaciones automáticas: solo penalización por tiempo o puntuación.
+
+Sistema de puntos progresivo para mantener la competitividad.
