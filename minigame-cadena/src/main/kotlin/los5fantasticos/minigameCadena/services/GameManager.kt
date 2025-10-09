@@ -186,7 +186,7 @@ class GameManager(private val minigame: MinigameCadena? = null) {
     }
     
     /**
-     * Finaliza una partida.
+     * Finaliza una partida y limpia sus recursos.
      * 
      * @param game Partida a finalizar
      */
@@ -196,15 +196,23 @@ class GameManager(private val minigame: MinigameCadena? = null) {
         // PR3: Detener encadenamiento
         minigame?.chainService?.stopChaining(game)
         
-        // Remover todos los jugadores de los mapas
+        // Limpiar jugadores
         game.teams.forEach { team ->
             team.players.forEach { playerId ->
                 playerToGame.remove(playerId)
             }
         }
         
-        // Remover la partida de activas
+        // Remover de activas
         activeGames.remove(game.id)
+        
+        // Limpiar servicios
+        minigame?.scoreService?.clearGame(game.id.toString())
+        
+        // Si era la partida de lobby, limpiar referencia
+        if (lobbyGame?.id == game.id) {
+            lobbyGame = null
+        }
     }
     
     /**

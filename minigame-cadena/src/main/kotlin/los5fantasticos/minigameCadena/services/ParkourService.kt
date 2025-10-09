@@ -3,6 +3,7 @@ package los5fantasticos.minigameCadena.services
 import los5fantasticos.minigameCadena.MinigameCadena
 import los5fantasticos.minigameCadena.game.Arena
 import los5fantasticos.minigameCadena.game.CadenaGame
+import los5fantasticos.minigameCadena.game.GameState
 import los5fantasticos.minigameCadena.game.Team
 import org.bukkit.ChatColor
 import org.bukkit.Location
@@ -125,11 +126,14 @@ class ParkourService(private val minigame: MinigameCadena) {
             return
         }
         
-        // TODO PR5: Registrar tiempo de finalización y asignar puntos
-        team.getOnlinePlayers().forEach { p ->
-            p.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}¡¡¡EQUIPO COMPLETÓ EL PARKOUR!!!")
-            p.sendMessage("${ChatColor.GRAY}[PR4] Puntuación pendiente (PR5)")
-            p.playSound(p.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f)
+        // PR5: Registrar finalización y asignar puntos
+        val position = minigame.scoreService.registerFinish(game, team)
+        val points = minigame.scoreService.getPointsForPosition(position)
+        
+        // Verificar si todos los equipos han terminado
+        if (minigame.scoreService.allTeamsFinished(game)) {
+            // Finalizar la partida
+            finishGame(game)
         }
     }
     
@@ -192,5 +196,37 @@ class ParkourService(private val minigame: MinigameCadena) {
             // Inicializar checkpoint del equipo
             game.teamCheckpoints[team.id] = -1
         }
+    }
+    
+    /**
+     * Finaliza una partida cuando todos los equipos han completado o se acabó el tiempo.
+     */
+    private fun finishGame(game: CadenaGame) {
+        // Cambiar estado
+        game.state = GameState.FINISHED
+        
+        // Detener temporizador
+        minigame.gameTimerService.stopTimer(game)
+        
+        // Calcular y asignar puntos
+        minigame.scoreService.calculateAndAssignPoints(game)
+        
+        // Mostrar resumen
+        minigame.scoreService.showFinalSummary(game)
+        
+        // Desactivar servicios
+        minigame.chainService.stopChaining(game)
+        
+        // Registrar partidas jugadas para todos los jugadores
+        game.teams.forEach { team ->
+            team.getOnlinePlayers().forEach { player ->
+                minigame.torneoPlugin.torneoManager.recordGamePlayed(player, minigame.gameName)
+            }
+        }
+        
+        // Limpiar después de 10 segundos
+        minigame.plugin.server.scheduler.runTaskLater(minigame.plugin, Runnable {
+            minigame.gameManager.endGame(game)
+        }, 200L)
     }
 }

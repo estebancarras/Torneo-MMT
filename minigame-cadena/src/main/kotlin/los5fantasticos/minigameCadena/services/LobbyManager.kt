@@ -153,8 +153,9 @@ class LobbyManager(
         plugin.chainService.startChaining(game)
         broadcastToGame(game, "${ChatColor.AQUA}✓ Encadenamiento activado - Distancia máxima: ${plugin.chainService.getMaxDistance()} bloques")
         
-        // TODO PR5: Iniciar temporizador de partida
-        broadcastToGame(game, "${ChatColor.GRAY}[PR4] Temporizador de partida pendiente (PR5)")
+        // PR5: Iniciar temporizador de partida
+        plugin.gameTimerService.startTimer(game)
+        broadcastToGame(game, "${ChatColor.AQUA}✓ Temporizador iniciado - Tiempo límite: 5 minutos")
     }
     
     /**
