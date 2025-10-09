@@ -217,6 +217,21 @@ class TorneoPlugin : JavaPlugin() {
             // Inicializar el módulo
             module.onEnable(this)
             
+            // Registrar comandos del módulo
+            val commandExecutors = module.getCommandExecutors()
+            commandExecutors.forEach { (commandName, executor) ->
+                val command = getCommand(commandName)
+                if (command != null) {
+                    command.setExecutor(executor)
+                    if (executor is org.bukkit.command.TabCompleter) {
+                        command.tabCompleter = executor
+                    }
+                    logger.info("  ✓ Comando '/$commandName' registrado")
+                } else {
+                    logger.warning("  ⚠ Comando '/$commandName' no encontrado en plugin.yml")
+                }
+            }
+            
             // Añadir a la lista de módulos cargados
             minigameModules.add(module)
             

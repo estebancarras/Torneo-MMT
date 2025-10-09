@@ -1,11 +1,15 @@
 package los5fantasticos.torneo.api
 
+import org.bukkit.command.CommandExecutor
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 
 /**
  * Interfaz que deben implementar todos los módulos de minijuegos.
  * Define el contrato para la inicialización, limpieza y gestión de minijuegos.
+ * 
+ * Esta interfaz sigue el patrón Service Provider Interface (SPI) de Java,
+ * permitiendo el descubrimiento automático de módulos mediante ServiceLoader.
  */
 interface MinigameModule {
     
@@ -61,4 +65,14 @@ interface MinigameModule {
      * @param reason Razón por la que ganó puntos (ej: "Victoria", "Objetivo completado")
      */
     fun awardPoints(player: Player, points: Int, reason: String)
+    
+    /**
+     * Proporciona los ejecutores de comandos que este minijuego necesita registrar.
+     * 
+     * El mapa devuelto asocia nombres de comandos con sus ejecutores correspondientes.
+     * El TorneoPlugin se encargará de registrar estos comandos centralizadamente.
+     * 
+     * @return Mapa de nombre de comando a CommandExecutor. Vacío si no hay comandos.
+     */
+    fun getCommandExecutors(): Map<String, CommandExecutor> = emptyMap()
 }

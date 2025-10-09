@@ -1,6 +1,10 @@
 package los5fantasticos.minigameCadena
 
 import los5fantasticos.minigameCadena.commands.CadenaCommand
+import los5fantasticos.minigameCadena.listeners.PlayerQuitListener
+import los5fantasticos.minigameCadena.services.ChainService
+import los5fantasticos.minigameCadena.services.GameManager
+import los5fantasticos.minigameCadena.services.LobbyManager
 import los5fantasticos.torneo.TorneoPlugin
 import los5fantasticos.torneo.api.MinigameModule
 import org.bukkit.command.CommandExecutor
@@ -16,24 +20,53 @@ import org.bukkit.plugin.Plugin
  */
 class MinigameCadena(private val torneoPlugin: TorneoPlugin) : MinigameModule {
     
-    private lateinit var plugin: Plugin
+    lateinit var plugin: Plugin
+        private set
     
     override val gameName = "Cadena"
     override val version = "1.0"
     override val description = "Minijuego cooperativo de parkour encadenado por equipos"
     
-    private val activePlayers = mutableSetOf<Player>()
-    private var gameRunning = false
+    /**
+     * Gestor de partidas activas.
+     */
+    lateinit var gameManager: GameManager
+        private set
+    
+    /**
+     * Gestor de lobby y cuenta atrás.
+     */
+    private lateinit var lobbyManager: LobbyManager
+    
+    /**
+     * Servicio de encadenamiento entre jugadores.
+     */
+    lateinit var chainService: ChainService
+        private set
     
     override fun onEnable(plugin: Plugin) {
         this.plugin = plugin
         
-        // PR1: Comandos registrados centralizadamente por TorneoPlugin
-        // PR2: Inicializar LobbyManager
+        // PR2: Inicializar GameManager y LobbyManager
+        gameManager = GameManager(this)
+        lobbyManager = LobbyManager(this, gameManager)
+        
         // PR3: Inicializar ChainService
-        // PR4: Registrar listeners de parkour
+        chainService = ChainService(this)
+        
+        // PR2: Registrar listeners
+        plugin.server.pluginManager.registerEvents(PlayerQuitListener(this), plugin)
+        
+        // PR1: Comandos registrados centralizadamente por TorneoPlugin ✓
+        // PR2: GameManager, LobbyManager y Listeners inicializados ✓
+        // PR3: ChainService inicializado ✓
+        // PR4: Listeners de parkour (pendiente)
         
         plugin.logger.info("✓ $gameName v$version habilitado")
+        plugin.logger.info("  - GameManager inicializado")
+        plugin.logger.info("  - LobbyManager inicializado")
+        plugin.logger.info("  - ChainService inicializado")
+        plugin.logger.info("  - PlayerQuitListener registrado")
     }
     
     /**
@@ -47,18 +80,28 @@ class MinigameCadena(private val torneoPlugin: TorneoPlugin) : MinigameModule {
     }
     
     override fun onDisable() {
-        // Terminar todos los juegos activos
-        endAllGames()
+        // Limpiar todos los managers
+        if (::gameManager.isInitialized) {
+            gameManager.clearAll()
+        }
+        if (::lobbyManager.isInitialized) {
+            lobbyManager.clearAll()
+        }
+        if (::chainService.isInitialized) {
+            chainService.clearAll()
+        }
         
         plugin.logger.info("✓ $gameName deshabilitado")
     }
     
     override fun isGameRunning(): Boolean {
-        return gameRunning
+        return gameManager.getActiveGames().any { it.state == los5fantasticos.minigameCadena.game.GameState.IN_GAME }
     }
     
     override fun getActivePlayers(): List<Player> {
-        return activePlayers.toList()
+        return gameManager.getActiveGames()
+            .flatMap { game -> game.teams }
+            .flatMap { team -> team.getOnlinePlayers() }
     }
     
     override fun awardPoints(player: Player, points: Int, reason: String) {
@@ -66,77 +109,11 @@ class MinigameCadena(private val torneoPlugin: TorneoPlugin) : MinigameModule {
     }
     
     /**
-     * Inicia una nueva partida de Cadena.
+     * Verifica y potencialmente inicia la cuenta atrás para una partida.
+     * Llamado cuando un jugador se une al lobby.
      */
-    @Suppress("unused")
-    fun startGame(players: List<Player>) {
-        if (gameRunning) {
-            plugin.logger.warning("Ya hay una partida de Cadena en curso")
-            return
-        }
-        
-        gameRunning = true
-        activePlayers.addAll(players)
-        
-        // TODO: Implementar lógica de inicio del juego
-        // - Crear cadena entre jugadores
-        // - Configurar mecánicas
-        // - Iniciar temporizador
-        
-        players.forEach { player ->
-            player.sendMessage("§6[Cadena] §e¡La partida ha comenzado! §7¡Mantén la cadena unida!")
-            recordGamePlayed(player)
-        }
-        
-        plugin.logger.info("Partida de Cadena iniciada con ${players.size} jugadores")
-    }
-    
-    /**
-     * Termina la partida actual.
-     */
-    fun endGame(winner: Player? = null) {
-        if (!gameRunning) return
-        
-        gameRunning = false
-        
-        if (winner != null) {
-            // El ganador recibe puntos basados en la duración de la cadena
-            val points = calculatePoints()
-            awardPoints(winner, points, "Cadena mantenida exitosamente")
-            recordVictory(winner)
-            
-            // Notificar a todos los jugadores
-            activePlayers.forEach { player ->
-                if (player == winner) {
-                    player.sendMessage("§6[Cadena] §a¡Felicidades! Has mantenido la cadena exitosamente.")
-                } else {
-                    player.sendMessage("§6[Cadena] §c${winner.name} ha mantenido la cadena exitosamente.")
-                }
-            }
-        }
-        
-        // Limpiar jugadores activos
-        activePlayers.clear()
-        
-        plugin.logger.info("Partida de Cadena terminada${if (winner != null) " - Ganador: ${winner.name}" else ""}")
-    }
-    
-    /**
-     * Calcula los puntos basados en la duración de la cadena.
-     */
-    private fun calculatePoints(): Int {
-        // TODO: Implementar cálculo de puntos basado en duración
-        // Por ahora, puntos fijos
-        return 80
-    }
-    
-    /**
-     * Termina todos los juegos activos.
-     */
-    private fun endAllGames() {
-        if (gameRunning) {
-            endGame()
-        }
+    fun checkStartCountdown(game: los5fantasticos.minigameCadena.game.CadenaGame) {
+        lobbyManager.checkAndStartCountdown(game)
     }
     
     /**

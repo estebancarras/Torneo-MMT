@@ -46,10 +46,53 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
      * Maneja el subcomando `/cadena join`.
      */
     private fun handleJoin(player: Player) {
-        // PR1: Implementación básica con mensaje placeholder
-        player.sendMessage("${ChatColor.GRAY}Te has unido a la cola de Cadena.")
+        // Verificar si el jugador ya está en una partida
+        if (minigame.gameManager.isPlayerInGame(player)) {
+            player.sendMessage("${ChatColor.RED}Ya estás en una partida de Cadena.")
+            return
+        }
         
-        // TODO PR2: Integrar con LobbyManager para añadir al jugador a una partida
+        // Añadir jugador a una partida
+        val success = minigame.gameManager.addPlayer(player)
+        
+        if (!success) {
+            player.sendMessage("${ChatColor.RED}No se pudo unir a la partida. Intenta de nuevo.")
+            return
+        }
+        
+        // Obtener información de la partida
+        val game = minigame.gameManager.getPlayerGame(player)
+        val team = minigame.gameManager.getPlayerTeam(player)
+        
+        if (game == null || team == null) {
+            player.sendMessage("${ChatColor.RED}Error al obtener información de la partida.")
+            return
+        }
+        
+        // Notificar al jugador
+        player.sendMessage("")
+        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━ CADENA ━━━━━━━━━━")
+        player.sendMessage("${ChatColor.GREEN}¡Te has unido a la partida!")
+        player.sendMessage("")
+        player.sendMessage("${ChatColor.YELLOW}Jugadores en partida: ${ChatColor.WHITE}${game.getTotalPlayers()}")
+        player.sendMessage("${ChatColor.YELLOW}Tu equipo: ${ChatColor.WHITE}${team.getOnlinePlayers().size}/4 jugadores")
+        player.sendMessage("")
+        player.sendMessage("${ChatColor.GRAY}Esperando más jugadores...")
+        player.sendMessage("${ChatColor.GRAY}Mínimo: 2 jugadores para comenzar")
+        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        player.sendMessage("")
+        
+        // Notificar a otros jugadores
+        game.teams.forEach { t ->
+            t.getOnlinePlayers().forEach { p ->
+                if (p != player) {
+                    p.sendMessage("${ChatColor.GOLD}[Cadena] ${ChatColor.YELLOW}${player.name} ${ChatColor.GRAY}se ha unido (${game.getTotalPlayers()} jugadores)")
+                }
+            }
+        }
+        
+        // Verificar si hay suficientes jugadores para iniciar cuenta atrás
+        minigame.checkStartCountdown(game)
     }
     
     /**
