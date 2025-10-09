@@ -1,0 +1,69 @@
+name: TorneoMMT
+version: 1.0-SNAPSHOT
+main: los5fantasticos.torneo.TorneoPlugin
+api-version: 1.20
+description: Sistema de torneo de Minecraft con múltiples minijuegos y ranking global
+authors: [Los5Fantasticos]
+
+commands:
+  # Comandos del Core
+  ranking:
+    description: Muestra el ranking global del torneo
+    usage: /<command>
+    aliases: [rank, top]
+  
+  torneo:
+    description: Alias para el comando ranking
+    usage: /<command>
+  
+  # Comandos de Minijuegos
+  memorias:
+    description: Comandos del minijuego Memorias
+    usage: /<command> [setup|start|stop|size]
+    permission: torneo.admin
+  
+  robarcola:
+    description: Comandos del minijuego RobarCola
+    usage: /<command> [setspawn|setlobby|start|stop]
+    permission: torneo.admin
+  
+  skywars:
+    description: Comandos del minijuego SkyWars
+    usage: /<command> [setup|start|stop]
+    permission: torneo.admin
+  
+  laberinto:
+    description: Comandos del minijuego Laberinto
+    usage: /<command> [setup|start|stop]
+    permission: torneo.admin
+  
+  carrerabarcos:
+    description: Comandos del minijuego Carrera de Barcos
+    usage: /<command> [setup|start|stop]
+    permission: torneo.admin
+  
+  cadena:
+    description: Comandos del minijuego Cadena (parkour cooperativo encadenado)
+    usage: /<command> [join|admin]
+    aliases: [chain]
+  
+  hungergames:
+    description: Comandos del minijuego Hunger Games
+    usage: /<command> [setup|start|stop]
+    permission: torneo.admin
+
+permissions:
+  torneo.admin:
+    description: Permisos de administrador del torneo
+    default: op
+    children:
+      torneo.play: true
+      cadena.admin: true
+
+  torneo.play:
+    description: Permite jugar en los minijuegos del torneo
+    default: true
+  
+  cadena.admin:
+    description: Permite usar comandos de administración de Cadena
+    default: op

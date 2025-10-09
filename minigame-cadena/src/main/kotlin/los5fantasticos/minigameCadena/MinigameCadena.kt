@@ -1,14 +1,18 @@
 package los5fantasticos.minigameCadena
 
+import los5fantasticos.minigameCadena.commands.CadenaCommand
 import los5fantasticos.torneo.TorneoPlugin
 import los5fantasticos.torneo.api.MinigameModule
+import org.bukkit.command.CommandExecutor
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 
 /**
  * Manager del minijuego Cadena.
  * 
- * Juego de coordinación donde los jugadores deben formar una cadena sin romperla.
+ * Minijuego cooperativo competitivo donde equipos de 2-4 jugadores
+ * están permanentemente unidos por una cadena invisible y deben
+ * completar un recorrido de parkour coordinadamente.
  */
 class MinigameCadena(private val torneoPlugin: TorneoPlugin) : MinigameModule {
     
@@ -16,7 +20,7 @@ class MinigameCadena(private val torneoPlugin: TorneoPlugin) : MinigameModule {
     
     override val gameName = "Cadena"
     override val version = "1.0"
-    override val description = "Minijuego de coordinación - ¡mantén la cadena unida!"
+    override val description = "Minijuego cooperativo de parkour encadenado por equipos"
     
     private val activePlayers = mutableSetOf<Player>()
     private var gameRunning = false
@@ -24,12 +28,22 @@ class MinigameCadena(private val torneoPlugin: TorneoPlugin) : MinigameModule {
     override fun onEnable(plugin: Plugin) {
         this.plugin = plugin
         
-        // TODO: Inicializar lógica del juego Cadena
-        // - Configurar mecánicas de cadena
-        // - Configurar eventos
-        // - Registrar comandos
+        // PR1: Comandos registrados centralizadamente por TorneoPlugin
+        // PR2: Inicializar LobbyManager
+        // PR3: Inicializar ChainService
+        // PR4: Registrar listeners de parkour
         
         plugin.logger.info("✓ $gameName v$version habilitado")
+    }
+    
+    /**
+     * Proporciona los ejecutores de comandos para registro centralizado.
+     * Llamado por TorneoPlugin durante el registro del módulo.
+     */
+    override fun getCommandExecutors(): Map<String, CommandExecutor> {
+        return mapOf(
+            "cadena" to CadenaCommand(this)
+        )
     }
     
     override fun onDisable() {
