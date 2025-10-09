@@ -130,7 +130,6 @@ class LobbyManager(
     
     /**
      * Inicia el gameplay de una partida.
-     * TODO PR4: Teletransportar a arena y activar mecánicas de parkour
      */
     private fun startGameplay(game: CadenaGame) {
         game.state = GameState.IN_GAME
@@ -140,16 +139,22 @@ class LobbyManager(
         broadcastToGame(game, "${ChatColor.YELLOW}¡Mantén la cadena unida y completa el parkour!")
         playSound(game, Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 1.0f)
         
+        // PR4: Teletransportar jugadores al spawn de la arena
+        if (game.arena != null) {
+            plugin.parkourService.teleportAllTeamsToSpawn(game)
+            broadcastToGame(game, "${ChatColor.AQUA}✓ Teletransportados al spawn de la arena")
+        } else {
+            // Si no hay arena configurada, usar ubicación actual como arena temporal
+            broadcastToGame(game, "${ChatColor.YELLOW}⚠ No hay arena configurada - Usando ubicación actual")
+            broadcastToGame(game, "${ChatColor.GRAY}Usa /cadena admin para configurar una arena")
+        }
+        
         // PR3: Activar ChainService para esta partida
         plugin.chainService.startChaining(game)
         broadcastToGame(game, "${ChatColor.AQUA}✓ Encadenamiento activado - Distancia máxima: ${plugin.chainService.getMaxDistance()} bloques")
         
-        // TODO PR4: Teletransportar jugadores al spawn de la arena
-        // Por ahora, solo notificamos
-        broadcastToGame(game, "${ChatColor.GRAY}[PR3] Teletransporte a arena pendiente (PR4)")
-        
         // TODO PR5: Iniciar temporizador de partida
-        broadcastToGame(game, "${ChatColor.GRAY}[PR3] Temporizador de partida pendiente (PR5)")
+        broadcastToGame(game, "${ChatColor.GRAY}[PR4] Temporizador de partida pendiente (PR5)")
     }
     
     /**

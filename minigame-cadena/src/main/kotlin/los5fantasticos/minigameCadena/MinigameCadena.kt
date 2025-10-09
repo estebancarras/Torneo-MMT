@@ -1,10 +1,13 @@
 package los5fantasticos.minigameCadena
 
 import los5fantasticos.minigameCadena.commands.CadenaCommand
+import los5fantasticos.minigameCadena.listeners.ParkourListener
 import los5fantasticos.minigameCadena.listeners.PlayerQuitListener
+import los5fantasticos.minigameCadena.services.ArenaManager
 import los5fantasticos.minigameCadena.services.ChainService
 import los5fantasticos.minigameCadena.services.GameManager
 import los5fantasticos.minigameCadena.services.LobbyManager
+import los5fantasticos.minigameCadena.services.ParkourService
 import los5fantasticos.torneo.TorneoPlugin
 import los5fantasticos.torneo.api.MinigameModule
 import org.bukkit.command.CommandExecutor
@@ -44,6 +47,18 @@ class MinigameCadena(private val torneoPlugin: TorneoPlugin) : MinigameModule {
     lateinit var chainService: ChainService
         private set
     
+    /**
+     * Servicio de lógica de parkour.
+     */
+    lateinit var parkourService: ParkourService
+        private set
+    
+    /**
+     * Gestor de arenas.
+     */
+    lateinit var arenaManager: ArenaManager
+        private set
+    
     override fun onEnable(plugin: Plugin) {
         this.plugin = plugin
         
@@ -54,19 +69,27 @@ class MinigameCadena(private val torneoPlugin: TorneoPlugin) : MinigameModule {
         // PR3: Inicializar ChainService
         chainService = ChainService(this)
         
-        // PR2: Registrar listeners
+        // PR4: Inicializar ParkourService y ArenaManager
+        parkourService = ParkourService(this)
+        arenaManager = ArenaManager()
+        
+        // PR2 y PR4: Registrar listeners
         plugin.server.pluginManager.registerEvents(PlayerQuitListener(this), plugin)
+        plugin.server.pluginManager.registerEvents(ParkourListener(this), plugin)
         
         // PR1: Comandos registrados centralizadamente por TorneoPlugin ✓
         // PR2: GameManager, LobbyManager y Listeners inicializados ✓
         // PR3: ChainService inicializado ✓
-        // PR4: Listeners de parkour (pendiente)
+        // PR4: ParkourService y ParkourListener inicializados ✓
         
         plugin.logger.info("✓ $gameName v$version habilitado")
         plugin.logger.info("  - GameManager inicializado")
         plugin.logger.info("  - LobbyManager inicializado")
         plugin.logger.info("  - ChainService inicializado")
+        plugin.logger.info("  - ParkourService inicializado")
+        plugin.logger.info("  - ArenaManager inicializado")
         plugin.logger.info("  - PlayerQuitListener registrado")
+        plugin.logger.info("  - ParkourListener registrado")
     }
     
     /**
@@ -89,6 +112,9 @@ class MinigameCadena(private val torneoPlugin: TorneoPlugin) : MinigameModule {
         }
         if (::chainService.isInitialized) {
             chainService.clearAll()
+        }
+        if (::arenaManager.isInitialized) {
+            arenaManager.clearAll()
         }
         
         plugin.logger.info("✓ $gameName deshabilitado")

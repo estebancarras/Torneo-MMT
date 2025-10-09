@@ -104,6 +104,12 @@ class GameManager(private val minigame: MinigameCadena? = null) {
      */
     private fun createLobbyGame(): CadenaGame {
         val game = CadenaGame()
+        
+        // Asignar arena aleatoria si hay arenas disponibles
+        minigame?.arenaManager?.getRandomArena()?.let { arena ->
+            game.arena = arena
+        }
+        
         activeGames[game.id] = game
         lobbyGame = game
         return game

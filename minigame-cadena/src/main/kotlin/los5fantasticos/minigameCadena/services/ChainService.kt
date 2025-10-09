@@ -31,7 +31,7 @@ class ChainService(private val minigame: MinigameCadena) {
     /**
      * Configuración: Distancia máxima permitida entre jugadores (en bloques).
      */
-    private val maxDistance = 5.0
+    private val maxDistance = 6.0
     
     /**
      * Configuración: Fuerza base del tirón (multiplicador de velocidad).

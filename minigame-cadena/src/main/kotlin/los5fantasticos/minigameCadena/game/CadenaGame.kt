@@ -11,17 +11,25 @@ import java.util.UUID
  * @property id Identificador único de la partida
  * @property teams Lista de equipos participantes
  * @property state Estado actual de la partida
+ * @property arena Arena donde se juega la partida
  */
 data class CadenaGame(
     val id: UUID = UUID.randomUUID(),
     val teams: MutableList<Team> = mutableListOf(),
-    var state: GameState = GameState.LOBBY
+    var state: GameState = GameState.LOBBY,
+    var arena: Arena? = null
 ) {
     /**
      * Tiempo restante en segundos.
-     * TODO PR2: Implementar lógica de temporizador
+     * TODO PR5: Implementar lógica de temporizador
      */
     var timeRemaining: Int = 300 // 5 minutos por defecto
+    
+    /**
+     * Mapa de equipos a su último checkpoint alcanzado.
+     * Key: Team ID, Value: Índice del checkpoint (-1 = spawn inicial)
+     */
+    val teamCheckpoints = mutableMapOf<UUID, Int>()
     
     /**
      * Añade un equipo a la partida.
