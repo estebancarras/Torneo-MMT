@@ -2,6 +2,7 @@ package yo.spray.robarCola
 
 import los5fantasticos.torneo.TorneoPlugin
 import los5fantasticos.torneo.api.MinigameModule
+import los5fantasticos.torneo.util.GameTimer
 import net.md_5.bungee.api.ChatMessageType
 import net.md_5.bungee.api.chat.TextComponent
 import org.bukkit.*
@@ -49,6 +50,7 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule, Listene
     private var gameRunning = false
     private var countdown = 0
     private var countdownTask: BukkitRunnable? = null
+    private var gameTimer: GameTimer? = null
 
     // Configuración
     private var gameSpawn: Location? = null
@@ -75,6 +77,7 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule, Listene
     override fun onDisable() {
         cleanupAllTails()
         countdownTask?.cancel()
+        gameTimer?.stop()
         plugin.logger.info("RobarCola deshabilitado correctamente.")
     }
 
@@ -199,23 +202,52 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule, Listene
     }
 
     private fun startCountdown() {
-        countdownTask = object : BukkitRunnable() {
-            override fun run() {
-                if (!gameRunning) { cancel(); return }
-                countdown--
-                if (countdown <= 0) {
-                    endGame()
-                    cancel()
-                    return
-                }
+        // Crear temporizador visual con BossBar
+        val timer = GameTimer(
+            plugin = torneoPlugin,
+            durationInSeconds = gameTimeSeconds,
+            title = "§c§l🎯 Robar Cola",
+            onFinish = {
+                // Cuando el tiempo se agota, finalizar el juego
+                endGame()
+            },
+            onTick = { secondsLeft ->
+                // Actualizar display del juego
                 updateGameDisplay()
+                
+                // Reproducir sonido en los últimos 10 segundos
+                if (secondsLeft <= 10 && secondsLeft > 0) {
+                    playersInGame.forEach { uuid ->
+                        Bukkit.getPlayer(uuid)?.playSound(
+                            Bukkit.getPlayer(uuid)!!.location,
+                            Sound.BLOCK_NOTE_BLOCK_PLING,
+                            1.0f,
+                            2.0f
+                        )
+                    }
+                }
             }
-        }.also { it.runTaskTimer(plugin, 0L, 20L) }
+        )
+        
+        // Añadir todos los jugadores al temporizador
+        playersInGame.forEach { uuid ->
+            Bukkit.getPlayer(uuid)?.let { player ->
+                timer.addPlayer(player)
+            }
+        }
+        
+        // Guardar referencia y iniciar
+        gameTimer = timer
+        timer.start()
     }
 
     private fun endGame() {
         gameRunning = false
         countdownTask?.cancel()
+        
+        // Detener temporizador visual (BossBar)
+        gameTimer?.stop()
+        gameTimer = null
 
         val winners = playersWithTail.mapNotNull { Bukkit.getPlayer(it) }
         val losers = playersInGame.filterNot { playersWithTail.contains(it) }.mapNotNull { Bukkit.getPlayer(it) }

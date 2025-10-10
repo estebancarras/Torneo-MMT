@@ -1,0 +1,95 @@
+Plan Maestro de Implementación: Sistema de Temporizador Global (BossBar)
+
+## 1. Visión General y Objetivos
+
+Este documento detalla las especificaciones técnicas y el plan de implementación para un sistema de temporizador visual, global y reutilizable para todos los minijuegos del proyecto `TorneoMMT`.
+
+El objetivo es reemplazar los mensajes de tiempo restante en el chat por una **BossBar** profesional y estandarizada en la parte superior de la pantalla, mejorando la experiencia de usuario y centralizando la lógica de la cuenta atrás.
+
+## 2. Especificaciones Técnicas
+
+### 2.1. Arquitectura del Componente
+
+Se creará una clase de utilidad genérica `GameTimer` dentro del módulo `torneo-core`. Esta clase no contendrá lógica de ningún minijuego específico y será la única responsable de gestionar la `BossBar` y el `BukkitRunnable` asociado.
+
+* **Ubicación:** `torneo-core/src/main/kotlin/los5fantasticos/torneo/util/GameTimer.kt`
+* **API de la Clase `GameTimer`:**
+
+    ```kotlin
+    class GameTimer(
+        plugin: TorneoPlugin,
+        durationInSeconds: Int,
+        title: Component,
+        onFinish: () -> Unit,
+        onTick: (secondsLeft: Int) -> Unit = {}
+    ) {
+        fun addPlayer(player: Player) {}
+        fun addPlayers(players: Collection<Player>) {}
+        fun removePlayer(player: Player) {}
+        fun start() {}
+        fun stop() {}
+    }
+    ```
+
+### 2.2. Funcionamiento Detallado
+
+* **Creación:** Cada instancia de una partida (ej. `CadenaGame`, `MemoriasGame`, etc.) creará su propia instancia de `GameTimer` al comenzar.
+* **Visualización:** La `BossBar` utilizará la API **Adventure** de Paper. El título combinará el `title` proporcionado con el tiempo restante, que se actualizará cada segundo. El progreso de la barra (`progress`) se calculará como `segundosRestantes / duraciónInicial`.
+* **Ciclo de Vida:**
+    1.  `start()`: Inicia el `BukkitRunnable` que se ejecuta cada segundo (`20L` ticks).
+    2.  En cada tick, actualiza el texto y el progreso de la barra y llama a la función `onTick`.
+    3.  Cuando el contador llega a cero, se llama a `onFinish()` y se detiene automáticamente.
+    4.  `stop()`: Cancela la tarea y oculta la `BossBar` a todos los jugadores asociados. Este método debe ser llamado imperativamente si la partida termina antes de que el tiempo se agote.
+
+## 3. Plan de Implementación por Fases
+
+La implementación se dividirá en fases para asegurar un desarrollo ordenado y verificable.
+
+### **Fase 1: Creación del Servicio `GameTimer` en `torneo-core`**
+
+**Objetivo:** Construir la herramienta reutilizable.
+
+1.  **Crear el archivo:** `torneo-core/src/main/kotlin/los5fantasticos/torneo/util/GameTimer.kt`.
+2.  **Implementar la clase `GameTimer`** siguiendo las especificaciones del punto 2.1.
+3.  **Asegurar que el código sea genérico:** No debe haber ninguna referencia a minijuegos específicos.
+
+**Criterios de Aceptación:**
+* La clase `GameTimer` está completa y el proyecto compila sin errores.
+
+### **Fase 2: Integración en el Minijuego "Cadena"**
+
+**Objetivo:** Implementar el temporizador en un primer minijuego como caso de uso.
+
+1.  **Modificar `CadenaGame.kt`**:
+    * Añadir la propiedad `private var gameTimer: GameTimer? = null`.
+    * En el método `start()`, instanciar `GameTimer` con una duración y título adecuados.
+    * En la lambda `onFinish`, llamar a la función que termina la partida por tiempo (`end(GameEndReason.TIME_UP)`).
+    * Añadir todos los jugadores de la partida al `gameTimer` e iniciarlo.
+2.  **Asegurar la Limpieza:** En el método `end()` de `CadenaGame.kt`, añadir la llamada `gameTimer?.stop()` para garantizar que la `BossBar` desaparezca al finalizar la partida.
+
+**Criterios de Aceptación:**
+* Al iniciar una partida de "Cadena", la `BossBar` aparece y funciona correctamente.
+* Al finalizar la partida (por tiempo o por victoria), la `BossBar` desaparece.
+
+### **Fase 3: Integración en el Minijuego "Robar la Cola"**
+
+**Objetivo:** Demostrar la reutilización del componente en un segundo minijuego.
+
+1.  **Modificar `RobarColaManager.kt`**:
+    * Dentro de la lógica que inicia una partida (`startGame` o similar), instanciar `GameTimer`.
+    * Usar la variable `gameTimeSeconds` para la duración.
+    * En la lambda `onFinish`, llamar al método `endGame()`.
+    * Añadir los jugadores al temporizador e iniciarlo.
+2.  **Asegurar la Limpieza:** En `endGame()`, llamar a `gameTimer?.stop()`.
+
+**Criterios de Aceptación:**
+* Al iniciar una partida de "Robar la Cola", la `BossBar` aparece y funciona correctamente.
+
+### **Fase 4: Integración en el Resto de Minijuegos (Memorias, etc.)**
+
+**Objetivo:** Estandarizar la experiencia de usuario en todo el torneo.
+
+1.  **Repetir el proceso de la Fase 2/3** para cada uno de los minijuegos restantes que utilicen un sistema de tiempo límite.
+
+**Criterios de Aceptación:**
+* Todos los minijuegos basados en tiempo muestran la `BossBar` de forma consistente.

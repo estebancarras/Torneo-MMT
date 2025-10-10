@@ -6,7 +6,6 @@ import los5fantasticos.minigameCadena.listeners.PlayerQuitListener
 import los5fantasticos.minigameCadena.services.ArenaManager
 import los5fantasticos.minigameCadena.services.ChainService
 import los5fantasticos.minigameCadena.services.GameManager
-import los5fantasticos.minigameCadena.services.GameTimerService
 import los5fantasticos.minigameCadena.services.LobbyManager
 import los5fantasticos.minigameCadena.services.ParkourService
 import los5fantasticos.minigameCadena.services.ScoreService
@@ -67,12 +66,6 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
     lateinit var scoreService: ScoreService
         private set
     
-    /**
-     * Servicio de temporizador de partidas.
-     */
-    lateinit var gameTimerService: GameTimerService
-        private set
-    
     override fun onEnable(plugin: Plugin) {
         this.plugin = plugin
         
@@ -87,9 +80,8 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         parkourService = ParkourService(this)
         arenaManager = ArenaManager()
         
-        // PR5: Inicializar ScoreService y GameTimerService
+        // PR5: Inicializar ScoreService
         scoreService = ScoreService(this)
-        gameTimerService = GameTimerService(this)
         
         // PR2 y PR4: Registrar listeners
         plugin.server.pluginManager.registerEvents(PlayerQuitListener(this), plugin)
@@ -107,7 +99,6 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         plugin.logger.info("  - ParkourService inicializado")
         plugin.logger.info("  - ArenaManager inicializado")
         plugin.logger.info("  - ScoreService inicializado")
-        plugin.logger.info("  - GameTimerService inicializado")
         plugin.logger.info("  - PlayerQuitListener registrado")
         plugin.logger.info("  - ParkourListener registrado")
     }
@@ -138,9 +129,6 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         }
         if (::scoreService.isInitialized) {
             scoreService.clearAll()
-        }
-        if (::gameTimerService.isInitialized) {
-            gameTimerService.clearAll()
         }
         
         plugin.logger.info("✓ $gameName deshabilitado")

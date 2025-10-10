@@ -1,5 +1,6 @@
 package los5fantasticos.minigameCadena.game
 
+import los5fantasticos.torneo.util.GameTimer
 import java.util.UUID
 
 /**
@@ -20,10 +21,9 @@ data class CadenaGame(
     var arena: Arena? = null
 ) {
     /**
-     * Tiempo restante en segundos.
-     * TODO PR5: Implementar lógica de temporizador
+     * Temporizador visual de la partida (BossBar).
      */
-    var timeRemaining: Int = 300 // 5 minutos por defecto
+    var gameTimer: GameTimer? = null
     
     /**
      * Mapa de equipos a su último checkpoint alcanzado.

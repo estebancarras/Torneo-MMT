@@ -199,14 +199,22 @@ class ParkourService(private val minigame: MinigameCadena) {
     }
     
     /**
+     * Maneja cuando se acaba el tiempo de una partida.
+     * Método público llamado por el temporizador.
+     */
+    fun handleTimeUp(game: CadenaGame) {
+        finishGame(game)
+    }
+    
+    /**
      * Finaliza una partida cuando todos los equipos han completado o se acabó el tiempo.
      */
     private fun finishGame(game: CadenaGame) {
         // Cambiar estado
         game.state = GameState.FINISHED
         
-        // Detener temporizador
-        minigame.gameTimerService.stopTimer(game)
+        // Detener temporizador visual (BossBar)
+        game.gameTimer?.stop()
         
         // Calcular y asignar puntos
         minigame.scoreService.calculateAndAssignPoints(game)

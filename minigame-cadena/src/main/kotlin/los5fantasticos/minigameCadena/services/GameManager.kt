@@ -193,6 +193,10 @@ class GameManager(private val minigame: MinigameCadena? = null) {
     fun endGame(game: CadenaGame) {
         game.state = GameState.FINISHED
         
+        // Detener temporizador visual (BossBar)
+        game.gameTimer?.stop()
+        game.gameTimer = null
+        
         // PR3: Detener encadenamiento
         minigame?.chainService?.stopChaining(game)
         

@@ -153,9 +153,8 @@ class LobbyManager(
         plugin.chainService.startChaining(game)
         broadcastToGame(game, "${ChatColor.AQUA}✓ Encadenamiento activado - Distancia máxima: ${plugin.chainService.getMaxDistance()} bloques")
         
-        // PR5: Iniciar temporizador de partida
-        plugin.gameTimerService.startTimer(game)
-        broadcastToGame(game, "${ChatColor.AQUA}✓ Temporizador iniciado - Tiempo límite: 5 minutos")
+        // Crear e iniciar temporizador visual con BossBar
+        startGameTimer(game)
     }
     
     /**
@@ -190,6 +189,62 @@ class LobbyManager(
                 player.playSound(player.location, sound, volume, pitch)
             }
         }
+    }
+    
+    /**
+     * Inicia el temporizador visual de la partida.
+     */
+    private fun startGameTimer(game: CadenaGame) {
+        // Crear temporizador de 5 minutos (300 segundos)
+        val timer = los5fantasticos.torneo.util.GameTimer(
+            plugin = plugin.torneoPlugin,
+            durationInSeconds = 60, // ⬅️ CAMBIA ESTE VALOR PARA PRUEBAS
+            title = "§6§l⏱ Parkour en Cadena",
+            onFinish = {
+                // Cuando el tiempo se agota, finalizar la partida
+                handleTimeUp(game)
+            },
+            onTick = { secondsLeft ->
+                // Reproducir sonido en los últimos 10 segundos
+                if (secondsLeft <= 10 && secondsLeft > 0) {
+                    playSound(game, Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 2.0f)
+                }
+            }
+        )
+        
+        // Añadir todos los jugadores al temporizador
+        game.teams.forEach { team ->
+            team.getOnlinePlayers().forEach { player ->
+                timer.addPlayer(player)
+            }
+        }
+        
+        // Guardar referencia y iniciar
+        game.gameTimer = timer
+        timer.start()
+        
+        broadcastToGame(game, "${ChatColor.AQUA}✓ Temporizador iniciado - Tiempo límite: 5 minutos")
+    }
+    
+    /**
+     * Maneja cuando se acaba el tiempo de una partida.
+     */
+    private fun handleTimeUp(game: CadenaGame) {
+        // Verificar que la partida sigue activa
+        if (game.state != GameState.IN_GAME) {
+            return
+        }
+        
+        broadcastToGame(game, "")
+        broadcastToGame(game, "${ChatColor.RED}${ChatColor.BOLD}⏰ ¡TIEMPO AGOTADO!")
+        broadcastToGame(game, "${ChatColor.YELLOW}La partida ha terminado por límite de tiempo.")
+        broadcastToGame(game, "")
+        
+        // Reproducir sonido de finalización
+        playSound(game, Sound.ENTITY_WITHER_DEATH, 1.0f, 1.0f)
+        
+        // Finalizar la partida a través del ParkourService
+        plugin.parkourService.handleTimeUp(game)
     }
     
     /**
