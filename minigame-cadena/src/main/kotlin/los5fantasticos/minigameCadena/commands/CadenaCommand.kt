@@ -62,9 +62,8 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         
         // Obtener información de la partida
         val game = minigame.gameManager.getPlayerGame(player)
-        val team = minigame.gameManager.getPlayerTeam(player)
         
-        if (game == null || team == null) {
+        if (game == null) {
             player.sendMessage("${ChatColor.RED}Error al obtener información de la partida.")
             return
         }
@@ -72,21 +71,21 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         // Notificar al jugador
         player.sendMessage("")
         player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━ CADENA ━━━━━━━━━━")
-        player.sendMessage("${ChatColor.GREEN}¡Te has unido a la partida!")
+        player.sendMessage("${ChatColor.GREEN}¡Te has unido al lobby!")
         player.sendMessage("")
-        player.sendMessage("${ChatColor.YELLOW}Jugadores en partida: ${ChatColor.WHITE}${game.getTotalPlayers()}")
-        player.sendMessage("${ChatColor.YELLOW}Tu equipo: ${ChatColor.WHITE}${team.getOnlinePlayers().size}/4 jugadores")
+        player.sendMessage("${ChatColor.YELLOW}Jugadores en lobby: ${ChatColor.WHITE}${game.getTotalPlayers()}")
+        player.sendMessage("${ChatColor.YELLOW}Selecciona tu equipo: ${ChatColor.WHITE}Haz clic en una lana de color")
         player.sendMessage("")
         player.sendMessage("${ChatColor.GRAY}Esperando más jugadores...")
-        player.sendMessage("${ChatColor.GRAY}Mínimo: 2 jugadores para comenzar")
+        player.sendMessage("${ChatColor.GRAY}Mínimo: 1 equipo con 2 jugadores para comenzar")
         player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         player.sendMessage("")
         
-        // Notificar a otros jugadores
+        // Notificar a otros jugadores en el lobby
         game.teams.forEach { t ->
             t.getOnlinePlayers().forEach { p ->
                 if (p != player) {
-                    p.sendMessage("${ChatColor.GOLD}[Cadena] ${ChatColor.YELLOW}${player.name} ${ChatColor.GRAY}se ha unido (${game.getTotalPlayers()} jugadores)")
+                    p.sendMessage("${ChatColor.GOLD}[Cadena] ${ChatColor.YELLOW}${player.name} ${ChatColor.GRAY}se ha unido al lobby")
                 }
             }
         }
@@ -117,6 +116,7 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
             "addcheckpoint" -> handleAddCheckpoint(player)
             "setfinish" -> handleSetFinish(player)
             "setminheight" -> handleSetMinHeight(player, args)
+            "setlobby" -> handleSetLobby(player)
             "save" -> handleSaveArena(player)
             "cancel" -> handleCancelArena(player)
             "list" -> handleListArenas(player)
@@ -250,6 +250,17 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
     }
     
     /**
+     * Establece la ubicación del lobby.
+     */
+    private fun handleSetLobby(player: Player) {
+        minigame.arenaManager.setLobbyLocation(player.location)
+        minigame.arenaManager.saveArenas()
+        
+        player.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}✓ Ubicación del lobby establecida!")
+        player.sendMessage("${ChatColor.GRAY}Los jugadores aparecerán aquí cuando se unan.")
+    }
+    
+    /**
      * Guarda la arena en edición.
      */
     private fun handleSaveArena(player: Player) {
@@ -268,6 +279,9 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         // Guardar arena
         minigame.arenaManager.saveArena(arena)
         minigame.arenaManager.stopEditing(player.name)
+        
+        // Persistir en disco
+        minigame.arenaManager.saveArenas()
         
         player.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}✓ Arena '${arena.name}' guardada exitosamente!")
         player.sendMessage("${ChatColor.GRAY}Checkpoints: ${arena.getCheckpointCount()}")
@@ -386,6 +400,7 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         player.sendMessage("${ChatColor.YELLOW}/cadena admin addcheckpoint ${ChatColor.GRAY}- Añadir checkpoint")
         player.sendMessage("${ChatColor.YELLOW}/cadena admin setfinish ${ChatColor.GRAY}- Establecer meta")
         player.sendMessage("${ChatColor.YELLOW}/cadena admin setminheight <Y> ${ChatColor.GRAY}- Altura mínima")
+        player.sendMessage("${ChatColor.YELLOW}/cadena admin setlobby ${ChatColor.GRAY}- Establecer lobby")
         player.sendMessage("${ChatColor.YELLOW}/cadena admin save ${ChatColor.GRAY}- Guardar arena")
         player.sendMessage("${ChatColor.YELLOW}/cadena admin cancel ${ChatColor.GRAY}- Cancelar edición")
         player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

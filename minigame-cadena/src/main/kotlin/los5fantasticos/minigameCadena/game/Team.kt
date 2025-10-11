@@ -1,5 +1,7 @@
 package los5fantasticos.minigameCadena.game
 
+import net.kyori.adventure.text.format.NamedTextColor
+import org.bukkit.Material
 import org.bukkit.entity.Player
 import java.util.UUID
 
@@ -9,11 +11,19 @@ import java.util.UUID
  * Un equipo está compuesto por 2-4 jugadores que están encadenados
  * y deben completar el parkour juntos.
  * 
- * @property id Identificador único del equipo
+ * @property id Identificador único del equipo (UUID)
+ * @property teamId Identificador de texto del equipo (ej: "ROJO", "AZUL")
+ * @property displayName Nombre formateado para mostrar (ej: "§cEquipo Rojo")
+ * @property color Color Adventure del equipo
+ * @property material Material de lana para la UI del lobby
  * @property players Lista de UUIDs de los jugadores del equipo
  */
 data class Team(
     val id: UUID = UUID.randomUUID(),
+    val teamId: String,
+    val displayName: String,
+    val color: NamedTextColor,
+    val material: Material,
     val players: MutableList<UUID> = mutableListOf()
 ) {
     /**

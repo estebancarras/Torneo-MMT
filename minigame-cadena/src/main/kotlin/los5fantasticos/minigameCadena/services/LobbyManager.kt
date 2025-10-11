@@ -134,6 +134,13 @@ class LobbyManager(
     private fun startGameplay(game: CadenaGame) {
         game.state = GameState.IN_GAME
         
+        // Limpiar inventarios de todos los jugadores (quitar lanas de selección)
+        game.teams.forEach { team ->
+            team.getOnlinePlayers().forEach { player ->
+                player.inventory.clear()
+            }
+        }
+        
         // Notificar inicio
         broadcastToGame(game, "${ChatColor.GREEN}${ChatColor.BOLD}¡LA PARTIDA HA COMENZADO!")
         broadcastToGame(game, "${ChatColor.YELLOW}¡Mantén la cadena unida y completa el parkour!")

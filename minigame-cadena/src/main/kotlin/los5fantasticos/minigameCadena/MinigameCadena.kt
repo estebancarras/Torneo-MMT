@@ -1,6 +1,7 @@
 package los5fantasticos.minigameCadena
 
 import los5fantasticos.minigameCadena.commands.CadenaCommand
+import los5fantasticos.minigameCadena.listeners.LobbyListener
 import los5fantasticos.minigameCadena.listeners.ParkourListener
 import los5fantasticos.minigameCadena.listeners.PlayerQuitListener
 import los5fantasticos.minigameCadena.services.ArenaManager
@@ -79,6 +80,7 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         // PR4: Inicializar ParkourService y ArenaManager
         parkourService = ParkourService(this)
         arenaManager = ArenaManager()
+        arenaManager.initialize(plugin.dataFolder)
         
         // PR5: Inicializar ScoreService
         scoreService = ScoreService(this)
@@ -86,6 +88,7 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         // PR2 y PR4: Registrar listeners
         plugin.server.pluginManager.registerEvents(PlayerQuitListener(this), plugin)
         plugin.server.pluginManager.registerEvents(ParkourListener(this), plugin)
+        plugin.server.pluginManager.registerEvents(LobbyListener(this), plugin)
         
         // PR1: Comandos registrados centralizadamente por TorneoPlugin ✓
         // PR2: GameManager, LobbyManager y Listeners inicializados ✓
@@ -101,6 +104,7 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         plugin.logger.info("  - ScoreService inicializado")
         plugin.logger.info("  - PlayerQuitListener registrado")
         plugin.logger.info("  - ParkourListener registrado")
+        plugin.logger.info("  - LobbyListener registrado")
     }
     
     /**
@@ -114,6 +118,11 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
     }
     
     override fun onDisable() {
+        // Guardar arenas antes de limpiar
+        if (::arenaManager.isInitialized) {
+            arenaManager.saveArenas()
+        }
+        
         // Limpiar todos los managers
         if (::gameManager.isInitialized) {
             gameManager.clearAll()

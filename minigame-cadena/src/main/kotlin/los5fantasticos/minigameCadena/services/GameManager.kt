@@ -4,7 +4,10 @@ import los5fantasticos.minigameCadena.MinigameCadena
 import los5fantasticos.minigameCadena.game.CadenaGame
 import los5fantasticos.minigameCadena.game.GameState
 import los5fantasticos.minigameCadena.game.Team
+import org.bukkit.ChatColor
+import org.bukkit.Material
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemStack
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -73,28 +76,52 @@ class GameManager(private val minigame: MinigameCadena? = null) {
         if (game.getTotalPlayers() >= maxPlayers) {
             // Crear nueva partida si la actual está llena
             val newGame = createLobbyGame()
-            return addPlayerToGame(player, newGame)
+            val result = addPlayerToGame(player, newGame)
+            
+            // Verificar si debe iniciar cuenta regresiva
+            if (result) {
+                minigame?.checkStartCountdown(newGame)
+            }
+            
+            return result
         }
         
-        return addPlayerToGame(player, game)
+        val result = addPlayerToGame(player, game)
+        
+        // Verificar si debe iniciar cuenta regresiva
+        if (result) {
+            minigame?.checkStartCountdown(game)
+        }
+        
+        return result
     }
     
     /**
      * Añade un jugador a una partida específica.
+     * El jugador NO es añadido automáticamente a un equipo - debe elegir uno usando la UI.
+     * Se encarga de teletransportar al jugador al lobby y entregarle la UI de selección.
      */
     private fun addPlayerToGame(player: Player, game: CadenaGame): Boolean {
-        // Buscar un equipo con espacio o crear uno nuevo
-        val team = game.teams.find { !it.isFull() } ?: run {
-            val newTeam = Team()
-            game.addTeam(newTeam)
-            newTeam
+        // Verificar si hay espacio en la partida (máximo 16 jugadores = 4 equipos × 4 jugadores)
+        if (game.getTotalPlayers() >= 16) {
+            return false
         }
         
-        // Añadir jugador al equipo
-        team.addPlayer(player)
-        
-        // Registrar en mapas
+        // Registrar jugador en la partida (SIN añadirlo a un equipo todavía)
         playerToGame[player.uniqueId] = game.id
+        
+        // Teletransportar al lobby (si está configurado)
+        minigame?.arenaManager?.getLobbyLocation()?.let { lobbyLocation ->
+            player.teleport(lobbyLocation)
+        }
+        
+        // Limpiar inventario y entregar UI de selección de equipos
+        player.inventory.clear()
+        giveTeamSelectionItems(player, game)
+        
+        // Notificar al jugador
+        player.sendMessage("${ChatColor.GREEN}¡Bienvenido al lobby de Cadena!")
+        player.sendMessage("${ChatColor.YELLOW}Selecciona tu equipo haciendo clic en una lana de color.")
         
         return true
     }
@@ -247,5 +274,72 @@ class GameManager(private val minigame: MinigameCadena? = null) {
         activeGames.clear()
         playerToGame.clear()
         lobbyGame = null
+    }
+    
+    // ===== Funciones de UI del Lobby =====
+    
+    /**
+     * Entrega los ítems de selección de equipo al jugador.
+     * Cada ítem es una lana del color del equipo con información dinámica.
+     */
+    private fun giveTeamSelectionItems(player: Player, game: CadenaGame) {
+        // Crear ítem para cada equipo
+        game.teams.forEachIndexed { index, team ->
+            val item = ItemStack(team.material)
+            val meta = item.itemMeta
+            
+            // Nombre del equipo
+            meta?.setDisplayName(team.displayName)
+            
+            // Lore con información de jugadores
+            val playerCount = team.players.size
+            val maxPlayers = 4
+            val lore = mutableListOf<String>()
+            
+            lore.add("${ChatColor.GRAY}Jugadores: ${ChatColor.WHITE}$playerCount / $maxPlayers")
+            lore.add("")
+            
+            if (team.players.isEmpty()) {
+                lore.add("${ChatColor.YELLOW}¡Sé el primero en unirte!")
+            } else {
+                lore.add("${ChatColor.GRAY}Miembros:")
+                team.getOnlinePlayers().forEach { p ->
+                    lore.add("${ChatColor.WHITE}  • ${p.name}")
+                }
+            }
+            
+            lore.add("")
+            if (team.isFull()) {
+                lore.add("${ChatColor.RED}¡Equipo completo!")
+            } else {
+                lore.add("${ChatColor.GREEN}Click para unirte")
+            }
+            
+            meta?.lore = lore
+            item.itemMeta = meta
+            
+            // Colocar en el inventario (slots 2, 3, 4, 5)
+            player.inventory.setItem(index + 2, item)
+        }
+    }
+    
+    /**
+     * Actualiza la UI del inventario para todos los jugadores en el lobby.
+     * Debe ser llamado cada vez que un jugador cambia de equipo.
+     */
+    fun updateAllLobbyInventories(game: CadenaGame) {
+        if (game.state != GameState.LOBBY) {
+            return
+        }
+        
+        // Obtener todos los jugadores de esta partida (incluyendo los que no han elegido equipo)
+        val playersInGame = playerToGame.filter { it.value == game.id }
+            .mapNotNull { org.bukkit.Bukkit.getPlayer(it.key) }
+        
+        // Actualizar inventario de cada jugador
+        playersInGame.forEach { player ->
+            player.inventory.clear()
+            giveTeamSelectionItems(player, game)
+        }
     }
 }

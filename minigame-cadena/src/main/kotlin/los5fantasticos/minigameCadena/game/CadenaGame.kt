@@ -1,6 +1,8 @@
 package los5fantasticos.minigameCadena.game
 
 import los5fantasticos.torneo.util.GameTimer
+import net.kyori.adventure.text.format.NamedTextColor
+import org.bukkit.Material
 import java.util.UUID
 
 /**
@@ -10,16 +12,44 @@ import java.util.UUID
  * de una sesión de juego.
  * 
  * @property id Identificador único de la partida
- * @property teams Lista de equipos participantes
  * @property state Estado actual de la partida
  * @property arena Arena donde se juega la partida
  */
-data class CadenaGame(
+class CadenaGame(
     val id: UUID = UUID.randomUUID(),
-    val teams: MutableList<Team> = mutableListOf(),
     var state: GameState = GameState.LOBBY,
     var arena: Arena? = null
 ) {
+    /**
+     * Lista de equipos predefinidos para el lobby.
+     * Inicializada automáticamente con 4 equipos (Rojo, Azul, Verde, Amarillo).
+     */
+    val teams: MutableList<Team> = mutableListOf(
+        Team(
+            teamId = "ROJO",
+            displayName = "§cEquipo Rojo",
+            color = NamedTextColor.RED,
+            material = Material.RED_WOOL
+        ),
+        Team(
+            teamId = "AZUL",
+            displayName = "§9Equipo Azul",
+            color = NamedTextColor.BLUE,
+            material = Material.BLUE_WOOL
+        ),
+        Team(
+            teamId = "VERDE",
+            displayName = "§aEquipo Verde",
+            color = NamedTextColor.GREEN,
+            material = Material.GREEN_WOOL
+        ),
+        Team(
+            teamId = "AMARILLO",
+            displayName = "§eEquipo Amarillo",
+            color = NamedTextColor.YELLOW,
+            material = Material.YELLOW_WOOL
+        )
+    )
     /**
      * Temporizador visual de la partida (BossBar).
      */
@@ -27,19 +57,10 @@ data class CadenaGame(
     
     /**
      * Mapa de equipos a su último checkpoint alcanzado.
-     * Key: Team ID, Value: Índice del checkpoint (-1 = spawn inicial)
+     * Key: Team ID (String), Value: Índice del checkpoint (-1 = spawn inicial)
      */
-    val teamCheckpoints = mutableMapOf<UUID, Int>()
+    val teamCheckpoints = mutableMapOf<String, Int>()
     
-    /**
-     * Añade un equipo a la partida.
-     */
-    fun addTeam(team: Team) {
-        if (state != GameState.LOBBY) {
-            throw IllegalStateException("No se pueden añadir equipos cuando la partida ya comenzó")
-        }
-        teams.add(team)
-    }
     
     /**
      * Obtiene el número total de jugadores en la partida.
@@ -50,8 +71,24 @@ data class CadenaGame(
     
     /**
      * Verifica si la partida tiene suficientes jugadores para comenzar.
+     * Se requiere al menos 1 equipo con 2 jugadores.
      */
     fun hasMinimumPlayers(): Boolean {
-        return teams.any { it.hasMinimumPlayers() }
+        val teamsWithMinPlayers = teams.count { it.hasMinimumPlayers() }
+        return teamsWithMinPlayers >= 1
+    }
+    
+    /**
+     * Obtiene un equipo por su material.
+     */
+    fun getTeamByMaterial(material: Material): Team? {
+        return teams.find { it.material == material }
+    }
+    
+    /**
+     * Obtiene un equipo por su ID.
+     */
+    fun getTeamById(teamId: String): Team? {
+        return teams.find { it.teamId == teamId }
     }
 }

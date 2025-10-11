@@ -1,7 +1,10 @@
 package los5fantasticos.minigameCadena.services
 
 import los5fantasticos.minigameCadena.game.Arena
+import org.bukkit.Bukkit
 import org.bukkit.Location
+import org.bukkit.configuration.file.YamlConfiguration
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -12,8 +15,14 @@ import java.util.concurrent.ConcurrentHashMap
  * - Almacenar configuración de arenas
  * - Proporcionar arenas disponibles para partidas
  * - Gestionar arena en edición
+ * - Persistencia de arenas en disco
  */
 class ArenaManager {
+    
+    /**
+     * Archivo de configuración donde se guardan las arenas.
+     */
+    private var configFile: File? = null
     
     /**
      * Mapa de arenas por nombre.
@@ -25,6 +34,11 @@ class ArenaManager {
      * Key: Nombre del jugador editor
      */
     private val editingArenas = ConcurrentHashMap<String, Arena>()
+    
+    /**
+     * Ubicación del lobby donde los jugadores esperan antes de la partida.
+     */
+    private var lobbyLocation: Location? = null
     
     /**
      * Crea una nueva arena en modo edición.
@@ -138,10 +152,196 @@ class ArenaManager {
     }
     
     /**
+     * Establece la ubicación del lobby.
+     */
+    fun setLobbyLocation(location: Location) {
+        lobbyLocation = location.clone()
+    }
+    
+    /**
+     * Obtiene la ubicación del lobby.
+     */
+    fun getLobbyLocation(): Location? {
+        return lobbyLocation?.clone()
+    }
+    
+    /**
      * Limpia todas las arenas (para reinicio).
      */
     fun clearAll() {
         arenas.clear()
         editingArenas.clear()
+        lobbyLocation = null
+    }
+    
+    // ===== Persistencia =====
+    
+    /**
+     * Inicializa el sistema de persistencia.
+     */
+    fun initialize(dataFolder: File) {
+        configFile = File(dataFolder, "arenas.yml")
+        loadArenas()
+    }
+    
+    /**
+     * Guarda todas las arenas en el archivo de configuración.
+     */
+    fun saveArenas() {
+        val file = configFile ?: return
+        val config = YamlConfiguration()
+        
+        // Guardar lobby location
+        lobbyLocation?.let { loc ->
+            config.set("lobby.world", loc.world?.name)
+            config.set("lobby.x", loc.x)
+            config.set("lobby.y", loc.y)
+            config.set("lobby.z", loc.z)
+            config.set("lobby.yaw", loc.yaw)
+            config.set("lobby.pitch", loc.pitch)
+        }
+        
+        // Guardar cada arena
+        arenas.forEach { (name, arena) ->
+            val path = "arenas.$name"
+            
+            // Spawn location
+            config.set("$path.spawn.world", arena.spawnLocation.world?.name)
+            config.set("$path.spawn.x", arena.spawnLocation.x)
+            config.set("$path.spawn.y", arena.spawnLocation.y)
+            config.set("$path.spawn.z", arena.spawnLocation.z)
+            config.set("$path.spawn.yaw", arena.spawnLocation.yaw)
+            config.set("$path.spawn.pitch", arena.spawnLocation.pitch)
+            
+            // Finish location
+            config.set("$path.finish.world", arena.finishLocation.world?.name)
+            config.set("$path.finish.x", arena.finishLocation.x)
+            config.set("$path.finish.y", arena.finishLocation.y)
+            config.set("$path.finish.z", arena.finishLocation.z)
+            config.set("$path.finish.yaw", arena.finishLocation.yaw)
+            config.set("$path.finish.pitch", arena.finishLocation.pitch)
+            
+            // Min height
+            config.set("$path.minHeight", arena.minHeight)
+            
+            // Detection radius
+            config.set("$path.detectionRadius", arena.detectionRadius)
+            
+            // Checkpoints
+            arena.checkpoints.forEachIndexed { index, checkpoint ->
+                config.set("$path.checkpoints.$index.world", checkpoint.world?.name)
+                config.set("$path.checkpoints.$index.x", checkpoint.x)
+                config.set("$path.checkpoints.$index.y", checkpoint.y)
+                config.set("$path.checkpoints.$index.z", checkpoint.z)
+                config.set("$path.checkpoints.$index.yaw", checkpoint.yaw)
+                config.set("$path.checkpoints.$index.pitch", checkpoint.pitch)
+            }
+        }
+        
+        try {
+            config.save(file)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    /**
+     * Carga todas las arenas desde el archivo de configuración.
+     */
+    private fun loadArenas() {
+        val file = configFile ?: return
+        
+        if (!file.exists()) {
+            return
+        }
+        
+        val config = YamlConfiguration.loadConfiguration(file)
+        
+        // Cargar lobby location
+        if (config.contains("lobby")) {
+            val worldName = config.getString("lobby.world") ?: return
+            val world = Bukkit.getWorld(worldName) ?: return
+            
+            lobbyLocation = Location(
+                world,
+                config.getDouble("lobby.x"),
+                config.getDouble("lobby.y"),
+                config.getDouble("lobby.z"),
+                config.getDouble("lobby.yaw").toFloat(),
+                config.getDouble("lobby.pitch").toFloat()
+            )
+        }
+        
+        // Cargar arenas
+        val arenasSection = config.getConfigurationSection("arenas") ?: return
+        
+        for (arenaName in arenasSection.getKeys(false)) {
+            val path = "arenas.$arenaName"
+            
+            // Spawn location
+            val spawnWorldName = config.getString("$path.spawn.world") ?: continue
+            val spawnWorld = Bukkit.getWorld(spawnWorldName) ?: continue
+            
+            val spawnLocation = Location(
+                spawnWorld,
+                config.getDouble("$path.spawn.x"),
+                config.getDouble("$path.spawn.y"),
+                config.getDouble("$path.spawn.z"),
+                config.getDouble("$path.spawn.yaw").toFloat(),
+                config.getDouble("$path.spawn.pitch").toFloat()
+            )
+            
+            // Finish location
+            val finishWorldName = config.getString("$path.finish.world") ?: continue
+            val finishWorld = Bukkit.getWorld(finishWorldName) ?: continue
+            
+            val finishLocation = Location(
+                finishWorld,
+                config.getDouble("$path.finish.x"),
+                config.getDouble("$path.finish.y"),
+                config.getDouble("$path.finish.z"),
+                config.getDouble("$path.finish.yaw").toFloat(),
+                config.getDouble("$path.finish.pitch").toFloat()
+            )
+            
+            // Min height
+            val minHeight = config.getDouble("$path.minHeight", 0.0)
+            
+            // Detection radius
+            val detectionRadius = config.getDouble("$path.detectionRadius", 2.0)
+            
+            // Crear arena
+            val arena = Arena(
+                name = arenaName,
+                spawnLocation = spawnLocation,
+                finishLocation = finishLocation,
+                minHeight = minHeight,
+                detectionRadius = detectionRadius
+            )
+            
+            // Cargar checkpoints
+            val checkpointsSection = config.getConfigurationSection("$path.checkpoints")
+            if (checkpointsSection != null) {
+                val checkpointIndices = checkpointsSection.getKeys(false).mapNotNull { it.toIntOrNull() }.sorted()
+                
+                for (index in checkpointIndices) {
+                    val cpWorldName = config.getString("$path.checkpoints.$index.world") ?: continue
+                    val cpWorld = Bukkit.getWorld(cpWorldName) ?: continue
+                    
+                    val checkpoint = Location(
+                        cpWorld,
+                        config.getDouble("$path.checkpoints.$index.x"),
+                        config.getDouble("$path.checkpoints.$index.y"),
+                        config.getDouble("$path.checkpoints.$index.z"),
+                        config.getDouble("$path.checkpoints.$index.yaw").toFloat(),
+                        config.getDouble("$path.checkpoints.$index.pitch").toFloat()
+                    )
+                    
+                    arena.addCheckpoint(checkpoint)
+                }
+            }
+            
+            arenas[arenaName] = arena
+        }
     }
 }

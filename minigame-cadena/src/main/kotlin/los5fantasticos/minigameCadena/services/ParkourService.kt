@@ -60,7 +60,7 @@ class ParkourService(private val minigame: MinigameCadena) {
         val team = minigame.gameManager.getPlayerTeam(player) ?: return
         
         // Obtener el checkpoint actual del equipo
-        val currentCheckpoint = game.teamCheckpoints.getOrDefault(team.id, -1)
+        val currentCheckpoint = game.teamCheckpoints.getOrDefault(team.teamId, -1)
         
         // Verificar el siguiente checkpoint
         val nextCheckpointIndex = currentCheckpoint + 1
@@ -91,7 +91,7 @@ class ParkourService(private val minigame: MinigameCadena) {
         }
         
         // Actualizar checkpoint del equipo
-        game.teamCheckpoints[team.id] = nextCheckpointIndex
+        game.teamCheckpoints[team.teamId] = nextCheckpointIndex
         
         // Notificar al equipo
         team.getOnlinePlayers().forEach { p ->
@@ -146,7 +146,7 @@ class ParkourService(private val minigame: MinigameCadena) {
      */
     private fun respawnTeam(team: Team, game: CadenaGame, arena: Arena) {
         // Obtener el último checkpoint del equipo
-        val checkpointIndex = game.teamCheckpoints.getOrDefault(team.id, -1)
+        val checkpointIndex = game.teamCheckpoints.getOrDefault(team.teamId, -1)
         
         // Determinar ubicación de respawn
         val respawnLocation = if (checkpointIndex == -1) {
@@ -194,7 +194,7 @@ class ParkourService(private val minigame: MinigameCadena) {
             teleportTeam(team, arena.spawnLocation)
             
             // Inicializar checkpoint del equipo
-            game.teamCheckpoints[team.id] = -1
+            game.teamCheckpoints[team.teamId] = -1
         }
     }
     
