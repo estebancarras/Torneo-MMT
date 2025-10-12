@@ -2,7 +2,9 @@ package los5fantasticos.torneo.core
 
 import los5fantasticos.torneo.api.MinigameModule
 import los5fantasticos.torneo.api.PlayerScore
-import org.bukkit.ChatColor
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
@@ -91,8 +93,13 @@ class TorneoManager(private val plugin: Plugin) {
         
         // Notificar al jugador si está online
         plugin.server.getPlayer(playerUUID)?.let { player ->
-            player.sendMessage("${ChatColor.GOLD}[Torneo] ${ChatColor.GREEN}+$points puntos ${ChatColor.GRAY}($reason)")
-            player.sendMessage("${ChatColor.GRAY}Total: ${ChatColor.YELLOW}${score.totalPoints} puntos")
+            val message = Component.text("[Torneo] ", NamedTextColor.GOLD)
+                .append(Component.text("+$points puntos ", NamedTextColor.GREEN))
+                .append(Component.text("($reason)", NamedTextColor.GRAY))
+            val totalMessage = Component.text("Total: ", NamedTextColor.GRAY)
+                .append(Component.text("${score.totalPoints} puntos", NamedTextColor.YELLOW))
+            player.sendMessage(message)
+            player.sendMessage(totalMessage)
         }
         
         // Guardar cambios
@@ -180,37 +187,55 @@ class TorneoManager(private val plugin: Plugin) {
     fun showGlobalRanking(player: Player, limit: Int = 10) {
         val ranking = getGlobalRanking(limit)
         
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}═══════════════════════════════")
-        player.sendMessage("${ChatColor.YELLOW}${ChatColor.BOLD}    RANKING GLOBAL DEL TORNEO")
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}═══════════════════════════════")
+        player.sendMessage(Component.text("═══════════════════════════════", NamedTextColor.GOLD, TextDecoration.BOLD))
+        player.sendMessage(Component.text("    RANKING GLOBAL DEL TORNEO", NamedTextColor.YELLOW, TextDecoration.BOLD))
+        player.sendMessage(Component.text("═══════════════════════════════", NamedTextColor.GOLD, TextDecoration.BOLD))
         
         if (ranking.isEmpty()) {
-            player.sendMessage("${ChatColor.GRAY}No hay datos de jugadores aún.")
+            player.sendMessage(Component.text("No hay datos de jugadores aún.", NamedTextColor.GRAY))
         } else {
             ranking.forEachIndexed { index, score ->
-                val medal = when (index + 1) {
-                    1 -> "${ChatColor.GOLD}🥇"
-                    2 -> "${ChatColor.GRAY}🥈"
-                    3 -> "${ChatColor.GOLD}🥉"
-                    else -> "${ChatColor.WHITE}#${index + 1}"
+                val medalText = when (index + 1) {
+                    1 -> "🥇"
+                    2 -> "🥈"
+                    3 -> "🥉"
+                    else -> "#${index + 1}"
+                }
+                val medalColor = when (index + 1) {
+                    1, 3 -> NamedTextColor.GOLD
+                    2 -> NamedTextColor.GRAY
+                    else -> NamedTextColor.WHITE
                 }
                 
                 val isCurrentPlayer = score.playerUUID == player.uniqueId
-                val nameColor = if (isCurrentPlayer) ChatColor.GREEN else ChatColor.WHITE
-                val arrow = if (isCurrentPlayer) " ${ChatColor.YELLOW}◄" else ""
+                val nameColor = if (isCurrentPlayer) NamedTextColor.GREEN else NamedTextColor.WHITE
                 
-                player.sendMessage("$medal ${nameColor}${score.playerName}${ChatColor.GRAY}: ${ChatColor.YELLOW}${score.totalPoints} pts$arrow")
+                val line = Component.text(medalText, medalColor)
+                    .append(Component.space())
+                    .append(Component.text(score.playerName, nameColor))
+                    .append(Component.text(": ", NamedTextColor.GRAY))
+                    .append(Component.text("${score.totalPoints} pts", NamedTextColor.YELLOW))
+                
+                if (isCurrentPlayer) {
+                    line.append(Component.text(" ◄", NamedTextColor.YELLOW))
+                }
+                
+                player.sendMessage(line)
             }
         }
         
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}═══════════════════════════════")
+        player.sendMessage(Component.text("═══════════════════════════════", NamedTextColor.GOLD, TextDecoration.BOLD))
         
         // Mostrar posición del jugador si no está en el top
         val playerScore = playerScores[player.uniqueId]
         if (playerScore != null) {
             val playerPosition = getGlobalRanking().indexOf(playerScore) + 1
             if (playerPosition > limit) {
-                player.sendMessage("${ChatColor.GRAY}Tu posición: ${ChatColor.WHITE}#$playerPosition ${ChatColor.GRAY}con ${ChatColor.YELLOW}${playerScore.totalPoints} pts")
+                val positionMsg = Component.text("Tu posición: ", NamedTextColor.GRAY)
+                    .append(Component.text("#$playerPosition ", NamedTextColor.WHITE))
+                    .append(Component.text("con ", NamedTextColor.GRAY))
+                    .append(Component.text("${playerScore.totalPoints} pts", NamedTextColor.YELLOW))
+                player.sendMessage(positionMsg)
             }
         }
     }

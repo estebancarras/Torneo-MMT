@@ -1,7 +1,9 @@
 package los5fantasticos.torneo.commands
 
 import los5fantasticos.torneo.core.TorneoManager
-import org.bukkit.ChatColor
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
@@ -25,7 +27,7 @@ class RankingCommand(private val torneoManager: TorneoManager) : CommandExecutor
         args: Array<out String>
     ): Boolean {
         if (sender !is Player) {
-            sender.sendMessage("${ChatColor.RED}Este comando solo puede ser usado por jugadores.")
+            sender.sendMessage(Component.text("Este comando solo puede ser usado por jugadores.", NamedTextColor.RED))
             return true
         }
         
@@ -39,7 +41,7 @@ class RankingCommand(private val torneoManager: TorneoManager) : CommandExecutor
                 // Mostrar top N
                 val limit = args[1].toIntOrNull()
                 if (limit == null || limit <= 0) {
-                    sender.sendMessage("${ChatColor.RED}Número inválido. Usa: /ranking top <número>")
+                    sender.sendMessage(Component.text("Número inválido. Usa: /ranking top <número>", NamedTextColor.RED))
                     return true
                 }
                 torneoManager.showGlobalRanking(sender, limit)
@@ -51,10 +53,12 @@ class RankingCommand(private val torneoManager: TorneoManager) : CommandExecutor
                 val minigame = torneoManager.getMinigame(minigameName)
                 
                 if (minigame == null) {
-                    sender.sendMessage("${ChatColor.RED}Minijuego no encontrado: $minigameName")
-                    sender.sendMessage("${ChatColor.GRAY}Minijuegos disponibles:")
+                    sender.sendMessage(Component.text("Minijuego no encontrado: $minigameName", NamedTextColor.RED))
+                    sender.sendMessage(Component.text("Minijuegos disponibles:", NamedTextColor.GRAY))
                     torneoManager.getAllMinigames().forEach {
-                        sender.sendMessage("${ChatColor.GRAY} - ${ChatColor.WHITE}${it.gameName}")
+                        val msg = Component.text(" - ", NamedTextColor.GRAY)
+                            .append(Component.text(it.gameName, NamedTextColor.WHITE))
+                        sender.sendMessage(msg)
                     }
                     return true
                 }
@@ -72,31 +76,45 @@ class RankingCommand(private val torneoManager: TorneoManager) : CommandExecutor
     private fun showMinigameRanking(player: Player, minigameName: String) {
         val ranking = torneoManager.getMinigameRanking(minigameName, 10)
         
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}═══════════════════════════════")
-        player.sendMessage("${ChatColor.YELLOW}${ChatColor.BOLD}    RANKING - $minigameName")
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}═══════════════════════════════")
+        player.sendMessage(Component.text("═══════════════════════════════", NamedTextColor.GOLD, TextDecoration.BOLD))
+        player.sendMessage(Component.text("    RANKING - $minigameName", NamedTextColor.YELLOW, TextDecoration.BOLD))
+        player.sendMessage(Component.text("═══════════════════════════════", NamedTextColor.GOLD, TextDecoration.BOLD))
         
         if (ranking.isEmpty()) {
-            player.sendMessage("${ChatColor.GRAY}No hay datos para este minijuego aún.")
+            player.sendMessage(Component.text("No hay datos para este minijuego aún.", NamedTextColor.GRAY))
         } else {
             ranking.forEachIndexed { index, score ->
-                val medal = when (index + 1) {
-                    1 -> "${ChatColor.GOLD}🥇"
-                    2 -> "${ChatColor.GRAY}🥈"
-                    3 -> "${ChatColor.GOLD}🥉"
-                    else -> "${ChatColor.WHITE}#${index + 1}"
+                val medalText = when (index + 1) {
+                    1 -> "🥇"
+                    2 -> "🥈"
+                    3 -> "🥉"
+                    else -> "#${index + 1}"
+                }
+                val medalColor = when (index + 1) {
+                    1, 3 -> NamedTextColor.GOLD
+                    2 -> NamedTextColor.GRAY
+                    else -> NamedTextColor.WHITE
                 }
                 
                 val points = score.getPointsForMinigame(minigameName)
                 val isCurrentPlayer = score.playerUUID == player.uniqueId
-                val nameColor = if (isCurrentPlayer) ChatColor.GREEN else ChatColor.WHITE
-                val arrow = if (isCurrentPlayer) " ${ChatColor.YELLOW}◄" else ""
+                val nameColor = if (isCurrentPlayer) NamedTextColor.GREEN else NamedTextColor.WHITE
                 
-                player.sendMessage("$medal ${nameColor}${score.playerName}${ChatColor.GRAY}: ${ChatColor.YELLOW}$points pts$arrow")
+                val line = Component.text(medalText, medalColor)
+                    .append(Component.space())
+                    .append(Component.text(score.playerName, nameColor))
+                    .append(Component.text(": ", NamedTextColor.GRAY))
+                    .append(Component.text("$points pts", NamedTextColor.YELLOW))
+                
+                if (isCurrentPlayer) {
+                    line.append(Component.text(" ◄", NamedTextColor.YELLOW))
+                }
+                
+                player.sendMessage(line)
             }
         }
         
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}═══════════════════════════════")
+        player.sendMessage(Component.text("═══════════════════════════════", NamedTextColor.GOLD, TextDecoration.BOLD))
     }
     
     override fun onTabComplete(

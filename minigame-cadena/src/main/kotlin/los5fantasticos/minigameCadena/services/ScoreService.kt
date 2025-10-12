@@ -1,11 +1,12 @@
 package los5fantasticos.minigameCadena.services
 
 import los5fantasticos.minigameCadena.MinigameCadena
-import los5fantasticos.minigameCadena.config.CadenaScoreConfig
 import los5fantasticos.minigameCadena.game.CadenaGame
 import los5fantasticos.minigameCadena.game.Team
 import los5fantasticos.torneo.core.TorneoManager
-import org.bukkit.ChatColor
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.Sound
 import org.bukkit.entity.Player
 import java.util.UUID
@@ -17,15 +18,15 @@ import java.util.concurrent.ConcurrentHashMap
  * Sigue el patrón estandarizado de asignación de puntos:
  * - Encapsula toda la lógica de negocio sobre cuándo y cuántos puntos se otorgan
  * - Utiliza TorneoManager.addScore() como único punto de entrada para puntos
- * - Lee configuraciones desde CadenaScoreConfig
+ * - Lee configuraciones desde cadena.yml
  * 
- * Sistema de puntos:
- * - Victoria (completar parkour): 100 puntos + bonus por posición
- * - 1er lugar: +50 puntos
- * - 2do lugar: +30 puntos
- * - 3er lugar: +15 puntos
- * - Checkpoint alcanzado: 5 puntos
- * - Participación: 10 puntos
+ * Sistema de puntos (configurable en cadena.yml):
+ * - Victoria (completar parkour): puntuacion.victoria + bonus por posición
+ * - 1er lugar: +puntuacion.primer-lugar
+ * - 2do lugar: +puntuacion.segundo-lugar
+ * - 3er lugar: +puntuacion.tercer-lugar
+ * - Checkpoint alcanzado: puntuacion.checkpoint
+ * - Participación: puntuacion.participacion
  */
 class ScoreService(
     private val minigame: MinigameCadena,
@@ -34,12 +35,16 @@ class ScoreService(
     
     /**
      * Puntos por posición (bonus adicional a la victoria).
+     * Leído dinámicamente desde cadena.yml.
      */
-    private val bonusByPosition = mapOf(
-        1 to CadenaScoreConfig.POINTS_FIRST_PLACE,
-        2 to CadenaScoreConfig.POINTS_SECOND_PLACE,
-        3 to CadenaScoreConfig.POINTS_THIRD_PLACE
-    )
+    private fun getBonusByPosition(position: Int): Int {
+        return when (position) {
+            1 -> minigame.plugin.config.getInt("puntuacion.primer-lugar", 50)
+            2 -> minigame.plugin.config.getInt("puntuacion.segundo-lugar", 30)
+            3 -> minigame.plugin.config.getInt("puntuacion.tercer-lugar", 15)
+            else -> 0
+        }
+    }
     
     /**
      * Orden de llegada por partida.
@@ -90,8 +95,8 @@ class ScoreService(
      * Obtiene los puntos totales para una posición específica (victoria + bonus).
      */
     fun getPointsForPosition(position: Int): Int {
-        val victoryPoints = CadenaScoreConfig.POINTS_VICTORY
-        val bonus = bonusByPosition[position] ?: 0
+        val victoryPoints = minigame.plugin.config.getInt("puntuacion.victoria", 100)
+        val bonus = getBonusByPosition(position)
         return victoryPoints + bonus
     }
     
@@ -101,7 +106,7 @@ class ScoreService(
      * @param playerUUID UUID del jugador
      */
     fun awardPointsForCheckpoint(playerUUID: UUID) {
-        val points = CadenaScoreConfig.POINTS_CHECKPOINT
+        val points = minigame.plugin.config.getInt("puntuacion.checkpoint", 5)
         torneoManager.addScore(playerUUID, minigame.gameName, points, "Checkpoint alcanzado")
     }
     
@@ -111,7 +116,7 @@ class ScoreService(
      * @param playerUUID UUID del jugador
      */
     fun awardPointsForParticipation(playerUUID: UUID) {
-        val points = CadenaScoreConfig.POINTS_PARTICIPATION
+        val points = minigame.plugin.config.getInt("puntuacion.participacion", 10)
         torneoManager.addScore(playerUUID, minigame.gameName, points, "Participación en Cadena")
     }
     
@@ -122,14 +127,14 @@ class ScoreService(
      * @param position Posición en la que terminó (1, 2, 3, etc.)
      */
     fun awardPointsForVictory(playerUUID: UUID, position: Int) {
-        val totalPoints = getPointsForPosition(position)
+        val points = getPointsForPosition(position)
         val positionText = when (position) {
             1 -> "1er lugar"
             2 -> "2do lugar"
             3 -> "3er lugar"
             else -> "${position}° lugar"
         }
-        torneoManager.addScore(playerUUID, minigame.gameName, totalPoints, "Completó parkour - $positionText")
+        torneoManager.addScore(playerUUID, minigame.gameName, points, "Completó parkour en posición $positionText")
     }
     
     /**
@@ -207,24 +212,28 @@ class ScoreService(
      */
     private fun broadcastFinish(game: CadenaGame, team: Team, position: Int) {
         val points = getPointsForPosition(position)
-        val positionText = when (position) {
-            1 -> "${ChatColor.GOLD}${ChatColor.BOLD}1er LUGAR"
-            2 -> "${ChatColor.GRAY}${ChatColor.BOLD}2do LUGAR"
-            3 -> "${ChatColor.GOLD}${ChatColor.BOLD}3er LUGAR"
-            else -> "${ChatColor.WHITE}${ChatColor.BOLD}${position}º LUGAR"
+        val positionComponent = when (position) {
+            1 -> Component.text("1er LUGAR", NamedTextColor.GOLD, TextDecoration.BOLD)
+            2 -> Component.text("2do LUGAR", NamedTextColor.GRAY, TextDecoration.BOLD)
+            3 -> Component.text("3er LUGAR", NamedTextColor.GOLD, TextDecoration.BOLD)
+            else -> Component.text("${position}º LUGAR", NamedTextColor.WHITE, TextDecoration.BOLD)
         }
         
         val teamNames = team.getOnlinePlayers().joinToString(", ") { it.name }
         
         game.teams.forEach { t ->
             t.getOnlinePlayers().forEach { player ->
-                player.sendMessage("")
-                player.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                player.sendMessage("$positionText ${ChatColor.YELLOW}¡Equipo completó el recorrido!")
-                player.sendMessage("${ChatColor.AQUA}Jugadores: ${ChatColor.WHITE}$teamNames")
-                player.sendMessage("${ChatColor.GOLD}Puntos ganados: ${ChatColor.YELLOW}$points")
-                player.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                player.sendMessage("")
+                player.sendMessage(Component.empty())
+                player.sendMessage(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━", NamedTextColor.GREEN, TextDecoration.BOLD))
+                player.sendMessage(positionComponent
+                    .append(Component.space())
+                    .append(Component.text("¡Equipo completó el recorrido!", NamedTextColor.YELLOW)))
+                player.sendMessage(Component.text("Jugadores: ", NamedTextColor.AQUA)
+                    .append(Component.text(teamNames, NamedTextColor.WHITE)))
+                player.sendMessage(Component.text("Puntos ganados: ", NamedTextColor.GOLD)
+                    .append(Component.text(points.toString(), NamedTextColor.YELLOW)))
+                player.sendMessage(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━", NamedTextColor.GREEN, TextDecoration.BOLD))
+                player.sendMessage(Component.empty())
             }
         }
     }
@@ -237,16 +246,16 @@ class ScoreService(
         
         game.teams.forEach { team ->
             team.getOnlinePlayers().forEach { player ->
-                player.sendMessage("")
-                player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}═══════════════════════════════════════")
-                player.sendMessage("${ChatColor.YELLOW}${ChatColor.BOLD}        RESUMEN FINAL - CADENA")
-                player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}═══════════════════════════════════════")
-                player.sendMessage("")
+                player.sendMessage(Component.empty())
+                player.sendMessage(Component.text("═══════════════════════════════════════", NamedTextColor.GOLD, TextDecoration.BOLD))
+                player.sendMessage(Component.text("        RESUMEN FINAL - CADENA", NamedTextColor.YELLOW, TextDecoration.BOLD))
+                player.sendMessage(Component.text("═══════════════════════════════════════", NamedTextColor.GOLD, TextDecoration.BOLD))
+                player.sendMessage(Component.empty())
                 
                 if (records.isEmpty()) {
-                    player.sendMessage("${ChatColor.RED}Ningún equipo completó el recorrido.")
+                    player.sendMessage(Component.text("Ningún equipo completó el recorrido.", NamedTextColor.RED))
                 } else {
-                    player.sendMessage("${ChatColor.AQUA}${ChatColor.BOLD}CLASIFICACIÓN:")
+                    player.sendMessage(Component.text("CLASIFICACIÓN:", NamedTextColor.AQUA, TextDecoration.BOLD))
                     records.forEach { record ->
                         val points = getPointsForPosition(record.position)
                         val teamNames = record.team.getOnlinePlayers().joinToString(", ") { it.name }
@@ -256,27 +265,29 @@ class ScoreService(
                             3 -> "🥉"
                             else -> "  "
                         }
-                        player.sendMessage("${ChatColor.YELLOW}$medal ${record.position}º - ${ChatColor.WHITE}$teamNames ${ChatColor.GRAY}(${points}pts)")
+                        player.sendMessage(Component.text("$medal ${record.position}º - ", NamedTextColor.YELLOW)
+                            .append(Component.text("$teamNames ", NamedTextColor.WHITE))
+                            .append(Component.text("(${points}pts)", NamedTextColor.GRAY)))
                     }
                 }
                 
-                player.sendMessage("")
+                player.sendMessage(Component.empty())
                 
                 // Mostrar equipos que no completaron
                 val unfinishedTeams = game.teams.filter { t -> 
                     records.none { it.team == t }
                 }
                 if (unfinishedTeams.isNotEmpty()) {
-                    player.sendMessage("${ChatColor.GRAY}${ChatColor.BOLD}NO COMPLETARON:")
+                    player.sendMessage(Component.text("NO COMPLETARON:", NamedTextColor.GRAY, TextDecoration.BOLD))
                     unfinishedTeams.forEach { t ->
                         val teamNames = t.getOnlinePlayers().joinToString(", ") { it.name }
-                        player.sendMessage("${ChatColor.GRAY}  - $teamNames")
+                        player.sendMessage(Component.text("  - $teamNames", NamedTextColor.GRAY))
                     }
-                    player.sendMessage("")
+                    player.sendMessage(Component.empty())
                 }
                 
-                player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}═══════════════════════════════════════")
-                player.sendMessage("")
+                player.sendMessage(Component.text("═══════════════════════════════════════", NamedTextColor.GOLD, TextDecoration.BOLD))
+                player.sendMessage(Component.empty())
             }
         }
     }

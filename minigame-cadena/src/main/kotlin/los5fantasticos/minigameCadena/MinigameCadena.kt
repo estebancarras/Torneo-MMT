@@ -70,6 +70,10 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
     override fun onEnable(plugin: Plugin) {
         this.plugin = plugin
         
+        // Cargar configuración del minijuego
+        plugin.saveDefaultConfig()
+        plugin.reloadConfig()
+        
         // PR2: Inicializar GameManager y LobbyManager
         gameManager = GameManager(this)
         lobbyManager = LobbyManager(this, gameManager)
@@ -151,6 +155,10 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         return gameManager.getActiveGames()
             .flatMap { game -> game.teams }
             .flatMap { team -> team.getOnlinePlayers() }
+    }
+    
+    fun awardPoints(player: Player, points: Int, reason: String) {
+        torneoPlugin.torneoManager.addScore(player.uniqueId, gameName, points, reason)
     }
     
     /**
