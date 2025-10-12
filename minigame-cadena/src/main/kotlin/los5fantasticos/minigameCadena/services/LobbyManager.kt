@@ -158,7 +158,7 @@ class LobbyManager(
         
         // PR3: Activar ChainService para esta partida
         plugin.chainService.startChaining(game)
-        broadcastToGame(game, "${ChatColor.AQUA}✓ Encadenamiento activado - Distancia máxima: ${plugin.chainService.getMaxDistance()} bloques")
+        broadcastToGame(game, "${ChatColor.AQUA}✓ Encadenamiento activado - Distancia máxima: ${plugin.chainService.maxDistance} bloques")
         
         // Crear e iniciar temporizador visual con BossBar
         startGameTimer(game)

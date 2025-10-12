@@ -30,23 +30,31 @@ class ChainService(private val minigame: MinigameCadena) {
     
     /**
      * Configuración: Distancia máxima permitida entre jugadores (en bloques).
+     * Leído desde cadena.yml: fisica-cadena.distancia-maxima
      */
-    private val maxDistance = 6.0
+    internal val maxDistance: Double
+        get() = minigame.plugin.config.getDouble("fisica-cadena.distancia-maxima", 6.0)
     
     /**
      * Configuración: Fuerza base del tirón (multiplicador de velocidad).
+     * Leído desde cadena.yml: fisica-cadena.fuerza-atraccion
      */
-    private val pullStrength = 0.3
+    internal val pullStrength: Double
+        get() = minigame.plugin.config.getDouble("fisica-cadena.fuerza-atraccion", 0.3)
     
     /**
      * Configuración: Reducción de fuerza cuando el jugador está en el aire.
+     * Leído desde cadena.yml: fisica-cadena.reduccion-fuerza-aire
      */
-    private val airReduction = 0.5
+    private val airReduction: Double
+        get() = minigame.plugin.config.getDouble("fisica-cadena.reduccion-fuerza-aire", 0.5)
     
     /**
-     * Configuración: Cada cuántos ticks se ejecuta la tarea (3 ticks = 0.15 segundos).
+     * Configuración: Cada cuántos ticks se ejecuta la tarea.
+     * Leído desde cadena.yml: fisica-cadena.intervalo-ticks
      */
-    private val tickInterval = 3L
+    private val tickInterval: Long
+        get() = minigame.plugin.config.getLong("fisica-cadena.intervalo-ticks", 3)
     
     /**
      * Tareas activas de encadenamiento por partida.
@@ -193,16 +201,6 @@ class ChainService(private val minigame: MinigameCadena) {
         
         player.velocity = newVelocity
     }
-    
-    /**
-     * Obtiene la distancia máxima configurada.
-     */
-    fun getMaxDistance(): Double = maxDistance
-    
-    /**
-     * Obtiene la fuerza de tirón configurada.
-     */
-    fun getPullStrength(): Double = pullStrength
     
     /**
      * Verifica si una partida tiene encadenamiento activo.

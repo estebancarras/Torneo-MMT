@@ -1,7 +1,9 @@
 package los5fantasticos.minigameCadena.commands
 
 import los5fantasticos.minigameCadena.MinigameCadena
-import org.bukkit.ChatColor
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
@@ -24,7 +26,7 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         args: Array<out String>
     ): Boolean {
         if (sender !is Player) {
-            sender.sendMessage("${ChatColor.RED}Este comando solo puede ser ejecutado por jugadores.")
+            sender.sendMessage(Component.text("Este comando solo puede ser ejecutado por jugadores.", NamedTextColor.RED))
             return true
         }
         
@@ -48,7 +50,7 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
     private fun handleJoin(player: Player) {
         // Verificar si el jugador ya está en una partida
         if (minigame.gameManager.isPlayerInGame(player)) {
-            player.sendMessage("${ChatColor.RED}Ya estás en una partida de Cadena.")
+            player.sendMessage(Component.text("Ya estás en una partida de Cadena.", NamedTextColor.RED))
             return
         }
         
@@ -56,7 +58,7 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val success = minigame.gameManager.addPlayer(player)
         
         if (!success) {
-            player.sendMessage("${ChatColor.RED}No se pudo unir a la partida. Intenta de nuevo.")
+            player.sendMessage(Component.text("No se pudo unir a la partida. Intenta de nuevo.", NamedTextColor.RED))
             return
         }
         
@@ -64,28 +66,33 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val game = minigame.gameManager.getPlayerGame(player)
         
         if (game == null) {
-            player.sendMessage("${ChatColor.RED}Error al obtener información de la partida.")
+            player.sendMessage(Component.text("Error al obtener información de la partida.", NamedTextColor.RED))
             return
         }
         
         // Notificar al jugador
-        player.sendMessage("")
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━ CADENA ━━━━━━━━━━")
-        player.sendMessage("${ChatColor.GREEN}¡Te has unido al lobby!")
-        player.sendMessage("")
-        player.sendMessage("${ChatColor.YELLOW}Jugadores en lobby: ${ChatColor.WHITE}${game.getTotalPlayers()}")
-        player.sendMessage("${ChatColor.YELLOW}Selecciona tu equipo: ${ChatColor.WHITE}Haz clic en una lana de color")
-        player.sendMessage("")
-        player.sendMessage("${ChatColor.GRAY}Esperando más jugadores...")
-        player.sendMessage("${ChatColor.GRAY}Mínimo: 1 equipo con 2 jugadores para comenzar")
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        player.sendMessage("")
+        player.sendMessage(Component.empty())
+        player.sendMessage(Component.text("━━━━━━━━━━ CADENA ━━━━━━━━━━", NamedTextColor.GOLD, TextDecoration.BOLD))
+        player.sendMessage(Component.text("¡Te has unido al lobby!", NamedTextColor.GREEN))
+        player.sendMessage(Component.empty())
+        player.sendMessage(Component.text("Jugadores en lobby: ", NamedTextColor.YELLOW)
+            .append(Component.text("${game.getTotalPlayers()}", NamedTextColor.WHITE)))
+        player.sendMessage(Component.text("Selecciona tu equipo: ", NamedTextColor.YELLOW)
+            .append(Component.text("Haz clic en una lana de color", NamedTextColor.WHITE)))
+        player.sendMessage(Component.empty())
+        player.sendMessage(Component.text("Esperando más jugadores...", NamedTextColor.GRAY))
+        player.sendMessage(Component.text("Mínimo: 1 equipo con 2 jugadores para comenzar", NamedTextColor.GRAY))
+        player.sendMessage(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━", NamedTextColor.GOLD, TextDecoration.BOLD))
+        player.sendMessage(Component.empty())
         
         // Notificar a otros jugadores en el lobby
         game.teams.forEach { t ->
             t.getOnlinePlayers().forEach { p ->
                 if (p != player) {
-                    p.sendMessage("${ChatColor.GOLD}[Cadena] ${ChatColor.YELLOW}${player.name} ${ChatColor.GRAY}se ha unido al lobby")
+                    val msg = Component.text("[Cadena] ", NamedTextColor.GOLD)
+                        .append(Component.text("${player.name} ", NamedTextColor.YELLOW))
+                        .append(Component.text("se ha unido al lobby", NamedTextColor.GRAY))
+                    p.sendMessage(msg)
                 }
             }
         }
@@ -100,7 +107,7 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
     private fun handleAdmin(player: Player, args: Array<String>) {
         // Verificar permisos
         if (!player.hasPermission("cadena.admin")) {
-            player.sendMessage("${ChatColor.RED}No tienes permiso para usar comandos de administrador.")
+            player.sendMessage(Component.text("No tienes permiso para usar comandos de administrador.", NamedTextColor.RED))
             return
         }
         
@@ -131,7 +138,7 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
      */
     private fun handleCreateArena(player: Player, args: Array<String>) {
         if (args.size < 2) {
-            player.sendMessage("${ChatColor.RED}Uso: /cadena admin create <nombre>")
+            player.sendMessage(Component.text("Uso: /cadena admin create <nombre>", NamedTextColor.RED))
             return
         }
         
@@ -139,13 +146,13 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         
         // Verificar si ya existe
         if (minigame.arenaManager.arenaExists(arenaName)) {
-            player.sendMessage("${ChatColor.RED}Ya existe una arena con ese nombre.")
+            player.sendMessage(Component.text("Ya existe una arena con ese nombre.", NamedTextColor.RED))
             return
         }
         
         // Verificar si ya está editando otra arena
         if (minigame.arenaManager.isEditing(player.name)) {
-            player.sendMessage("${ChatColor.RED}Ya estás editando una arena. Usa /cadena admin save o /cadena admin cancel primero.")
+            player.sendMessage(Component.text("Ya estás editando una arena. Usa /cadena admin save o /cadena admin cancel primero.", NamedTextColor.RED))
             return
         }
         
@@ -153,13 +160,13 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val arena = minigame.arenaManager.createArena(arenaName, player.location)
         minigame.arenaManager.startEditing(player.name, arena)
         
-        player.sendMessage("${ChatColor.GREEN}✓ Arena '$arenaName' creada en modo edición")
-        player.sendMessage("${ChatColor.YELLOW}Spawn establecido en tu ubicación actual")
-        player.sendMessage("${ChatColor.GRAY}Usa los siguientes comandos para configurarla:")
-        player.sendMessage("${ChatColor.GRAY}  /cadena admin addcheckpoint - Añadir checkpoints")
-        player.sendMessage("${ChatColor.GRAY}  /cadena admin setfinish - Establecer meta")
-        player.sendMessage("${ChatColor.GRAY}  /cadena admin setminheight <Y> - Altura mínima")
-        player.sendMessage("${ChatColor.GRAY}  /cadena admin save - Guardar arena")
+        player.sendMessage(Component.text("✓ Arena '$arenaName' creada en modo edición", NamedTextColor.GREEN))
+        player.sendMessage(Component.text("Spawn establecido en tu ubicación actual", NamedTextColor.YELLOW))
+        player.sendMessage(Component.text("Usa los siguientes comandos para configurarla:", NamedTextColor.GRAY))
+        player.sendMessage(Component.text("  /cadena admin addcheckpoint - Añadir checkpoints", NamedTextColor.GRAY))
+        player.sendMessage(Component.text("  /cadena admin setfinish - Establecer meta", NamedTextColor.GRAY))
+        player.sendMessage(Component.text("  /cadena admin setminheight <Y> - Altura mínima", NamedTextColor.GRAY))
+        player.sendMessage(Component.text("  /cadena admin save - Guardar arena", NamedTextColor.GRAY))
     }
     
     /**
@@ -169,8 +176,8 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val arena = minigame.arenaManager.getEditingArena(player.name)
         
         if (arena == null) {
-            player.sendMessage("${ChatColor.RED}No estás editando ninguna arena.")
-            player.sendMessage("${ChatColor.YELLOW}Usa /cadena admin create <nombre> primero.")
+            player.sendMessage(Component.text("No estás editando ninguna arena.", NamedTextColor.RED))
+            player.sendMessage(Component.text("Usa /cadena admin create <nombre> primero.", NamedTextColor.YELLOW))
             return
         }
         
@@ -178,8 +185,8 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val newArena = arena.copy(spawnLocation = player.location.clone())
         minigame.arenaManager.startEditing(player.name, newArena)
         
-        player.sendMessage("${ChatColor.GREEN}✓ Spawn actualizado")
-        player.sendMessage("${ChatColor.GRAY}Ubicación: ${player.location.blockX}, ${player.location.blockY}, ${player.location.blockZ}")
+        player.sendMessage(Component.text("✓ Spawn actualizado", NamedTextColor.GREEN))
+        player.sendMessage(Component.text("Ubicación: ${player.location.blockX}, ${player.location.blockY}, ${player.location.blockZ}", NamedTextColor.GRAY))
     }
     
     /**
@@ -189,14 +196,14 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val arena = minigame.arenaManager.getEditingArena(player.name)
         
         if (arena == null) {
-            player.sendMessage("${ChatColor.RED}No estás editando ninguna arena.")
-            player.sendMessage("${ChatColor.YELLOW}Usa /cadena admin create <nombre> primero.")
+            player.sendMessage(Component.text("No estás editando ninguna arena.", NamedTextColor.RED))
+            player.sendMessage(Component.text("Usa /cadena admin create <nombre> primero.", NamedTextColor.YELLOW))
             return
         }
         
         arena.addCheckpoint(player.location.clone())
-        player.sendMessage("${ChatColor.GREEN}✓ Checkpoint ${arena.getCheckpointCount()} añadido")
-        player.sendMessage("${ChatColor.GRAY}Ubicación: ${player.location.blockX}, ${player.location.blockY}, ${player.location.blockZ}")
+        player.sendMessage(Component.text("✓ Checkpoint ${arena.getCheckpointCount()} añadido", NamedTextColor.GREEN))
+        player.sendMessage(Component.text("Ubicación: ${player.location.blockX}, ${player.location.blockY}, ${player.location.blockZ}", NamedTextColor.GRAY))
     }
     
     /**
@@ -206,8 +213,8 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val arena = minigame.arenaManager.getEditingArena(player.name)
         
         if (arena == null) {
-            player.sendMessage("${ChatColor.RED}No estás editando ninguna arena.")
-            player.sendMessage("${ChatColor.YELLOW}Usa /cadena admin create <nombre> primero.")
+            player.sendMessage(Component.text("No estás editando ninguna arena.", NamedTextColor.RED))
+            player.sendMessage(Component.text("Usa /cadena admin create <nombre> primero.", NamedTextColor.YELLOW))
             return
         }
         
@@ -215,8 +222,8 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val newArena = arena.copy(finishLocation = player.location.clone())
         minigame.arenaManager.startEditing(player.name, newArena)
         
-        player.sendMessage("${ChatColor.GREEN}✓ Meta establecida")
-        player.sendMessage("${ChatColor.GRAY}Ubicación: ${player.location.blockX}, ${player.location.blockY}, ${player.location.blockZ}")
+        player.sendMessage(Component.text("✓ Meta establecida", NamedTextColor.GREEN))
+        player.sendMessage(Component.text("Ubicación: ${player.location.blockX}, ${player.location.blockY}, ${player.location.blockZ}", NamedTextColor.GRAY))
     }
     
     /**
@@ -224,21 +231,21 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
      */
     private fun handleSetMinHeight(player: Player, args: Array<String>) {
         if (args.size < 2) {
-            player.sendMessage("${ChatColor.RED}Uso: /cadena admin setminheight <altura>")
+            player.sendMessage(Component.text("Uso: /cadena admin setminheight <altura>", NamedTextColor.RED))
             return
         }
         
         val height = args[1].toDoubleOrNull()
         if (height == null) {
-            player.sendMessage("${ChatColor.RED}Altura inválida. Debe ser un número.")
+            player.sendMessage(Component.text("Altura inválida. Debe ser un número.", NamedTextColor.RED))
             return
         }
         
         val arena = minigame.arenaManager.getEditingArena(player.name)
         
         if (arena == null) {
-            player.sendMessage("${ChatColor.RED}No estás editando ninguna arena.")
-            player.sendMessage("${ChatColor.YELLOW}Usa /cadena admin create <nombre> primero.")
+            player.sendMessage(Component.text("No estás editando ninguna arena.", NamedTextColor.RED))
+            player.sendMessage(Component.text("Usa /cadena admin create <nombre> primero.", NamedTextColor.YELLOW))
             return
         }
         
@@ -246,7 +253,7 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val newArena = arena.copy(minHeight = height)
         minigame.arenaManager.startEditing(player.name, newArena)
         
-        player.sendMessage("${ChatColor.GREEN}✓ Altura mínima establecida: $height")
+        player.sendMessage(Component.text("✓ Altura mínima establecida: $height", NamedTextColor.GREEN))
     }
     
     /**
@@ -256,8 +263,8 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         minigame.arenaManager.setLobbyLocation(player.location)
         minigame.arenaManager.saveArenas()
         
-        player.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}✓ Ubicación del lobby establecida!")
-        player.sendMessage("${ChatColor.GRAY}Los jugadores aparecerán aquí cuando se unan.")
+        player.sendMessage(Component.text("✓ Ubicación del lobby establecida!", NamedTextColor.GREEN, TextDecoration.BOLD))
+        player.sendMessage(Component.text("Los jugadores aparecerán aquí cuando se unan.", NamedTextColor.GRAY))
     }
     
     /**
@@ -267,13 +274,13 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val arena = minigame.arenaManager.getEditingArena(player.name)
         
         if (arena == null) {
-            player.sendMessage("${ChatColor.RED}No estás editando ninguna arena.")
+            player.sendMessage(Component.text("No estás editando ninguna arena.", NamedTextColor.RED))
             return
         }
         
         // Validar que tenga al menos la meta configurada
         if (arena.checkpoints.isEmpty()) {
-            player.sendMessage("${ChatColor.YELLOW}⚠ Advertencia: La arena no tiene checkpoints.")
+            player.sendMessage(Component.text("⚠ Advertencia: La arena no tiene checkpoints.", NamedTextColor.YELLOW))
         }
         
         // Guardar arena
@@ -283,9 +290,9 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         // Persistir en disco
         minigame.arenaManager.saveArenas()
         
-        player.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}✓ Arena '${arena.name}' guardada exitosamente!")
-        player.sendMessage("${ChatColor.GRAY}Checkpoints: ${arena.getCheckpointCount()}")
-        player.sendMessage("${ChatColor.GRAY}Altura mínima: ${arena.minHeight}")
+        player.sendMessage(Component.text("✓ Arena '${arena.name}' guardada exitosamente!", NamedTextColor.GREEN, TextDecoration.BOLD))
+        player.sendMessage(Component.text("Checkpoints: ${arena.getCheckpointCount()}", NamedTextColor.GRAY))
+        player.sendMessage(Component.text("Altura mínima: ${arena.minHeight}", NamedTextColor.GRAY))
     }
     
     /**
@@ -295,12 +302,12 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val arena = minigame.arenaManager.getEditingArena(player.name)
         
         if (arena == null) {
-            player.sendMessage("${ChatColor.RED}No estás editando ninguna arena.")
+            player.sendMessage(Component.text("No estás editando ninguna arena.", NamedTextColor.RED))
             return
         }
         
         minigame.arenaManager.stopEditing(player.name)
-        player.sendMessage("${ChatColor.YELLOW}Edición de arena '${arena.name}' cancelada.")
+        player.sendMessage(Component.text("Edición de arena '${arena.name}' cancelada.", NamedTextColor.YELLOW))
     }
     
     /**
@@ -310,18 +317,19 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
         val arenas = minigame.arenaManager.getAllArenas()
         
         if (arenas.isEmpty()) {
-            player.sendMessage("${ChatColor.YELLOW}No hay arenas configuradas.")
-            player.sendMessage("${ChatColor.GRAY}Usa /cadena admin create <nombre> para crear una.")
+            player.sendMessage(Component.text("No hay arenas configuradas.", NamedTextColor.YELLOW))
+            player.sendMessage(Component.text("Usa /cadena admin create <nombre> para crear una.", NamedTextColor.GRAY))
             return
         }
         
-        player.sendMessage("")
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━ Arenas (${arenas.size}) ━━━━━━")
+        player.sendMessage(Component.empty())
+        player.sendMessage(Component.text("━━━━━━ Arenas (${arenas.size}) ━━━━━━", NamedTextColor.GOLD, TextDecoration.BOLD))
         arenas.forEach { arena ->
-            player.sendMessage("${ChatColor.YELLOW}• ${arena.name} ${ChatColor.GRAY}(${arena.getCheckpointCount()} checkpoints)")
+            player.sendMessage(Component.text("• ${arena.name} ", NamedTextColor.YELLOW)
+                .append(Component.text("(${arena.getCheckpointCount()} checkpoints)", NamedTextColor.GRAY)))
         }
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        player.sendMessage("")
+        player.sendMessage(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━", NamedTextColor.GOLD, TextDecoration.BOLD))
+        player.sendMessage(Component.empty())
     }
     
     /**
@@ -329,19 +337,19 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
      */
     private fun handleDeleteArena(player: Player, args: Array<String>) {
         if (args.size < 2) {
-            player.sendMessage("${ChatColor.RED}Uso: /cadena admin delete <nombre>")
+            player.sendMessage(Component.text("Uso: /cadena admin delete <nombre>", NamedTextColor.RED))
             return
         }
         
         val arenaName = args[1]
         
         if (!minigame.arenaManager.arenaExists(arenaName)) {
-            player.sendMessage("${ChatColor.RED}No existe una arena con ese nombre.")
+            player.sendMessage(Component.text("No existe una arena con ese nombre.", NamedTextColor.RED))
             return
         }
         
         minigame.arenaManager.deleteArena(arenaName)
-        player.sendMessage("${ChatColor.GREEN}✓ Arena '$arenaName' eliminada.")
+        player.sendMessage(Component.text("✓ Arena '$arenaName' eliminada.", NamedTextColor.GREEN))
     }
     
     /**
@@ -355,68 +363,86 @@ class CadenaCommand(private val minigame: MinigameCadena) : CommandExecutor, Tab
             // Buscar por nombre
             val arenaName = args[1]
             minigame.arenaManager.getArena(arenaName) ?: run {
-                player.sendMessage("${ChatColor.RED}No existe una arena con ese nombre.")
+                player.sendMessage(Component.text("No existe una arena con ese nombre.", NamedTextColor.RED))
                 return
             }
         } else if (editingArena != null) {
             // Mostrar arena en edición
             editingArena
         } else {
-            player.sendMessage("${ChatColor.RED}Especifica el nombre de la arena: /cadena admin info <nombre>")
-            player.sendMessage("${ChatColor.GRAY}O usa /cadena admin list para ver todas las arenas.")
+            player.sendMessage(Component.text("Especifica el nombre de la arena: /cadena admin info <nombre>", NamedTextColor.RED))
+            player.sendMessage(Component.text("O usa /cadena admin list para ver todas las arenas.", NamedTextColor.GRAY))
             return
         }
         
-        player.sendMessage("")
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━ Arena: ${arena.name} ━━━━━━")
-        player.sendMessage("${ChatColor.YELLOW}Spawn: ${ChatColor.WHITE}${arena.spawnLocation.blockX}, ${arena.spawnLocation.blockY}, ${arena.spawnLocation.blockZ}")
-        player.sendMessage("${ChatColor.YELLOW}Checkpoints: ${ChatColor.WHITE}${arena.getCheckpointCount()}")
+        player.sendMessage(Component.empty())
+        player.sendMessage(Component.text("━━━━━━ Arena: ${arena.name} ━━━━━━", NamedTextColor.GOLD, TextDecoration.BOLD))
+        player.sendMessage(Component.text("Spawn: ", NamedTextColor.YELLOW)
+            .append(Component.text("${arena.spawnLocation.blockX}, ${arena.spawnLocation.blockY}, ${arena.spawnLocation.blockZ}", NamedTextColor.WHITE)))
+        player.sendMessage(Component.text("Checkpoints: ", NamedTextColor.YELLOW)
+            .append(Component.text("${arena.getCheckpointCount()}", NamedTextColor.WHITE)))
         arena.checkpoints.forEachIndexed { index, checkpoint ->
-            player.sendMessage("${ChatColor.GRAY}  ${index + 1}. ${checkpoint.blockX}, ${checkpoint.blockY}, ${checkpoint.blockZ}")
+            player.sendMessage(Component.text("  ${index + 1}. ${checkpoint.blockX}, ${checkpoint.blockY}, ${checkpoint.blockZ}", NamedTextColor.GRAY))
         }
-        player.sendMessage("${ChatColor.YELLOW}Meta: ${ChatColor.WHITE}${arena.finishLocation.blockX}, ${arena.finishLocation.blockY}, ${arena.finishLocation.blockZ}")
-        player.sendMessage("${ChatColor.YELLOW}Altura mínima: ${ChatColor.WHITE}${arena.minHeight}")
+        player.sendMessage(Component.text("Meta: ", NamedTextColor.YELLOW)
+            .append(Component.text("${arena.finishLocation.blockX}, ${arena.finishLocation.blockY}, ${arena.finishLocation.blockZ}", NamedTextColor.WHITE)))
+        player.sendMessage(Component.text("Altura mínima: ", NamedTextColor.YELLOW)
+            .append(Component.text("${arena.minHeight}", NamedTextColor.WHITE)))
         if (editingArena != null) {
-            player.sendMessage("${ChatColor.AQUA}Estado: ${ChatColor.WHITE}En edición")
+            player.sendMessage(Component.text("Estado: ", NamedTextColor.AQUA)
+                .append(Component.text("En edición", NamedTextColor.WHITE)))
         }
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        player.sendMessage("")
+        player.sendMessage(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━", NamedTextColor.GOLD, TextDecoration.BOLD))
+        player.sendMessage(Component.empty())
     }
     
     /**
      * Muestra la ayuda de comandos de administrador.
      */
     private fun sendAdminHelp(player: Player) {
-        player.sendMessage("")
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━ Comandos Admin ━━━━━━")
-        player.sendMessage("${ChatColor.AQUA}Gestión de Arenas:")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin create <nombre> ${ChatColor.GRAY}- Crear arena")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin list ${ChatColor.GRAY}- Listar arenas")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin delete <nombre> ${ChatColor.GRAY}- Eliminar arena")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin info [nombre] ${ChatColor.GRAY}- Ver info de arena")
-        player.sendMessage("")
-        player.sendMessage("${ChatColor.AQUA}Edición de Arena:")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin setspawn ${ChatColor.GRAY}- Establecer spawn")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin addcheckpoint ${ChatColor.GRAY}- Añadir checkpoint")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin setfinish ${ChatColor.GRAY}- Establecer meta")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin setminheight <Y> ${ChatColor.GRAY}- Altura mínima")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin setlobby ${ChatColor.GRAY}- Establecer lobby")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin save ${ChatColor.GRAY}- Guardar arena")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin cancel ${ChatColor.GRAY}- Cancelar edición")
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        player.sendMessage("")
+        player.sendMessage(Component.empty())
+        player.sendMessage(Component.text("━━━━━━ Comandos Admin ━━━━━━", NamedTextColor.GOLD, TextDecoration.BOLD))
+        player.sendMessage(Component.text("Gestión de Arenas:", NamedTextColor.AQUA))
+        player.sendMessage(Component.text("/cadena admin create <nombre> ", NamedTextColor.YELLOW)
+            .append(Component.text("- Crear arena", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("/cadena admin list ", NamedTextColor.YELLOW)
+            .append(Component.text("- Listar arenas", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("/cadena admin delete <nombre> ", NamedTextColor.YELLOW)
+            .append(Component.text("- Eliminar arena", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("/cadena admin info [nombre] ", NamedTextColor.YELLOW)
+            .append(Component.text("- Ver info de arena", NamedTextColor.GRAY)))
+        player.sendMessage(Component.empty())
+        player.sendMessage(Component.text("Edición de Arena:", NamedTextColor.AQUA))
+        player.sendMessage(Component.text("/cadena admin setspawn ", NamedTextColor.YELLOW)
+            .append(Component.text("- Establecer spawn", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("/cadena admin addcheckpoint ", NamedTextColor.YELLOW)
+            .append(Component.text("- Añadir checkpoint", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("/cadena admin setfinish ", NamedTextColor.YELLOW)
+            .append(Component.text("- Establecer meta", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("/cadena admin setminheight <Y> ", NamedTextColor.YELLOW)
+            .append(Component.text("- Altura mínima", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("/cadena admin setlobby ", NamedTextColor.YELLOW)
+            .append(Component.text("- Establecer lobby", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("/cadena admin save ", NamedTextColor.YELLOW)
+            .append(Component.text("- Guardar arena", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("/cadena admin cancel ", NamedTextColor.YELLOW)
+            .append(Component.text("- Cancelar edición", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━", NamedTextColor.GOLD, TextDecoration.BOLD))
+        player.sendMessage(Component.empty())
     }
     
     /**
      * Muestra la ayuda del comando.
      */
     private fun sendHelp(player: Player) {
-        player.sendMessage("")
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━ Cadena ━━━━━━━━━━")
-        player.sendMessage("${ChatColor.YELLOW}/cadena join ${ChatColor.GRAY}- Unirse a una partida")
-        player.sendMessage("${ChatColor.YELLOW}/cadena admin ${ChatColor.GRAY}- Comandos de administración")
-        player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        player.sendMessage("")
+        player.sendMessage(Component.empty())
+        player.sendMessage(Component.text("━━━━━━━━━━ Cadena ━━━━━━━━━━", NamedTextColor.GOLD, TextDecoration.BOLD))
+        player.sendMessage(Component.text("/cadena join ", NamedTextColor.YELLOW)
+            .append(Component.text("- Unirse a una partida", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("/cadena admin ", NamedTextColor.YELLOW)
+            .append(Component.text("- Comandos de administración", NamedTextColor.GRAY)))
+        player.sendMessage(Component.text("━━━━━━━━━━━━━━━━━━━━━━━━━━━━", NamedTextColor.GOLD, TextDecoration.BOLD))
+        player.sendMessage(Component.empty())
     }
     
     override fun onTabComplete(
