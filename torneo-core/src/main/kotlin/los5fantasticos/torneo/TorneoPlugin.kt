@@ -3,6 +3,8 @@ package los5fantasticos.torneo
 import los5fantasticos.torneo.api.MinigameModule
 import los5fantasticos.torneo.core.TorneoManager
 import los5fantasticos.torneo.commands.RankingCommand
+import los5fantasticos.torneo.listeners.PlayerConnectionListener
+import los5fantasticos.torneo.services.GlobalScoreboardService
 import org.bukkit.ChatColor
 import org.bukkit.plugin.java.JavaPlugin
 
@@ -33,6 +35,11 @@ class TorneoPlugin : JavaPlugin() {
         private set
     
     /**
+     * Servicio de scoreboard global.
+     */
+    private lateinit var scoreboardService: GlobalScoreboardService
+    
+    /**
      * Mapa de módulos de minijuegos cargados.
      */
     private val minigameModules = mutableListOf<MinigameModule>()
@@ -54,6 +61,16 @@ class TorneoPlugin : JavaPlugin() {
         torneoManager = TorneoManager(this)
         logger.info("✓ TorneoManager inicializado")
         
+        // Inicializar el servicio de scoreboard global
+        scoreboardService = GlobalScoreboardService(this, torneoManager)
+        scoreboardService.initialize()
+        scoreboardService.startUpdating()
+        logger.info("✓ GlobalScoreboardService inicializado")
+        
+        // Registrar listeners
+        server.pluginManager.registerEvents(PlayerConnectionListener(scoreboardService), this)
+        logger.info("✓ Listeners registrados")
+        
         // Registrar comandos del core
         registerCoreCommands()
         logger.info("✓ Comandos del core registrados")
@@ -68,6 +85,13 @@ class TorneoPlugin : JavaPlugin() {
     }
     
     override fun onDisable() {
+        logger.info("Deshabilitando servicios...")
+        
+        // Detener el servicio de scoreboard
+        if (::scoreboardService.isInitialized) {
+            scoreboardService.shutdown()
+        }
+        
         logger.info("Deshabilitando minijuegos...")
         
         // Deshabilitar todos los minijuegos

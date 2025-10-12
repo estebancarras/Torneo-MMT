@@ -69,17 +69,37 @@ class TorneoManager(private val plugin: Plugin) {
      * @param reason Razón por la que recibe los puntos
      */
     fun addPoints(player: Player, minigameName: String, points: Int, reason: String) {
-        val score = getOrCreatePlayerScore(player)
+        addScore(player.uniqueId, minigameName, points, reason)
+    }
+    
+    /**
+     * Añade puntos a un jugador desde un minijuego específico.
+     * Método principal de asignación de puntos - Punto de entrada único.
+     * 
+     * @param playerUUID UUID del jugador que recibe los puntos
+     * @param minigameName Nombre del minijuego que otorga los puntos
+     * @param points Cantidad de puntos
+     * @param reason Razón por la que recibe los puntos
+     */
+    fun addScore(playerUUID: UUID, minigameName: String, points: Int, reason: String) {
+        val score = playerScores.getOrPut(playerUUID) {
+            val player = plugin.server.getPlayer(playerUUID)
+            PlayerScore(playerUUID, player?.name ?: "Unknown")
+        }
+        
         score.addPoints(minigameName, points)
         
-        // Notificar al jugador
-        player.sendMessage("${ChatColor.GOLD}[Torneo] ${ChatColor.GREEN}+$points puntos ${ChatColor.GRAY}($reason)")
-        player.sendMessage("${ChatColor.GRAY}Total: ${ChatColor.YELLOW}${score.totalPoints} puntos")
+        // Notificar al jugador si está online
+        plugin.server.getPlayer(playerUUID)?.let { player ->
+            player.sendMessage("${ChatColor.GOLD}[Torneo] ${ChatColor.GREEN}+$points puntos ${ChatColor.GRAY}($reason)")
+            player.sendMessage("${ChatColor.GRAY}Total: ${ChatColor.YELLOW}${score.totalPoints} puntos")
+        }
         
         // Guardar cambios
         saveScores()
         
-        plugin.logger.info("${player.name} ganó $points puntos en $minigameName ($reason). Total: ${score.totalPoints}")
+        val playerName = plugin.server.getPlayer(playerUUID)?.name ?: "Unknown"
+        plugin.logger.info("$playerName ganó $points puntos en $minigameName ($reason). Total: ${score.totalPoints}")
     }
     
     /**

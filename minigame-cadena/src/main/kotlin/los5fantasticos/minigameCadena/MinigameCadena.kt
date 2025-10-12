@@ -82,8 +82,8 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         arenaManager = ArenaManager()
         arenaManager.initialize(plugin.dataFolder)
         
-        // PR5: Inicializar ScoreService
-        scoreService = ScoreService(this)
+        // PR5: Inicializar ScoreService con TorneoManager
+        scoreService = ScoreService(this, torneoPlugin.torneoManager)
         
         // PR2 y PR4: Registrar listeners
         plugin.server.pluginManager.registerEvents(PlayerQuitListener(this), plugin)

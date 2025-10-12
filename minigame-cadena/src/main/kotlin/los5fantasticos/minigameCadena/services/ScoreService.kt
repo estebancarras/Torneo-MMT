@@ -1,8 +1,10 @@
 package los5fantasticos.minigameCadena.services
 
 import los5fantasticos.minigameCadena.MinigameCadena
+import los5fantasticos.minigameCadena.config.CadenaScoreConfig
 import los5fantasticos.minigameCadena.game.CadenaGame
 import los5fantasticos.minigameCadena.game.Team
+import los5fantasticos.torneo.core.TorneoManager
 import org.bukkit.ChatColor
 import org.bukkit.Sound
 import org.bukkit.entity.Player
@@ -10,25 +12,33 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Gestiona la puntuación y el orden de llegada de los equipos.
+ * Servicio de puntuación para el minijuego Cadena.
  * 
- * Sistema de puntos por orden de llegada:
- * - 1er lugar: 100 puntos
- * - 2do lugar: 75 puntos
- * - 3er lugar: 50 puntos
- * - 4to lugar: 25 puntos
- * - No completaron: 0 puntos
+ * Sigue el patrón estandarizado de asignación de puntos:
+ * - Encapsula toda la lógica de negocio sobre cuándo y cuántos puntos se otorgan
+ * - Utiliza TorneoManager.addScore() como único punto de entrada para puntos
+ * - Lee configuraciones desde CadenaScoreConfig
+ * 
+ * Sistema de puntos:
+ * - Victoria (completar parkour): 100 puntos + bonus por posición
+ * - 1er lugar: +50 puntos
+ * - 2do lugar: +30 puntos
+ * - 3er lugar: +15 puntos
+ * - Checkpoint alcanzado: 5 puntos
+ * - Participación: 10 puntos
  */
-class ScoreService(private val minigame: MinigameCadena) {
+class ScoreService(
+    private val minigame: MinigameCadena,
+    private val torneoManager: TorneoManager
+) {
     
     /**
-     * Puntos por posición.
+     * Puntos por posición (bonus adicional a la victoria).
      */
-    private val pointsByPosition = mapOf(
-        1 to 100,
-        2 to 75,
-        3 to 50,
-        4 to 25
+    private val bonusByPosition = mapOf(
+        1 to CadenaScoreConfig.POINTS_FIRST_PLACE,
+        2 to CadenaScoreConfig.POINTS_SECOND_PLACE,
+        3 to CadenaScoreConfig.POINTS_THIRD_PLACE
     )
     
     /**
@@ -77,10 +87,49 @@ class ScoreService(private val minigame: MinigameCadena) {
     }
     
     /**
-     * Obtiene los puntos para una posición específica.
+     * Obtiene los puntos totales para una posición específica (victoria + bonus).
      */
     fun getPointsForPosition(position: Int): Int {
-        return pointsByPosition[position] ?: 0
+        val victoryPoints = CadenaScoreConfig.POINTS_VICTORY
+        val bonus = bonusByPosition[position] ?: 0
+        return victoryPoints + bonus
+    }
+    
+    /**
+     * Otorga puntos a un jugador por alcanzar un checkpoint.
+     * 
+     * @param playerUUID UUID del jugador
+     */
+    fun awardPointsForCheckpoint(playerUUID: UUID) {
+        val points = CadenaScoreConfig.POINTS_CHECKPOINT
+        torneoManager.addScore(playerUUID, minigame.gameName, points, "Checkpoint alcanzado")
+    }
+    
+    /**
+     * Otorga puntos de participación a un jugador.
+     * 
+     * @param playerUUID UUID del jugador
+     */
+    fun awardPointsForParticipation(playerUUID: UUID) {
+        val points = CadenaScoreConfig.POINTS_PARTICIPATION
+        torneoManager.addScore(playerUUID, minigame.gameName, points, "Participación en Cadena")
+    }
+    
+    /**
+     * Otorga puntos a un jugador por completar el parkour.
+     * 
+     * @param playerUUID UUID del jugador
+     * @param position Posición en la que terminó (1, 2, 3, etc.)
+     */
+    fun awardPointsForVictory(playerUUID: UUID, position: Int) {
+        val totalPoints = getPointsForPosition(position)
+        val positionText = when (position) {
+            1 -> "1er lugar"
+            2 -> "2do lugar"
+            3 -> "3er lugar"
+            else -> "${position}° lugar"
+        }
+        torneoManager.addScore(playerUUID, minigame.gameName, totalPoints, "Completó parkour - $positionText")
     }
     
     /**
@@ -104,21 +153,20 @@ class ScoreService(private val minigame: MinigameCadena) {
             val points = getPointsForPosition(record.position)
             pointsMap[record.team] = points
             
-            // Asignar puntos a cada jugador del equipo a través del TorneoManager
-            record.team.getOnlinePlayers().forEach { player ->
-                minigame.torneoPlugin.torneoManager.addPoints(
-                    player, 
-                    minigame.gameName, 
-                    points, 
-                    "Posición ${record.position} en parkour"
-                )
+            // Asignar puntos a cada jugador del equipo usando el método estandarizado
+            record.team.players.forEach { playerUUID ->
+                awardPointsForVictory(playerUUID, record.position)
             }
         }
         
-        // Equipos que no completaron reciben 0 puntos
+        // Equipos que no completaron reciben puntos de participación
         game.teams.forEach { team ->
             if (!pointsMap.containsKey(team)) {
                 pointsMap[team] = 0
+                // Dar puntos de participación a los jugadores
+                team.players.forEach { playerUUID ->
+                    awardPointsForParticipation(playerUUID)
+                }
             }
         }
         
