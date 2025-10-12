@@ -10,6 +10,10 @@ import org.bukkit.plugin.Plugin
  * 
  * Esta interfaz sigue el patrón Service Provider Interface (SPI) de Java,
  * permitiendo el descubrimiento automático de módulos mediante ServiceLoader.
+ * 
+ * NOTA: La asignación de puntos NO es responsabilidad de esta interfaz.
+ * Cada minijuego debe implementar su propio ScoreService dedicado que use
+ * TorneoManager.addScore(UUID, ...) como punto único de entrada.
  */
 interface MinigameModule {
     
@@ -55,16 +59,6 @@ interface MinigameModule {
      * @return Lista de jugadores en el juego
      */
     fun getActivePlayers(): List<Player>
-    
-    /**
-     * Notifica al minijuego que un jugador ha ganado puntos.
-     * El minijuego debe comunicarse con el TorneoManager para actualizar el puntaje global.
-     * 
-     * @param player Jugador que ganó puntos
-     * @param points Cantidad de puntos ganados
-     * @param reason Razón por la que ganó puntos (ej: "Victoria", "Objetivo completado")
-     */
-    fun awardPoints(player: Player, points: Int, reason: String)
     
     /**
      * Proporciona los ejecutores de comandos que este minijuego necesita registrar.

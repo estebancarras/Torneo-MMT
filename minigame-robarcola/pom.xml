@@ -53,10 +53,10 @@
     </build>
 
     <dependencies>
-        <!-- Spigot API -->
+        <!-- Paper API (incluye Adventure nativo) -->
         <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
         </dependency>
         
         <!-- Kotlin Standard Library -->

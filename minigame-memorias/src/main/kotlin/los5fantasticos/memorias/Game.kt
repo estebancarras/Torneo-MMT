@@ -578,13 +578,13 @@ class Game(
             }
             
             // Otorgar puntos
-            memoriasManager.awardPoints(winner, 50, "Ganador del juego de Memorias")
+            memoriasManager.torneoPlugin.torneoManager.addScore(winner.uniqueId, memoriasManager.gameName, 50, "Ganador del juego de Memorias")
             memoriasManager.recordVictory(winner)
             
             players.forEach { player ->
                 val pairsFound = playerScores[player] ?: 0
                 if (pairsFound > 0) {
-                    memoriasManager.awardPoints(player, pairsFound * 5, "Participación en Memorias")
+                    memoriasManager.torneoPlugin.torneoManager.addScore(player.uniqueId, memoriasManager.gameName, pairsFound * 5, "Participación en Memorias")
                 }
                 memoriasManager.recordGamePlayed(player)
             }
@@ -638,7 +638,7 @@ class Game(
         winner.playSound(winner.location, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f)
         
         // Otorgar puntos
-        memoriasManager.awardPoints(winner, 50, "Victoria")
+        memoriasManager.torneoPlugin.torneoManager.addScore(winner.uniqueId, memoriasManager.gameName, 50, "Victoria")
         memoriasManager.recordVictory(winner)
         memoriasManager.recordGamePlayed(winner)
         

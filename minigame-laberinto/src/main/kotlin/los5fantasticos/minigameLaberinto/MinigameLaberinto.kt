@@ -47,10 +47,6 @@ class MinigameLaberinto(private val torneoPlugin: TorneoPlugin) : MinigameModule
         return activePlayers.toList()
     }
     
-    override fun awardPoints(player: Player, points: Int, reason: String) {
-        torneoPlugin.torneoManager.addPoints(player, gameName, points, reason)
-    }
-    
     /**
      * Inicia una nueva partida de Laberinto.
      */
@@ -88,7 +84,7 @@ class MinigameLaberinto(private val torneoPlugin: TorneoPlugin) : MinigameModule
         if (winner != null) {
             // El ganador recibe puntos basados en el tiempo
             val points = calculatePoints()
-            awardPoints(winner, points, "Completado el laberinto")
+            torneoPlugin.torneoManager.addScore(winner.uniqueId, gameName, points, "Completado el laberinto")
             recordVictory(winner)
             
             // Notificar a todos los jugadores

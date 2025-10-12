@@ -10,7 +10,7 @@ import org.bukkit.plugin.Plugin
  * 
  * Juego de memoria clásico donde los jugadores deben encontrar pares de bloques de colores.
  */
-class MemoriasManager(private val torneoPlugin: TorneoPlugin) : MinigameModule {
+class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule {
     
     override val gameName = "Memorias"
     override val version = "2.0"
@@ -48,10 +48,6 @@ class MemoriasManager(private val torneoPlugin: TorneoPlugin) : MinigameModule {
     
     override fun getActivePlayers(): List<Player> {
         return gameManager.getAllActivePlayers()
-    }
-    
-    override fun awardPoints(player: Player, points: Int, reason: String) {
-        torneoPlugin.torneoManager.addPoints(player, gameName, points, reason)
     }
     
     

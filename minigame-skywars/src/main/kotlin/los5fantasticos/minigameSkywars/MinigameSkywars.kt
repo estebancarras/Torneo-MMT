@@ -47,10 +47,6 @@ class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule {
         return activePlayers.toList()
     }
     
-    override fun awardPoints(player: Player, points: Int, reason: String) {
-        torneoPlugin.torneoManager.addPoints(player, gameName, points, reason)
-    }
-    
     /**
      * Inicia una nueva partida de SkyWars.
      */
@@ -87,7 +83,7 @@ class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule {
         
         if (winner != null) {
             // El ganador recibe puntos
-            awardPoints(winner, 100, "Victoria en SkyWars")
+            torneoPlugin.torneoManager.addScore(winner.uniqueId, gameName, 100, "Victoria en SkyWars")
             recordVictory(winner)
             
             // Notificar a todos los jugadores

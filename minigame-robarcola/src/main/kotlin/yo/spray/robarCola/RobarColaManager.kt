@@ -85,10 +85,6 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule, Listene
         return playersInGame.mapNotNull { Bukkit.getPlayer(it) }
     }
 
-    override fun awardPoints(player: Player, points: Int, reason: String) {
-        torneoPlugin.torneoManager.addPoints(player, gameName, points, "$gameName: $reason")
-    }
-
     override fun isGameRunning(): Boolean = gameRunning
 
     // ===== Eventos =====
@@ -294,7 +290,7 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule, Listene
     private fun celebrateWinner(player: Player) {
         player.world.playSound(player.location, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.2f)
         player.sendTitle("${ChatColor.GOLD}¡VICTORIA!", "${ChatColor.YELLOW}¡Conservaste tu cola!", 10, 60, 10)
-        awardPoints(player, 10, "Victoria")
+        torneoPlugin.torneoManager.addScore(player.uniqueId, gameName, 10, "Victoria")
     }
 
     private fun giveTail(player: Player) {

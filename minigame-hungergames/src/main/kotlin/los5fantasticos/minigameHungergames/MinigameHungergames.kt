@@ -47,10 +47,6 @@ class MinigameHungergames(private val torneoPlugin: TorneoPlugin) : MinigameModu
         return activePlayers.toList()
     }
     
-    override fun awardPoints(player: Player, points: Int, reason: String) {
-        torneoPlugin.torneoManager.addPoints(player, gameName, points, reason)
-    }
-    
     /**
      * Inicia una nueva partida de Hunger Games.
      */
@@ -87,7 +83,7 @@ class MinigameHungergames(private val torneoPlugin: TorneoPlugin) : MinigameModu
         
         if (winner != null) {
             // El ganador recibe puntos
-            awardPoints(winner, 150, "Victoria en Hunger Games")
+            torneoPlugin.torneoManager.addScore(winner.uniqueId, gameName, 150, "Victoria en Hunger Games")
             recordVictory(winner)
             
             // Notificar a todos los jugadores

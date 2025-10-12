@@ -47,10 +47,6 @@ class MinigameCarrerabarcos(private val torneoPlugin: TorneoPlugin) : MinigameMo
         return activePlayers.toList()
     }
     
-    override fun awardPoints(player: Player, points: Int, reason: String) {
-        torneoPlugin.torneoManager.addPoints(player, gameName, points, reason)
-    }
-    
     /**
      * Inicia una nueva partida de Carrera de Barcos.
      */
@@ -88,7 +84,7 @@ class MinigameCarrerabarcos(private val torneoPlugin: TorneoPlugin) : MinigameMo
         if (winner != null) {
             // El ganador recibe puntos basados en la posición
             val points = calculateWinnerPoints()
-            awardPoints(winner, points, "Victoria en Carrera de Barcos")
+            torneoPlugin.torneoManager.addScore(winner.uniqueId, gameName, points, "Victoria en Carrera de Barcos")
             recordVictory(winner)
             
             // Notificar a todos los jugadores

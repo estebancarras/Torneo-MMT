@@ -153,10 +153,6 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
             .flatMap { team -> team.getOnlinePlayers() }
     }
     
-    override fun awardPoints(player: Player, points: Int, reason: String) {
-        torneoPlugin.torneoManager.addPoints(player, gameName, points, reason)
-    }
-    
     /**
      * Verifica y potencialmente inicia la cuenta atrás para una partida.
      * Llamado cuando un jugador se une al lobby.
