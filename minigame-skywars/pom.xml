@@ -63,5 +63,12 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.walrusone</groupId>
+            <artifactId>skywarsreloadedcore</artifactId>
+            <version>5.6.33</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/libs/SWR-5.6.33-MMT.jar</systemPath>
+        </dependency>
     </dependencies>
 </project>
