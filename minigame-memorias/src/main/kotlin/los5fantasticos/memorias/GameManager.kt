@@ -1,5 +1,7 @@
 package los5fantasticos.memorias
 
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.Location
 import org.bukkit.plugin.Plugin
 import org.bukkit.entity.Player
@@ -122,20 +124,20 @@ class GameManager(val plugin: Plugin, private val memoriasManager: MemoriasManag
     fun createArenaFromCurrentLocation(sender: Player) {
         // Verificar que todas las ubicaciones estén configuradas
         if (lobbyLocation == null) {
-            sender.sendMessage("${org.bukkit.ChatColor.RED}✗ Falta configurar el lobby.")
-            sender.sendMessage("${org.bukkit.ChatColor.YELLOW}Usa: /memorias setlobby")
+            sender.sendMessage(Component.text("✗ Falta configurar el lobby.", NamedTextColor.RED))
+            sender.sendMessage(Component.text("Usa: /memorias setlobby", NamedTextColor.YELLOW))
             return
         }
         
         if (spawnLocation == null) {
-            sender.sendMessage("${org.bukkit.ChatColor.RED}✗ Falta configurar el spawn de jugadores.")
-            sender.sendMessage("${org.bukkit.ChatColor.YELLOW}Usa: /memorias setspawn")
+            sender.sendMessage(Component.text("✗ Falta configurar el spawn de jugadores.", NamedTextColor.RED))
+            sender.sendMessage(Component.text("Usa: /memorias setspawn", NamedTextColor.YELLOW))
             return
         }
         
         if (tableroLocation == null || guessArea == null) {
-            sender.sendMessage("${org.bukkit.ChatColor.RED}✗ Falta configurar el tablero.")
-            sender.sendMessage("${org.bukkit.ChatColor.YELLOW}Usa: /memorias settablero")
+            sender.sendMessage(Component.text("✗ Falta configurar el tablero.", NamedTextColor.RED))
+            sender.sendMessage(Component.text("Usa: /memorias settablero", NamedTextColor.YELLOW))
             return
         }
         
@@ -144,24 +146,24 @@ class GameManager(val plugin: Plugin, private val memoriasManager: MemoriasManag
         arenas.add(newArena)
         
         // Informar al jugador
-        sender.sendMessage("${org.bukkit.ChatColor.GREEN}✓ Arena creada con éxito!")
-        sender.sendMessage("${org.bukkit.ChatColor.YELLOW}Total de arenas: ${arenas.size}")
-        sender.sendMessage("${org.bukkit.ChatColor.GREEN}¡Listo para jugar! Los jugadores pueden usar /memorias join")
+        sender.sendMessage(Component.text("✓ Arena creada con éxito!", NamedTextColor.GREEN))
+        sender.sendMessage(Component.text("Total de arenas: ${arenas.size}", NamedTextColor.YELLOW))
+        sender.sendMessage(Component.text("¡Listo para jugar! Los jugadores pueden usar /memorias join", NamedTextColor.GREEN))
     }
 
     fun joinPlayer(player: Player) {
         if (arenas.isEmpty()) {
-            player.sendMessage("No hay arenas disponibles. Un administrador debe crearlas.")
+            player.sendMessage(Component.text("No hay arenas disponibles. Un administrador debe crearlas.", NamedTextColor.RED))
             return
         }
         val game = activeGames.values.firstOrNull { it.players.size < 4 } ?: createNewGame()
         game.addPlayer(player)
         playerToGameMap[player.uniqueId] = game
-        player.sendMessage("Te has unido a la cola. Jugadores: ${game.players.size}/4")
+        player.sendMessage(Component.text("Te has unido a la cola. Jugadores: ${game.players.size}/4", NamedTextColor.GREEN))
         
         // Iniciar el juego cuando haya al menos 2 jugadores
         if (game.players.size >= 2) {
-            player.sendMessage("¡Hay suficientes jugadores! El juego comenzará en 3 segundos...")
+            player.sendMessage(Component.text("¡Hay suficientes jugadores! El juego comenzará en 3 segundos...", NamedTextColor.YELLOW))
             
             object : org.bukkit.scheduler.BukkitRunnable() {
                 override fun run() {
@@ -201,13 +203,13 @@ class GameManager(val plugin: Plugin, private val memoriasManager: MemoriasManag
         if (game == null) {
             // El jugador no está en un juego, solo enviarlo al lobby
             lobbyLocation?.let { player.teleport(it) }
-            player.sendMessage("${org.bukkit.ChatColor.YELLOW}Has salido del minijuego Memorias.")
+            player.sendMessage(Component.text("Has salido del minijuego Memorias.", NamedTextColor.YELLOW))
             return
         }
         
         // Si el juego está activo y hay más jugadores, terminar el juego
         if (game.players.size > 1) {
-            player.sendMessage("${org.bukkit.ChatColor.YELLOW}Has salido del juego. El juego terminará.")
+            player.sendMessage(Component.text("Has salido del juego. El juego terminará.", NamedTextColor.YELLOW))
             
             // Obtener el otro jugador (el ganador)
             val winner = game.players.firstOrNull { it.uniqueId != player.uniqueId }
@@ -225,7 +227,7 @@ class GameManager(val plugin: Plugin, private val memoriasManager: MemoriasManag
             // Solo queda este jugador, simplemente removerlo
             removePlayer(player)
             lobbyLocation?.let { player.teleport(it) }
-            player.sendMessage("${org.bukkit.ChatColor.YELLOW}Has salido del minijuego Memorias.")
+            player.sendMessage(Component.text("Has salido del minijuego Memorias.", NamedTextColor.YELLOW))
         }
     }
 

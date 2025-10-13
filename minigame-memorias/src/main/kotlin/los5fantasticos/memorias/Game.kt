@@ -1,12 +1,14 @@
 package los5fantasticos.memorias
 
-import org.bukkit.ChatColor
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
+import net.kyori.adventure.title.Title
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.scheduler.BukkitRunnable
-import net.md_5.bungee.api.ChatMessageType
-import net.md_5.bungee.api.chat.TextComponent
+import java.time.Duration
 
 /**
  * Representa una instancia de juego de Memorias - Encuentra los pares.
@@ -117,14 +119,16 @@ class Game(
         // Verificar si queda solo un jugador
         if (gameStarted && players.size == 1) {
             val winner = players.first()
-            winner.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}¡${player.name} se desconectó! Ganaste por abandono.")
+            val msg = Component.text("¡${player.name} se desconectó! Ganaste por abandono.", NamedTextColor.GOLD, TextDecoration.BOLD)
+            winner.sendMessage(msg)
             endGameWithWinner(winner)
             return
         }
         
         // Si no hay suficientes jugadores, terminar el juego
         if (gameStarted && players.size < 2) {
-            players.forEach { it.sendMessage("${ChatColor.RED}No hay suficientes jugadores. El juego se ha cancelado.") }
+            val msg = Component.text("No hay suficientes jugadores. El juego se ha cancelado.", NamedTextColor.RED)
+            players.forEach { it.sendMessage(msg) }
             endGame()
             return
         }
@@ -133,9 +137,8 @@ class Game(
         if (wasCurrentPlayer && players.isNotEmpty()) {
             val nextPlayer = getCurrentPlayer()
             if (nextPlayer != null) {
-                players.forEach { p ->
-                    p.sendMessage("${ChatColor.YELLOW}${ChatColor.BOLD}Turno de: ${nextPlayer.name}")
-                }
+                val msg = Component.text("Turno de: ${nextPlayer.name}", NamedTextColor.YELLOW, TextDecoration.BOLD)
+                players.forEach { p -> p.sendMessage(msg) }
             }
         }
         
@@ -158,34 +161,31 @@ class Game(
                 when (countdown) {
                     3, 2, 1 -> {
                         players.forEach { player ->
-                            player.sendTitle(
-                                "${ChatColor.GOLD}${ChatColor.BOLD}$countdown",
-                                "${ChatColor.YELLOW}Preparándose...",
-                                5, 15, 5
-                            )
+                            val mainTitle = Component.text("$countdown", NamedTextColor.GOLD, TextDecoration.BOLD)
+                            val subtitle = Component.text("Preparándose...", NamedTextColor.YELLOW)
+                            val times = Title.Times.times(Duration.ofMillis(250), Duration.ofMillis(750), Duration.ofMillis(250))
+                            player.showTitle(Title.title(mainTitle, subtitle, times))
                             player.playSound(player.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_HAT, 1.0f, 1.0f)
                         }
                         countdown--
                     }
                     0 -> {
                         players.forEach { player ->
-                            player.sendTitle(
-                                "${ChatColor.GREEN}${ChatColor.BOLD}¡COMENZÓ!",
-                                "${ChatColor.YELLOW}¡Encuentra los pares! (4 intentos)",
-                                5, 20, 5
-                            )
+                            val mainTitle = Component.text("¡COMENZÓ!", NamedTextColor.GREEN, TextDecoration.BOLD)
+                            val subtitle = Component.text("¡Encuentra los pares! (4 intentos)", NamedTextColor.YELLOW)
+                            val times = Title.Times.times(Duration.ofMillis(250), Duration.ofSeconds(1), Duration.ofMillis(250))
+                            player.showTitle(Title.title(mainTitle, subtitle, times))
                             player.playSound(player.location, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f)
-                            player.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}¡El juego de Memorias ha comenzado!")
-                            player.sendMessage("${ChatColor.YELLOW}Tienes 4 intentos para encontrar los pares.")
-                            player.sendMessage("${ChatColor.YELLOW}Haz clic derecho en un bloque gris para revelarlo.")
+                            player.sendMessage(Component.text("¡El juego de Memorias ha comenzado!", NamedTextColor.GREEN, TextDecoration.BOLD))
+                            player.sendMessage(Component.text("Tienes 4 intentos para encontrar los pares.", NamedTextColor.YELLOW))
+                            player.sendMessage(Component.text("Haz clic derecho en un bloque gris para revelarlo.", NamedTextColor.YELLOW))
                         }
                         
                         // Anunciar el primer turno
                         val firstPlayer = getCurrentPlayer()
                         if (firstPlayer != null) {
-                            players.forEach { player ->
-                                player.sendMessage("${ChatColor.YELLOW}${ChatColor.BOLD}Turno de: ${firstPlayer.name}")
-                            }
+                            val msg = Component.text("Turno de: ${firstPlayer.name}", NamedTextColor.YELLOW, TextDecoration.BOLD)
+                            players.forEach { player -> player.sendMessage(msg) }
                         }
                         
                         // Iniciar el juego
@@ -273,9 +273,8 @@ class Game(
                 if (turnTimeLeft <= 0) {
                     val currentPlayer = getCurrentPlayer()
                     if (currentPlayer != null) {
-                        players.forEach { p ->
-                            p.sendMessage("${ChatColor.RED}¡Se agotó el tiempo del turno de ${currentPlayer.name}!")
-                        }
+                        val timeoutMsg = Component.text("¡Se agotó el tiempo del turno de ${currentPlayer.name}!", NamedTextColor.RED)
+                        players.forEach { p -> p.sendMessage(timeoutMsg) }
                         
                         // Pasar al siguiente turno
                         nextTurn()
@@ -284,9 +283,8 @@ class Game(
                         // Anunciar el siguiente turno
                         val nextPlayer = getCurrentPlayer()
                         if (nextPlayer != null) {
-                            players.forEach { p ->
-                                p.sendMessage("${ChatColor.YELLOW}${ChatColor.BOLD}Turno de: ${nextPlayer.name}")
-                            }
+                            val turnMsg = Component.text("Turno de: ${nextPlayer.name}", NamedTextColor.YELLOW, TextDecoration.BOLD)
+                            players.forEach { p -> p.sendMessage(turnMsg) }
                         }
                     }
                 }
@@ -312,29 +310,36 @@ class Game(
             val attemptsLeft = maxAttempts - attempts
             
             val attemptsColor = when {
-                attemptsLeft > 2 -> ChatColor.GREEN
-                attemptsLeft > 0 -> ChatColor.YELLOW
-                else -> ChatColor.RED
+                attemptsLeft > 2 -> NamedTextColor.GREEN
+                attemptsLeft > 0 -> NamedTextColor.YELLOW
+                else -> NamedTextColor.RED
             }
             
             val turnIndicator = if (player == currentPlayer) {
-                "${ChatColor.GOLD}${ChatColor.BOLD}TU TURNO ${ChatColor.GRAY}| "
+                Component.text("TU TURNO", NamedTextColor.GOLD, TextDecoration.BOLD)
+                    .append(Component.text(" | ", NamedTextColor.GRAY))
             } else {
-                "${ChatColor.GRAY}Esperando... ${ChatColor.GRAY}| "
+                Component.text("Esperando...", NamedTextColor.GRAY)
+                    .append(Component.text(" | ", NamedTextColor.GRAY))
             }
             
             val timeColor = when {
-                turnTimeLeft > 20 -> ChatColor.GREEN
-                turnTimeLeft > 10 -> ChatColor.YELLOW
-                else -> ChatColor.RED
+                turnTimeLeft > 20 -> NamedTextColor.GREEN
+                turnTimeLeft > 10 -> NamedTextColor.YELLOW
+                else -> NamedTextColor.RED
             }
             
-            val message = turnIndicator +
-                         "$timeColor${ChatColor.BOLD}Tiempo: ${ChatColor.WHITE}${turnTimeLeft}s ${ChatColor.GRAY}| " +
-                         "${ChatColor.AQUA}Pares: ${ChatColor.WHITE}$score ${ChatColor.GRAY}| " +
-                         "$attemptsColor${ChatColor.BOLD}Intentos: $attemptsLeft/$maxAttempts"
+            val message = turnIndicator
+                .append(Component.text("Tiempo: ", timeColor, TextDecoration.BOLD))
+                .append(Component.text("${turnTimeLeft}s", NamedTextColor.WHITE))
+                .append(Component.text(" | ", NamedTextColor.GRAY))
+                .append(Component.text("Pares: ", NamedTextColor.AQUA))
+                .append(Component.text("$score", NamedTextColor.WHITE))
+                .append(Component.text(" | ", NamedTextColor.GRAY))
+                .append(Component.text("Intentos: ", attemptsColor, TextDecoration.BOLD))
+                .append(Component.text("$attemptsLeft/$maxAttempts", attemptsColor))
             
-            player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent(message))
+            player.sendActionBar(message)
         }
     }
     
@@ -343,21 +348,21 @@ class Game(
      */
     fun handleBlockClick(player: Player, clickedLocation: Location): Boolean {
         if (!gameStarted) {
-            player.sendMessage("${ChatColor.RED}El juego aún no ha comenzado.")
+            player.sendMessage(Component.text("El juego aún no ha comenzado.", NamedTextColor.RED))
             return false
         }
         
         // Verificar que sea el turno del jugador
         val currentPlayer = getCurrentPlayer()
         if (currentPlayer != player) {
-            player.sendMessage("${ChatColor.RED}¡No es tu turno! Espera a que ${currentPlayer?.name} termine.")
+            player.sendMessage(Component.text("¡No es tu turno! Espera a que ${currentPlayer?.name} termine.", NamedTextColor.RED))
             return false
         }
         
         // Verificar intentos del jugador actual
         val attempts = playerAttempts[player] ?: 0
         if (attempts >= maxAttempts) {
-            player.sendMessage("${ChatColor.RED}¡Ya usaste tus $maxAttempts intentos!")
+            player.sendMessage(Component.text("¡Ya usaste tus $maxAttempts intentos!", NamedTextColor.RED))
             nextTurn() // Pasar al siguiente jugador
             return false
         }
@@ -367,7 +372,7 @@ class Game(
         
         // Verificar si ya está revelado permanentemente
         if (tile.isRevealed) {
-            player.sendMessage("${ChatColor.RED}Este par ya fue encontrado.")
+            player.sendMessage(Component.text("Este par ya fue encontrado.", NamedTextColor.RED))
             return false
         }
         
@@ -377,12 +382,12 @@ class Game(
             revealTileTemporarily(tile)
             firstSelectedBlock = tile
             isWaitingForSecondClick = true
-            player.sendMessage("${ChatColor.YELLOW}Selecciona un segundo bloque.")
+            player.sendMessage(Component.text("Selecciona un segundo bloque.", NamedTextColor.YELLOW))
             return true
         } else {
             // Segundo clic del intento
             if (tile.location == firstSelectedBlock?.location) {
-                player.sendMessage("${ChatColor.RED}No puedes seleccionar el mismo bloque dos veces.")
+                player.sendMessage(Component.text("No puedes seleccionar el mismo bloque dos veces.", NamedTextColor.RED))
                 return false
             }
             
@@ -402,9 +407,8 @@ class Game(
                 val score = (playerScores[player] ?: 0) + 1
                 playerScores[player] = score
                 
-                players.forEach { p ->
-                    p.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}✓ ${player.name} encontró un par! (${score} pares)")
-                }
+                val pairMsg = Component.text("✓ ${player.name} encontró un par! (${score} pares)", NamedTextColor.GREEN, TextDecoration.BOLD)
+                players.forEach { p -> p.sendMessage(pairMsg) }
                 
                 // Efectos de sonido mejorados para encontrar par
                 player.playSound(player.location, org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f)
@@ -415,15 +419,15 @@ class Game(
                 resetSelection()
                 
                 // El jugador puede seguir jugando (turno extra por encontrar par)
-                player.sendMessage("${ChatColor.GREEN}¡Encontraste un par! Puedes seguir jugando.")
+                player.sendMessage(Component.text("¡Encontraste un par! Puedes seguir jugando.", NamedTextColor.GREEN))
                 
                 // Verificar si todos los jugadores terminaron sus intentos
                 checkIfAllPlayersFinished()
             } else {
                 // No es un par - ocultar después de 2 segundos
-                players.forEach { p ->
-                    p.sendMessage("${ChatColor.RED}✗ ${player.name} no encontró un par. (${maxAttempts - playerAttempts[player]!!} intentos restantes)")
-                }
+                val attemptsLeft = maxAttempts - playerAttempts[player]!!
+                val noMatchMsg = Component.text("✗ ${player.name} no encontró un par. ($attemptsLeft intentos restantes)", NamedTextColor.RED)
+                players.forEach { p -> p.sendMessage(noMatchMsg) }
                 
                 // Efectos de sonido para no encontrar par
                 player.playSound(player.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.8f)
@@ -441,9 +445,8 @@ class Game(
                         // Anunciar el siguiente turno
                         val nextPlayer = getCurrentPlayer()
                         if (nextPlayer != null) {
-                            players.forEach { p ->
-                                p.sendMessage("${ChatColor.YELLOW}${ChatColor.BOLD}Turno de: ${nextPlayer.name}")
-                            }
+                            val turnMsg = Component.text("Turno de: ${nextPlayer.name}", NamedTextColor.YELLOW, TextDecoration.BOLD)
+                            players.forEach { p -> p.sendMessage(turnMsg) }
                         }
                         
                         // Verificar si todos terminaron
@@ -498,9 +501,8 @@ class Game(
      */
     private fun checkIfAllPlayersFinished() {
         if (allPlayersFinished()) {
-            players.forEach { player ->
-                player.sendMessage("${ChatColor.RED}${ChatColor.BOLD}¡Todos los jugadores terminaron sus intentos!")
-            }
+            val msg = Component.text("¡Todos los jugadores terminaron sus intentos!", NamedTextColor.RED, TextDecoration.BOLD)
+            players.forEach { player -> player.sendMessage(msg) }
             endGameWithWinner()
         }
     }
@@ -541,40 +543,39 @@ class Game(
             // Mostrar títulos con efectos de sonido mejorados
             players.forEach { player ->
                 if (player == winner) {
-                    player.sendTitle(
-                        "${ChatColor.GOLD}${ChatColor.BOLD}¡VICTORIA!",
-                        "${ChatColor.YELLOW}¡Ganaste el juego!",
-                        10, 60, 10
-                    )
+                    val mainTitle = Component.text("¡VICTORIA!", NamedTextColor.GOLD, TextDecoration.BOLD)
+                    val subtitle = Component.text("¡Ganaste el juego!", NamedTextColor.YELLOW)
+                    val times = Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofMillis(500))
+                    player.showTitle(Title.title(mainTitle, subtitle, times))
                     // Efectos de sonido de victoria
                     player.playSound(player.location, org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f)
                     player.playSound(player.location, org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f)
                     player.playSound(player.location, org.bukkit.Sound.ENTITY_FIREWORK_ROCKET_BLAST, 1.0f, 1.0f)
                 } else {
-                    player.sendTitle(
-                        "${ChatColor.RED}${ChatColor.BOLD}¡PERDISTE!",
-                        "${ChatColor.GRAY}${winner.name} ganó el juego",
-                        10, 60, 10
-                    )
+                    val mainTitle = Component.text("¡PERDISTE!", NamedTextColor.RED, TextDecoration.BOLD)
+                    val subtitle = Component.text("${winner.name} ganó el juego", NamedTextColor.GRAY)
+                    val times = Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofMillis(500))
+                    player.showTitle(Title.title(mainTitle, subtitle, times))
                     // Efectos de sonido de derrota
                     player.playSound(player.location, org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 0.8f)
                     player.playSound(player.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.5f)
                 }
                 
                 // Mensaje en el chat
-                player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}=============================")
-                player.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}¡Juego terminado!")
-                player.sendMessage("")
-                player.sendMessage("${ChatColor.YELLOW}Resultados finales:")
+                player.sendMessage(Component.text("=============================", NamedTextColor.GOLD, TextDecoration.BOLD))
+                player.sendMessage(Component.text("¡Juego terminado!", NamedTextColor.GREEN, TextDecoration.BOLD))
+                player.sendMessage(Component.empty())
+                player.sendMessage(Component.text("Resultados finales:", NamedTextColor.YELLOW))
                 
                 playerScores.entries.sortedByDescending { it.value }.forEach { entry ->
-                    val prefix = if (entry.key == winner) "${ChatColor.GOLD}★ " else "${ChatColor.GRAY}  "
-                    player.sendMessage("$prefix${entry.key.name}: ${entry.value} pares encontrados")
+                    val color = if (entry.key == winner) NamedTextColor.GOLD else NamedTextColor.GRAY
+                    val prefix = if (entry.key == winner) "★ " else "  "
+                    player.sendMessage(Component.text("$prefix${entry.key.name}: ${entry.value} pares encontrados", color))
                 }
                 
-                player.sendMessage("")
-                player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}¡${winner.name} es el ganador!")
-                player.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}=============================")
+                player.sendMessage(Component.empty())
+                player.sendMessage(Component.text("¡${winner.name} es el ganador!", NamedTextColor.GOLD, TextDecoration.BOLD))
+                player.sendMessage(Component.text("=============================", NamedTextColor.GOLD, TextDecoration.BOLD))
             }
             
             // Otorgar puntos
@@ -595,8 +596,9 @@ class Game(
         object : BukkitRunnable() {
             override fun run() {
                 if (countdown > 0) {
+                    val msg = Component.text("Regresando al lobby en $countdown segundos...", NamedTextColor.YELLOW, TextDecoration.BOLD)
                     players.forEach { player ->
-                        player.sendMessage("${ChatColor.YELLOW}${ChatColor.BOLD}Regresando al lobby en $countdown segundos...")
+                        player.sendMessage(msg)
                         player.playSound(player.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.0f)
                     }
                     countdown--
@@ -604,9 +606,10 @@ class Game(
                     // Teleportar a todos al lobby
                     val lobbyLoc = gameManager.getLobbyLocation()
                     if (lobbyLoc != null) {
+                        val tpMsg = Component.text("¡Has sido enviado al lobby!", NamedTextColor.GREEN, TextDecoration.BOLD)
                         players.toList().forEach { player ->
                             player.teleport(lobbyLoc)
-                            player.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}¡Has sido enviado al lobby!")
+                            player.sendMessage(tpMsg)
                             player.playSound(player.location, org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f)
                         }
                     }
@@ -626,12 +629,11 @@ class Game(
         gameTimer = null
         
         // Mostrar título de victoria con efectos de sonido
-        winner.sendTitle(
-            "${ChatColor.GOLD}${ChatColor.BOLD}¡VICTORIA!",
-            "${ChatColor.YELLOW}Ganaste por abandono del oponente",
-            10, 40, 10
-        )
-        winner.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}¡Felicidades! Has ganado el juego de Memorias!")
+        val mainTitle = Component.text("¡VICTORIA!", NamedTextColor.GOLD, TextDecoration.BOLD)
+        val subtitle = Component.text("Ganaste por abandono del oponente", NamedTextColor.YELLOW)
+        val times = Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(2), Duration.ofMillis(500))
+        winner.showTitle(Title.title(mainTitle, subtitle, times))
+        winner.sendMessage(Component.text("¡Felicidades! Has ganado el juego de Memorias!", NamedTextColor.GOLD, TextDecoration.BOLD))
         
         // Efectos de sonido de victoria por abandono
         winner.playSound(winner.location, org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f)
@@ -647,14 +649,14 @@ class Game(
         object : BukkitRunnable() {
             override fun run() {
                 if (countdown > 0) {
-                    winner.sendMessage("${ChatColor.YELLOW}${ChatColor.BOLD}Regresando al lobby en $countdown segundos...")
+                    winner.sendMessage(Component.text("Regresando al lobby en $countdown segundos...", NamedTextColor.YELLOW, TextDecoration.BOLD))
                     winner.playSound(winner.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.0f)
                     countdown--
                 } else {
                     // Teleportar al lobby
                     gameManager.getLobbyLocation()?.let { 
                         winner.teleport(it)
-                        winner.sendMessage("${ChatColor.GREEN}${ChatColor.BOLD}¡Has sido enviado al lobby!")
+                        winner.sendMessage(Component.text("¡Has sido enviado al lobby!", NamedTextColor.GREEN, TextDecoration.BOLD))
                         winner.playSound(winner.location, org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f)
                     }
                     endGame()

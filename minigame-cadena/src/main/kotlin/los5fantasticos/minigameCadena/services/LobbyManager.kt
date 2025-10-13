@@ -3,7 +3,9 @@ package los5fantasticos.minigameCadena.services
 import los5fantasticos.minigameCadena.MinigameCadena
 import los5fantasticos.minigameCadena.game.CadenaGame
 import los5fantasticos.minigameCadena.game.GameState
-import org.bukkit.ChatColor
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.Sound
 import org.bukkit.scheduler.BukkitRunnable
 import org.bukkit.scheduler.BukkitTask
@@ -68,7 +70,7 @@ class LobbyManager(
         }
         
         // Notificar a todos los jugadores
-        broadcastToGame(game, "${ChatColor.GREEN}${ChatColor.BOLD}¡La partida comenzará en $countdownTime segundos!")
+        broadcastToGame(game, Component.text("¡La partida comenzará en $countdownTime segundos!", NamedTextColor.GREEN, TextDecoration.BOLD))
         playSound(game, Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.0f)
         
         // Crear tarea de cuenta atrás
@@ -86,7 +88,7 @@ class LobbyManager(
                     
                     // Verificar si hay suficientes jugadores
                     !game.hasMinimumPlayers() -> {
-                        broadcastToGame(game, "${ChatColor.RED}No hay suficientes jugadores. Cuenta atrás cancelada.")
+                        broadcastToGame(game, Component.text("No hay suficientes jugadores. Cuenta atrás cancelada.", NamedTextColor.RED))
                         game.state = GameState.LOBBY
                         cancel()
                         countdownTasks.remove(game.id)
@@ -104,11 +106,11 @@ class LobbyManager(
                     // Notificaciones en momentos clave
                     timeLeft in listOf(30, 20, 10, 5, 4, 3, 2, 1) -> {
                         val color = when {
-                            timeLeft <= 3 -> ChatColor.RED
-                            timeLeft <= 5 -> ChatColor.GOLD
-                            else -> ChatColor.YELLOW
+                            timeLeft <= 3 -> NamedTextColor.RED
+                            timeLeft <= 5 -> NamedTextColor.GOLD
+                            else -> NamedTextColor.YELLOW
                         }
-                        broadcastToGame(game, "$color${ChatColor.BOLD}$timeLeft...")
+                        broadcastToGame(game, Component.text("$timeLeft...", color, TextDecoration.BOLD))
                         
                         val pitch = when {
                             timeLeft <= 3 -> 2.0f
@@ -142,23 +144,23 @@ class LobbyManager(
         }
         
         // Notificar inicio
-        broadcastToGame(game, "${ChatColor.GREEN}${ChatColor.BOLD}¡LA PARTIDA HA COMENZADO!")
-        broadcastToGame(game, "${ChatColor.YELLOW}¡Mantén la cadena unida y completa el parkour!")
+        broadcastToGame(game, Component.text("¡LA PARTIDA HA COMENZADO!", NamedTextColor.GREEN, TextDecoration.BOLD))
+        broadcastToGame(game, Component.text("¡Mantén la cadena unida y completa el parkour!", NamedTextColor.YELLOW))
         playSound(game, Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 1.0f)
         
         // PR4: Teletransportar jugadores al spawn de la arena
         if (game.arena != null) {
             plugin.parkourService.teleportAllTeamsToSpawn(game)
-            broadcastToGame(game, "${ChatColor.AQUA}✓ Teletransportados al spawn de la arena")
+            broadcastToGame(game, Component.text("✓ Teletransportados al spawn de la arena", NamedTextColor.AQUA))
         } else {
             // Si no hay arena configurada, usar ubicación actual como arena temporal
-            broadcastToGame(game, "${ChatColor.YELLOW}⚠ No hay arena configurada - Usando ubicación actual")
-            broadcastToGame(game, "${ChatColor.GRAY}Usa /cadena admin para configurar una arena")
+            broadcastToGame(game, Component.text("⚠ No hay arena configurada - Usando ubicación actual", NamedTextColor.YELLOW))
+            broadcastToGame(game, Component.text("Usa /cadena admin para configurar una arena", NamedTextColor.GRAY))
         }
         
         // PR3: Activar ChainService para esta partida
         plugin.chainService.startChaining(game)
-        broadcastToGame(game, "${ChatColor.AQUA}✓ Encadenamiento activado - Distancia máxima: ${plugin.chainService.maxDistance} bloques")
+        broadcastToGame(game, Component.text("✓ Encadenamiento activado - Distancia máxima: ${plugin.chainService.maxDistance} bloques", NamedTextColor.AQUA))
         
         // Crear e iniciar temporizador visual con BossBar
         startGameTimer(game)
@@ -179,10 +181,11 @@ class LobbyManager(
     /**
      * Envía un mensaje a todos los jugadores de una partida.
      */
-    private fun broadcastToGame(game: CadenaGame, message: String) {
+    private fun broadcastToGame(game: CadenaGame, message: Component) {
+        val fullMessage = Component.text("[Cadena] ", NamedTextColor.GOLD).append(message)
         game.teams.forEach { team ->
             team.getOnlinePlayers().forEach { player ->
-                player.sendMessage("${ChatColor.GOLD}[Cadena] ${ChatColor.RESET}$message")
+                player.sendMessage(fullMessage)
             }
         }
     }
@@ -230,7 +233,7 @@ class LobbyManager(
         game.gameTimer = timer
         timer.start()
         
-        broadcastToGame(game, "${ChatColor.AQUA}✓ Temporizador iniciado - Tiempo límite: 5 minutos")
+        broadcastToGame(game, Component.text("✓ Temporizador iniciado - Tiempo límite: 5 minutos", NamedTextColor.AQUA))
     }
     
     /**
@@ -242,10 +245,10 @@ class LobbyManager(
             return
         }
         
-        broadcastToGame(game, "")
-        broadcastToGame(game, "${ChatColor.RED}${ChatColor.BOLD}⏰ ¡TIEMPO AGOTADO!")
-        broadcastToGame(game, "${ChatColor.YELLOW}La partida ha terminado por límite de tiempo.")
-        broadcastToGame(game, "")
+        broadcastToGame(game, Component.empty())
+        broadcastToGame(game, Component.text("⏰ ¡TIEMPO AGOTADO!", NamedTextColor.RED, TextDecoration.BOLD))
+        broadcastToGame(game, Component.text("La partida ha terminado por límite de tiempo.", NamedTextColor.YELLOW))
+        broadcastToGame(game, Component.empty())
         
         // Reproducir sonido de finalización
         playSound(game, Sound.ENTITY_WITHER_DEATH, 1.0f, 1.0f)
