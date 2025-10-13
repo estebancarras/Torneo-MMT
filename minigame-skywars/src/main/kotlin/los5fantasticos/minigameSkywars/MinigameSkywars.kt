@@ -4,13 +4,16 @@ import los5fantasticos.torneo.TorneoPlugin
 import los5fantasticos.torneo.api.MinigameModule
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
+import org.bukkit.event.Listener
+import org.bukkit.event.EventHandler
+import com.walrusone.skywarsreloaded.events.SkyWarsWinEvent
 
 /**
  * Manager del minijuego SkyWars.
- * 
+ *
  * Juego de supervivencia en el aire donde los jugadores luchan hasta que solo queda uno.
  */
-class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule {
+class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule, Listener {
     
     private lateinit var plugin: Plugin
     
@@ -23,12 +26,15 @@ class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule {
     
     override fun onEnable(plugin: Plugin) {
         this.plugin = plugin
-        
+
+        // Registrar el listener para eventos de SkyWarsReloaded
+        plugin.server.pluginManager.registerEvents(this, plugin)
+
         // TODO: Inicializar lógica del juego SkyWars
         // - Crear arenas
         // - Configurar eventos
         // - Registrar comandos
-        
+
         plugin.logger.info("✓ $gameName v$version habilitado")
     }
     
@@ -123,5 +129,22 @@ class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule {
      */
     private fun recordGamePlayed(player: Player) {
         torneoPlugin.torneoManager.recordGamePlayed(player, gameName)
+    }
+
+    /**
+     * Listener para el evento de victoria en SkyWarsReloaded.
+     * Asigna puntos automáticamente al ganador.
+     */
+    @EventHandler
+    fun onSkyWarsWin(event: SkyWarsWinEvent) {
+        val winner = event.player
+        if (winner != null) {
+            // Asignar 100 puntos por victoria
+            torneoPlugin.torneoManager.addScore(winner.uniqueId, gameName, 100, "Victoria en SkyWars")
+            // Registrar la victoria en estadísticas
+            torneoPlugin.torneoManager.recordGameWon(winner, gameName)
+
+            plugin.logger.info("Puntos asignados automáticamente a ${winner.name} por victoria en SkyWars")
+        }
     }
 }
