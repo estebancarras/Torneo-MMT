@@ -65,7 +65,11 @@ paper-world-defaults.yml
 .kotlin_module
 
 # Archivos de dependencias descargadas
-libs/
+# Ignorar todos los libs
+libs/*
+
+# Permitir todos los jar dentro de minigame-skywars/libs
+!minigame-skywars/libs/*.jar
 plugins/
 
 # Archivos de usuario
