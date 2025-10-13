@@ -91,7 +91,7 @@ class VisualChain(
         
         // Transformación LOCAL (sin traslación, ya que usamos teleport)
         val translation = Vector3f(0f, 0f, 0f)
-        val scale = Vector3f(0.2f, 0.2f, distance)
+        val scale = Vector3f(0.5f, 0.5f, distance)  // Grosor aumentado para mejor visibilidad
         
         val sourceVector = Vector3f(0.0f, 0.0f, 1.0f)
         val leftRot = Quaternionf().rotationTo(sourceVector, direction)
