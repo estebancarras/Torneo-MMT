@@ -132,22 +132,26 @@ class VisualChain(
         
         // 3. ESCALA: Calcular la distancia euclidiana
         val distance = locAOriginal.distance(locBOriginal)
+        // Añadimos un grosor de 0.2f en los ejes X e Y para que la cadena sea visible
         val scale = Vector3f(
-            0.1f,  // Grosor de la cadena (eje X)
-            0.1f,  // Grosor de la cadena (eje Y)
+            0.2f,  // Grosor de la cadena (eje X)
+            0.2f,  // Grosor de la cadena (eje Y)
             distance.toFloat()  // Longitud de la cadena (eje Z)
         )
         
-        // 4. ROTACIÓN: Calcular el vector de dirección normalizado
-        val direction = Vector3f(
+        // 4. ROTACIÓN: Usar rotationTo() para mayor robustez
+        // El vector 'source' representa la orientación natural de nuestro modelo (a lo largo del eje Z)
+        val sourceVector = Vector3f(0.0f, 0.0f, 1.0f)
+        
+        // El vector 'target' es la dirección normalizada hacia donde queremos que apunte
+        val targetVector = Vector3f(
             (locBOriginal.x - locAOriginal.x).toFloat(),
             (locBOriginal.y - locAOriginal.y).toFloat(),
             (locBOriginal.z - locAOriginal.z).toFloat()
         ).normalize()
         
-        // Crear el cuaternión de rotación usando lookAlong
-        // El vector "up" es (0, 1, 0) por defecto
-        val rotation = Quaternionf().lookAlong(direction, Vector3f(0.0f, 1.0f, 0.0f))
+        // rotationTo() calcula de forma robusta la rotación necesaria para alinear 'source' con 'target'
+        val rotation = Quaternionf().rotationTo(sourceVector, targetVector)
         
         // 5. APLICACIÓN: Construir y aplicar la transformación
         val transformation = Transformation(
