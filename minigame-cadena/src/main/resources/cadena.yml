@@ -1,0 +1,23 @@
+﻿# Configuración del minijuego Cadena
+fisica-cadena:
+  distancia-maxima: 6.0
+  fuerza-atraccion: 0.3
+  reduccion-fuerza-aire: 0.5
+  intervalo-ticks: 3
+
+puntuacion:
+  victoria: 100
+  primer-lugar: 50
+  segundo-lugar: 30
+  tercer-lugar: 15
+  checkpoint: 5
+  participacion: 10
+\n# Configuración de visuales
+visuales:
+  cadena:
+    # Material del ítem para la cadena
+    # Lista de materiales: https://hub.spigotmc.org/javadocs/spigot/org/bukkit/Material.html
+    material: CHAIN
+    # Frecuencia de actualización en ticks (20 ticks = 1 segundo)
+    # 2 ticks = 10 actualizaciones/segundo para fluidez
+    tick-rate: 2

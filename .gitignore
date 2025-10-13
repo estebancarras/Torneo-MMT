@@ -20,9 +20,13 @@ target/
 
 # Archivos de configuración local
 *.properties
-*.yml
 debug.log
 logs/
+
+# Archivos de configuración del servidor (NO del código fuente)
+server/*.yml
+server/**/*.yml
+!server/plugins/TorneoMMT/*.yml
 
 # Archivos del sistema
 .DS_Store
@@ -50,11 +54,7 @@ world_the_end/
 *.swp
 *~
 
-# Archivos de configuración local (pueden contener datos sensibles)
-config.yml
-bukkit.yml
-spigot.yml
-paper-world-defaults.yml
+# Ya no bloqueamos estos aquí, se manejan arriba con server/**/*.yml
 
 # Archivos de configuración de IDE
 .vscode/
