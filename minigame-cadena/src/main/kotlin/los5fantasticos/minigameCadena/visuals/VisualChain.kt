@@ -151,14 +151,20 @@ class VisualChain(
         ).normalize()
         
         // rotationTo() calcula de forma robusta la rotación necesaria para alinear 'source' con 'target'
-        val rotation = Quaternionf().rotationTo(sourceVector, targetVector)
+        // Renombrar para mayor claridad: esta es la rotación que se aplica DESPUÉS de la escala
+        val leftRot = Quaternionf().rotationTo(sourceVector, targetVector)
+        
+        // Crear la rotación que se aplica ANTES de la escala (right_rotation)
+        // Gira el sprite del ítem 90 grados sobre el eje X para darle una cara visible
+        val rightRot = Quaternionf().rotateX(Math.toRadians(90.0).toFloat())
         
         // 5. APLICACIÓN: Construir y aplicar la transformación
+        // Usar ambas rotaciones: leftRot (orientación) y rightRot (visibilidad)
         val transformation = Transformation(
             midPointCalculated,
-            rotation,
+            leftRot,
             scale,
-            Quaternionf() // Sin rotación adicional (identidad)
+            rightRot  // Rotación aplicada antes de escalar para dar volumen visible
         )
         
         // Actualizar la entidad con la nueva transformación
