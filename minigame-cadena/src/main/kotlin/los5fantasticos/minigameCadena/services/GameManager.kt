@@ -152,6 +152,11 @@ class GameManager(private val minigame: MinigameCadena? = null) {
         val gameId = playerToGame.remove(player.uniqueId) ?: return false
         val game = activeGames[gameId] ?: return false
         
+        // Destruir cadenas visuales del jugador si la partida está en curso
+        if (game.state == GameState.IN_GAME) {
+            minigame?.chainVisualizerService?.destroyChainsForPlayer(player)
+        }
+        
         // Remover del equipo
         game.teams.forEach { team ->
             team.removePlayer(player)
@@ -223,6 +228,9 @@ class GameManager(private val minigame: MinigameCadena? = null) {
         // Detener temporizador visual (BossBar)
         game.gameTimer?.stop()
         game.gameTimer = null
+        
+        // Limpiar todas las cadenas visuales de la partida
+        minigame?.chainVisualizerService?.clearAllChains()
         
         // PR3: Detener encadenamiento
         minigame?.chainService?.stopChaining(game)

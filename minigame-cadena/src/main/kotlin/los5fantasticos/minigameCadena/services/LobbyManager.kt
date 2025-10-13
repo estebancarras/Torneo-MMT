@@ -162,6 +162,12 @@ class LobbyManager(
         plugin.chainService.startChaining(game)
         broadcastToGame(game, Component.text("✓ Encadenamiento activado - Distancia máxima: ${plugin.chainService.maxDistance} bloques", NamedTextColor.AQUA))
         
+        // Crear cadenas visuales para todos los equipos
+        game.teams.forEach { team ->
+            plugin.chainVisualizerService.createChainsForTeam(team)
+        }
+        broadcastToGame(game, Component.text("✓ Cadenas visuales activadas", NamedTextColor.AQUA))
+        
         // Crear e iniciar temporizador visual con BossBar
         startGameTimer(game)
     }

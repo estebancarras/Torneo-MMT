@@ -6,6 +6,7 @@ import los5fantasticos.minigameCadena.listeners.ParkourListener
 import los5fantasticos.minigameCadena.listeners.PlayerQuitListener
 import los5fantasticos.minigameCadena.services.ArenaManager
 import los5fantasticos.minigameCadena.services.ChainService
+import los5fantasticos.minigameCadena.services.ChainVisualizerService
 import los5fantasticos.minigameCadena.services.GameManager
 import los5fantasticos.minigameCadena.services.LobbyManager
 import los5fantasticos.minigameCadena.services.ParkourService
@@ -67,6 +68,12 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
     lateinit var scoreService: ScoreService
         private set
     
+    /**
+     * Servicio de visualización de cadenas.
+     */
+    lateinit var chainVisualizerService: ChainVisualizerService
+        private set
+    
     override fun onEnable(plugin: Plugin) {
         this.plugin = plugin
         
@@ -89,6 +96,9 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         // PR5: Inicializar ScoreService con TorneoManager
         scoreService = ScoreService(this, torneoPlugin.torneoManager)
         
+        // Inicializar ChainVisualizerService
+        chainVisualizerService = ChainVisualizerService(this)
+        
         // PR2 y PR4: Registrar listeners
         plugin.server.pluginManager.registerEvents(PlayerQuitListener(this), plugin)
         plugin.server.pluginManager.registerEvents(ParkourListener(this), plugin)
@@ -106,6 +116,7 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         plugin.logger.info("  - ParkourService inicializado")
         plugin.logger.info("  - ArenaManager inicializado")
         plugin.logger.info("  - ScoreService inicializado")
+        plugin.logger.info("  - ChainVisualizerService inicializado")
         plugin.logger.info("  - PlayerQuitListener registrado")
         plugin.logger.info("  - ParkourListener registrado")
         plugin.logger.info("  - LobbyListener registrado")
@@ -142,6 +153,9 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         }
         if (::scoreService.isInitialized) {
             scoreService.clearAll()
+        }
+        if (::chainVisualizerService.isInitialized) {
+            chainVisualizerService.clearAllChains()
         }
         
         plugin.logger.info("✓ $gameName deshabilitado")
