@@ -20,7 +20,10 @@ import java.util.concurrent.ConcurrentHashMap
  * - Controlar el ciclo de vida de las partidas
  * - Mantener el estado global del juego
  */
-class GameManager(private val minigame: MinigameCadena? = null) {
+class GameManager(
+    private val minigame: MinigameCadena? = null,
+    private val chainVisualizerService: ChainVisualizerService? = null
+) {
     
     /**
      * Mapa de partidas activas por ID.
@@ -154,7 +157,7 @@ class GameManager(private val minigame: MinigameCadena? = null) {
         
         // Destruir cadenas visuales del jugador si la partida está en curso
         if (game.state == GameState.IN_GAME) {
-            minigame?.chainVisualizerService?.destroyChainsForPlayer(player)
+            chainVisualizerService?.destroyChainsForPlayer(player)
         }
         
         // Remover del equipo
@@ -230,7 +233,7 @@ class GameManager(private val minigame: MinigameCadena? = null) {
         game.gameTimer = null
         
         // Limpiar todas las cadenas visuales de la partida
-        minigame?.chainVisualizerService?.clearAllChains()
+        chainVisualizerService?.clearAllChains()
         
         // PR3: Detener encadenamiento
         minigame?.chainService?.stopChaining(game)

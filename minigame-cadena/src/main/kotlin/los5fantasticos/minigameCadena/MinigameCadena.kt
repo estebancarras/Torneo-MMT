@@ -81,8 +81,11 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         plugin.saveDefaultConfig()
         plugin.reloadConfig()
         
-        // PR2: Inicializar GameManager y LobbyManager
-        gameManager = GameManager(this)
+        // Inicializar ChainVisualizerService ANTES del GameManager (DI)
+        chainVisualizerService = ChainVisualizerService(this)
+        
+        // PR2: Inicializar GameManager y LobbyManager (con ChainVisualizerService inyectado)
+        gameManager = GameManager(this, chainVisualizerService)
         lobbyManager = LobbyManager(this, gameManager)
         
         // PR3: Inicializar ChainService
@@ -95,9 +98,6 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
         
         // PR5: Inicializar ScoreService con TorneoManager
         scoreService = ScoreService(this, torneoPlugin.torneoManager)
-        
-        // Inicializar ChainVisualizerService
-        chainVisualizerService = ChainVisualizerService(this)
         
         // PR2 y PR4: Registrar listeners
         plugin.server.pluginManager.registerEvents(PlayerQuitListener(this), plugin)
