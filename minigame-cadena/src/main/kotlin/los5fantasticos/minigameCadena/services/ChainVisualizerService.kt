@@ -52,11 +52,15 @@ class ChainVisualizerService(private val plugin: MinigameCadena) {
     fun createChainsForTeam(team: Team) {
         val players = team.getOnlinePlayers()
         
+        plugin.plugin.logger.info("[ChainVisualizerService] Intentando crear cadenas para equipo ${team.displayName} con ${players.size} jugadores")
+        
         // Se necesitan al menos 2 jugadores para crear una cadena
         if (players.size < 2) {
+            plugin.plugin.logger.warning("[ChainVisualizerService] No hay suficientes jugadores para crear cadenas")
             return
         }
         
+        var chainsCreated = 0
         // Crear cadenas entre todos los pares únicos de jugadores
         for (i in 0 until players.size) {
             for (j in i + 1 until players.size) {
@@ -71,9 +75,12 @@ class ChainVisualizerService(private val plugin: MinigameCadena) {
                     val chain = VisualChain(plugin, playerA, playerB)
                     chain.create()
                     activeChains[key] = chain
+                    chainsCreated++
                 }
             }
         }
+        
+        plugin.plugin.logger.info("[ChainVisualizerService] ${chainsCreated} cadenas creadas. Total de cadenas activas: ${activeChains.size}")
     }
     
     /**
