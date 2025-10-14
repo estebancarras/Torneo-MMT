@@ -327,6 +327,14 @@ class GameManager(
     }
     
     /**
+     * Obtiene todos los duelos activos.
+     * Utilizado por el sistema de protección de parcelas.
+     */
+    fun getAllActiveDuels(): Collection<DueloMemorias> {
+        return duelosActivos.values
+    }
+    
+    /**
      * Obtiene estadísticas del Game Manager.
      */
     fun getStats(): String {

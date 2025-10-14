@@ -68,6 +68,9 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
         // Terminar todos los juegos activos
         gameManager.endAllGames()
         
+        // Limpiar selecciones
+        SelectionManager.cleanup()
+        
         plugin.logger.info("✓ $gameName deshabilitado")
     }
     

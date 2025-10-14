@@ -44,6 +44,7 @@ class MemoriasCommand(
             "join", "unirse" -> return handleJoin(sender)
             "leave", "salir" -> return handleLeave(sender)
             "stats", "estadisticas" -> return handleStats(sender)
+            "varita", "wand" -> return handleVarita(sender)
             "arena" -> return handleArena(sender, args)
             "parcela" -> return handleParcela(sender, args)
             else -> {
@@ -68,6 +69,9 @@ class MemoriasCommand(
         if (sender.hasPermission("memorias.admin") || sender.isOp) {
             sender.sendMessage(Component.empty())
             sender.sendMessage(Component.text("═══ Comandos de Admin ═══", NamedTextColor.GOLD))
+            sender.sendMessage(Component.text("/memorias varita", NamedTextColor.YELLOW)
+                .append(Component.text(" - Activar/desactivar varita de selección", NamedTextColor.GRAY)))
+            sender.sendMessage(Component.empty())
             sender.sendMessage(Component.text("/memorias arena create <nombre>", NamedTextColor.YELLOW))
             sender.sendMessage(Component.text("/memorias arena list", NamedTextColor.YELLOW))
             sender.sendMessage(Component.text("/memorias arena setlobby <nombre>", NamedTextColor.YELLOW))
@@ -76,6 +80,8 @@ class MemoriasCommand(
             sender.sendMessage(Component.text("/memorias parcela add <arena>", NamedTextColor.YELLOW))
             sender.sendMessage(Component.text("/memorias parcela list <arena>", NamedTextColor.YELLOW))
             sender.sendMessage(Component.text("/memorias parcela remove <arena> <id>", NamedTextColor.YELLOW))
+            sender.sendMessage(Component.text("/memorias parcela setspawn1 <arena> <id>", NamedTextColor.YELLOW))
+            sender.sendMessage(Component.text("/memorias parcela setspawn2 <arena> <id>", NamedTextColor.YELLOW))
             sender.sendMessage(Component.text("/memorias parcela set <corner1|corner2|spawn1|spawn2>", NamedTextColor.YELLOW))
         }
         sender.sendMessage(Component.empty())
@@ -105,6 +111,18 @@ class MemoriasCommand(
     private fun handleStats(sender: CommandSender): Boolean {
         sender.sendMessage(Component.text("═══ Estadísticas del Servidor ═══", NamedTextColor.GOLD))
         sender.sendMessage(Component.text(gameManager.getStats(), NamedTextColor.YELLOW))
+        return true
+    }
+    
+    private fun handleVarita(sender: CommandSender): Boolean {
+        if (!checkAdmin(sender)) return true
+        
+        if (sender !is Player) {
+            sender.sendMessage(Component.text("Solo jugadores pueden usar este comando", NamedTextColor.RED))
+            return true
+        }
+        
+        SelectionManager.toggleSelectionMode(sender)
         return true
     }
     
@@ -221,6 +239,8 @@ class MemoriasCommand(
             "add" -> return handleParcelaAdd(sender, args)
             "list" -> return handleParcelaList(sender, args)
             "remove" -> return handleParcelaRemove(sender, args)
+            "setspawn1" -> return handleParcelaSetSpawn1(sender, args)
+            "setspawn2" -> return handleParcelaSetSpawn2(sender, args)
             "set" -> return handleParcelaSet(sender, args)
             else -> {
                 sender.sendMessage(Component.text("Subcomando de parcela desconocido", NamedTextColor.RED))
@@ -248,23 +268,31 @@ class MemoriasCommand(
             return true
         }
         
-        val builder = parcelaConfig[sender] ?: ParcelaBuilder()
-        
-        if (builder.corner1 == null || builder.corner2 == null || builder.spawn1 == null || builder.spawn2 == null) {
-            sender.sendMessage(Component.text("Debes configurar todos los puntos de la parcela primero:", NamedTextColor.RED))
-            sender.sendMessage(Component.text("1. /memorias parcela set corner1", NamedTextColor.YELLOW))
-            sender.sendMessage(Component.text("2. /memorias parcela set corner2", NamedTextColor.YELLOW))
-            sender.sendMessage(Component.text("3. /memorias parcela set spawn1", NamedTextColor.YELLOW))
-            sender.sendMessage(Component.text("4. /memorias parcela set spawn2", NamedTextColor.YELLOW))
+        // NUEVA LÓGICA: Usar SelectionManager para obtener la región
+        val cuboid = SelectionManager.getSelection(sender)
+        if (cuboid == null) {
+            sender.sendMessage(Component.text("✗ No tienes una selección válida", NamedTextColor.RED))
+            sender.sendMessage(Component.text("Usa /memorias varita para activar el modo selección", NamedTextColor.YELLOW))
+            sender.sendMessage(Component.text("Clic Izquierdo: Posición 1 | Clic Derecho: Posición 2", NamedTextColor.YELLOW))
             return true
         }
         
-        val cuboid = Cuboid.fromLocations(builder.corner1!!, builder.corner2!!)
+        // Verificar que se hayan configurado los spawns
+        val builder = parcelaConfig[sender] ?: ParcelaBuilder()
+        
+        if (builder.spawn1 == null || builder.spawn2 == null) {
+            sender.sendMessage(Component.text("✗ Debes configurar los spawns de la parcela:", NamedTextColor.RED))
+            sender.sendMessage(Component.text("1. /memorias parcela set spawn1", NamedTextColor.YELLOW))
+            sender.sendMessage(Component.text("2. /memorias parcela set spawn2", NamedTextColor.YELLOW))
+            return true
+        }
+        
         val parcela = Parcela(cuboid, builder.spawn1!!, builder.spawn2!!)
         
         arena.addParcela(parcela)
         memoriasManager.guardarArenas()
         parcelaConfig.remove(sender)
+        SelectionManager.clearSelection(sender)
         
         sender.sendMessage(Component.text("✓ Parcela añadida a arena '$nombreArena'", NamedTextColor.GREEN))
         sender.sendMessage(Component.text("Total de parcelas: ${arena.getTotalParcelas()}", NamedTextColor.YELLOW))
@@ -321,6 +349,98 @@ class MemoriasCommand(
             } else {
                 sender.sendMessage(Component.text("ID de parcela inválido", NamedTextColor.RED))
             }
+        } catch (e: NumberFormatException) {
+            sender.sendMessage(Component.text("El ID debe ser un número", NamedTextColor.RED))
+        }
+        
+        return true
+    }
+    
+    private fun handleParcelaSetSpawn1(sender: CommandSender, args: Array<out String>): Boolean {
+        if (sender !is Player) {
+            sender.sendMessage(Component.text("Solo jugadores pueden usar este comando", NamedTextColor.RED))
+            return true
+        }
+        
+        if (args.size < 4) {
+            sender.sendMessage(Component.text("Uso: /memorias parcela setspawn1 <arena> <id>", NamedTextColor.RED))
+            return true
+        }
+        
+        val nombreArena = args[2]
+        val arena = memoriasManager.obtenerArena(nombreArena)
+        
+        if (arena == null) {
+            sender.sendMessage(Component.text("Arena '$nombreArena' no encontrada", NamedTextColor.RED))
+            return true
+        }
+        
+        try {
+            val id = args[3].toInt()
+            if (id !in arena.parcelas.indices) {
+                sender.sendMessage(Component.text("ID de parcela inválido", NamedTextColor.RED))
+                return true
+            }
+            
+            // Crear nueva parcela con el spawn actualizado
+            val parcelaVieja = arena.parcelas[id]
+            val parcelaNueva = Parcela(
+                parcelaVieja.regionTablero,
+                sender.location,  // Nuevo spawn1
+                parcelaVieja.spawn2
+            )
+            
+            arena.parcelas[id] = parcelaNueva
+            memoriasManager.guardarArenas()
+            
+            sender.sendMessage(Component.text("✓ Spawn 1 de parcela $id actualizado", NamedTextColor.GREEN))
+            sender.sendMessage(Component.text("Nueva ubicación: ${formatLocation(sender.location)}", NamedTextColor.YELLOW))
+        } catch (e: NumberFormatException) {
+            sender.sendMessage(Component.text("El ID debe ser un número", NamedTextColor.RED))
+        }
+        
+        return true
+    }
+    
+    private fun handleParcelaSetSpawn2(sender: CommandSender, args: Array<out String>): Boolean {
+        if (sender !is Player) {
+            sender.sendMessage(Component.text("Solo jugadores pueden usar este comando", NamedTextColor.RED))
+            return true
+        }
+        
+        if (args.size < 4) {
+            sender.sendMessage(Component.text("Uso: /memorias parcela setspawn2 <arena> <id>", NamedTextColor.RED))
+            return true
+        }
+        
+        val nombreArena = args[2]
+        val arena = memoriasManager.obtenerArena(nombreArena)
+        
+        if (arena == null) {
+            sender.sendMessage(Component.text("Arena '$nombreArena' no encontrada", NamedTextColor.RED))
+            return true
+        }
+        
+        try {
+            val id = args[3].toInt()
+            if (id !in arena.parcelas.indices) {
+                sender.sendMessage(Component.text("ID de parcela inválido", NamedTextColor.RED))
+                return true
+            }
+            
+            // Crear nueva parcela con el spawn actualizado
+            val parcelaVieja = arena.parcelas[id]
+            val parcelaNueva = Parcela(
+                parcelaVieja.regionTablero,
+                parcelaVieja.spawn1,
+                sender.location  // Nuevo spawn2
+            )
+            
+            arena.parcelas[id] = parcelaNueva
+            memoriasManager.guardarArenas()
+            
+            sender.sendMessage(Component.text("✓ Spawn 2 de parcela $id actualizado", NamedTextColor.GREEN))
+            sender.sendMessage(Component.text("Nueva ubicación: ${formatLocation(sender.location)}", NamedTextColor.YELLOW))
         } catch (e: NumberFormatException) {
             sender.sendMessage(Component.text("El ID debe ser un número", NamedTextColor.RED))
         }
@@ -401,7 +521,7 @@ class MemoriasCommand(
         args: Array<out String>
     ): List<String>? {
         if (args.size == 1) {
-            return listOf("join", "leave", "stats", "arena", "parcela").filter { it.startsWith(args[0].lowercase()) }
+            return listOf("join", "leave", "stats", "varita", "arena", "parcela").filter { it.startsWith(args[0].lowercase()) }
         }
         
         if (args.size == 2 && args[0].equals("arena", true)) {
@@ -409,11 +529,17 @@ class MemoriasCommand(
         }
         
         if (args.size == 2 && args[0].equals("parcela", true)) {
-            return listOf("add", "list", "remove", "set").filter { it.startsWith(args[1].lowercase()) }
+            return listOf("add", "list", "remove", "setspawn1", "setspawn2", "set").filter { it.startsWith(args[1].lowercase()) }
         }
         
         if (args.size == 3 && args[1].equals("set", true)) {
             return listOf("corner1", "corner2", "spawn1", "spawn2").filter { it.startsWith(args[2].lowercase()) }
+        }
+        
+        if (args.size == 3 && (args[1].equals("add", true) || args[1].equals("list", true) || 
+                                args[1].equals("remove", true) || args[1].equals("setspawn1", true) || 
+                                args[1].equals("setspawn2", true))) {
+            return memoriasManager.obtenerArenas().map { it.nombre }.filter { it.startsWith(args[2]) }
         }
         
         return null
