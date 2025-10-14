@@ -1,137 +1,115 @@
 package los5fantasticos.minigameLaberinto
 
+import los5fantasticos.minigameLaberinto.commands.LaberintoCommand
+import los5fantasticos.minigameLaberinto.listeners.GameListener
+import los5fantasticos.minigameLaberinto.listeners.PlayerQuitListener
+import los5fantasticos.minigameLaberinto.services.ArenaManager
+import los5fantasticos.minigameLaberinto.services.GameManager
+import los5fantasticos.minigameLaberinto.services.ScoreService
 import los5fantasticos.torneo.TorneoPlugin
 import los5fantasticos.torneo.api.MinigameModule
+import org.bukkit.command.CommandExecutor
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 
 /**
  * Manager del minijuego Laberinto.
  * 
- * Juego de navegación donde los jugadores deben encontrar la salida del laberinto.
+ * Minijuego de carrera contrarreloj a través de laberintos configurables,
+ * integrando mecanicas de sustos (jumpscares) y un sistema de puntuación
+ * basado en la finalización.
  */
-class MinigameLaberinto(private val torneoPlugin: TorneoPlugin) : MinigameModule {
+class MinigameLaberinto(val torneoPlugin: TorneoPlugin) : MinigameModule {
     
-    private lateinit var plugin: Plugin
+    lateinit var plugin: Plugin
+        private set
     
     override val gameName = "Laberinto"
     override val version = "1.0"
-    override val description = "Minijuego de navegación - ¡encuentra la salida del laberinto!"
+    override val description = "Minijuego de carrera contrarreloj a través de laberintos con jumpscares"
     
-    private val activePlayers = mutableSetOf<Player>()
-    private var gameRunning = false
+    /**
+     * Gestor de partidas activas.
+     */
+    lateinit var gameManager: GameManager
+        private set
+    
+    /**
+     * Gestor de arenas.
+     */
+    lateinit var arenaManager: ArenaManager
+        private set
+    
+    /**
+     * Servicio de puntuación.
+     */
+    lateinit var scoreService: ScoreService
+        private set
     
     override fun onEnable(plugin: Plugin) {
         this.plugin = plugin
         
-        // TODO: Inicializar lógica del juego Laberinto
-        // - Crear laberintos
-        // - Configurar eventos
-        // - Registrar comandos
+        // Cargar configuración del minijuego
+        plugin.saveDefaultConfig()
+        plugin.reloadConfig()
+        
+        // Inicializar servicios
+        arenaManager = ArenaManager()
+        arenaManager.initialize(plugin.dataFolder)
+        
+        gameManager = GameManager(this)
+        
+        scoreService = ScoreService(this, torneoPlugin.torneoManager)
+        
+        // Registrar listeners
+        plugin.server.pluginManager.registerEvents(GameListener(this), plugin)
+        plugin.server.pluginManager.registerEvents(PlayerQuitListener(this), plugin)
         
         plugin.logger.info("✓ $gameName v$version habilitado")
+        plugin.logger.info("  - GameManager inicializado")
+        plugin.logger.info("  - ArenaManager inicializado")
+        plugin.logger.info("  - ScoreService inicializado")
+        plugin.logger.info("  - GameListener registrado")
+        plugin.logger.info("  - PlayerQuitListener registrado")
+    }
+    
+    /**
+     * Proporciona los ejecutores de comandos para registro centralizado.
+     * Llamado por TorneoPlugin durante el registro del módulo.
+     */
+    override fun getCommandExecutors(): Map<String, CommandExecutor> {
+        return mapOf(
+            "laberinto" to LaberintoCommand(this)
+        )
     }
     
     override fun onDisable() {
-        // Terminar todos los juegos activos
-        endAllGames()
+        // Guardar arenas antes de limpiar
+        if (::arenaManager.isInitialized) {
+            arenaManager.saveArenas()
+        }
+        
+        // Limpiar todos los managers
+        if (::gameManager.isInitialized) {
+            gameManager.clearAll()
+        }
+        if (::arenaManager.isInitialized) {
+            arenaManager.clearAll()
+        }
+        if (::scoreService.isInitialized) {
+            scoreService.clearAll()
+        }
         
         plugin.logger.info("✓ $gameName deshabilitado")
     }
     
     override fun isGameRunning(): Boolean {
-        return gameRunning
+        return gameManager.getActiveGames().any { it.state == los5fantasticos.minigameLaberinto.game.GameState.IN_GAME }
     }
     
     override fun getActivePlayers(): List<Player> {
-        return activePlayers.toList()
+        return gameManager.getActiveGames()
+            .flatMap { game -> game.players }
     }
     
-    /**
-     * Inicia una nueva partida de Laberinto.
-     */
-    @Suppress("unused")
-    fun startGame(players: List<Player>) {
-        if (gameRunning) {
-            plugin.logger.warning("Ya hay una partida de Laberinto en curso")
-            return
-        }
-        
-        gameRunning = true
-        activePlayers.addAll(players)
-        
-        // TODO: Implementar lógica de inicio del juego
-        // - Generar laberinto
-        // - Teleportar jugadores al inicio
-        // - Iniciar temporizador
-        
-        players.forEach { player ->
-            player.sendMessage("§6[Laberinto] §e¡La partida ha comenzado! §7Encuentra la salida lo más rápido posible.")
-            recordGamePlayed(player)
-        }
-        
-        plugin.logger.info("Partida de Laberinto iniciada con ${players.size} jugadores")
-    }
-    
-    /**
-     * Termina la partida actual.
-     */
-    fun endGame(winner: Player? = null) {
-        if (!gameRunning) return
-        
-        gameRunning = false
-        
-        if (winner != null) {
-            // El ganador recibe puntos basados en el tiempo
-            val points = calculatePoints()
-            torneoPlugin.torneoManager.addScore(winner.uniqueId, gameName, points, "Completado el laberinto")
-            recordVictory(winner)
-            
-            // Notificar a todos los jugadores
-            activePlayers.forEach { player ->
-                if (player == winner) {
-                    player.sendMessage("§6[Laberinto] §a¡Felicidades! Has completado el laberinto.")
-                } else {
-                    player.sendMessage("§6[Laberinto] §c${winner.name} ha completado el laberinto.")
-                }
-            }
-        }
-        
-        // Limpiar jugadores activos
-        activePlayers.clear()
-        
-        plugin.logger.info("Partida de Laberinto terminada${if (winner != null) " - Ganador: ${winner.name}" else ""}")
-    }
-    
-    /**
-     * Calcula los puntos basados en el tiempo de completado.
-     */
-    private fun calculatePoints(): Int {
-        // TODO: Implementar cálculo de puntos basado en tiempo
-        // Por ahora, puntos fijos
-        return 75
-    }
-    
-    /**
-     * Termina todos los juegos activos.
-     */
-    private fun endAllGames() {
-        if (gameRunning) {
-            endGame()
-        }
-    }
-    
-    /**
-     * Registra una victoria en el torneo.
-     */
-    private fun recordVictory(player: Player) {
-        torneoPlugin.torneoManager.recordGameWon(player, gameName)
-    }
-    
-    /**
-     * Registra una partida jugada.
-     */
-    private fun recordGamePlayed(player: Player) {
-        torneoPlugin.torneoManager.recordGamePlayed(player, gameName)
-    }
 }

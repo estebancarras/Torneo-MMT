@@ -12,7 +12,7 @@ puntuacion:
   tercer-lugar: 15
   checkpoint: 5
   participacion: 10
-\n# Configuración de visuales
+# Configuración de visuales
 visuales:
   cadena:
     # Material del ítem para la cadena
