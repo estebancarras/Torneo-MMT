@@ -3,249 +3,339 @@ package los5fantasticos.memorias
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.Location
-import org.bukkit.plugin.Plugin
 import org.bukkit.entity.Player
+import org.bukkit.plugin.Plugin
+import org.bukkit.scheduler.BukkitRunnable
+import org.bukkit.scheduler.BukkitTask
 import java.util.UUID
-import kotlin.random.Random
+import java.util.concurrent.ConcurrentHashMap
 
-class GameManager(val plugin: Plugin, private val memoriasManager: MemoriasManager) {
-
-    private val activeGames = mutableMapOf<UUID, Game>()
-    private val playerToGameMap = mutableMapOf<UUID, Game>()
-
-    private var lobbyLocation: Location? = null
-    private var spawnLocation: Location? = null
-    private var tableroLocation: Location? = null
-    private var guessArea: Location? = null
-
-    private val arenas = mutableListOf<Arena>()
-    private var defaultGridSize = 5 // Tamaño por defecto del grid
-
+/**
+ * Orquestador central del minijuego Memorias.
+ * Gestiona múltiples duelos simultáneos mediante un Game Loop centralizado.
+ * 
+ * ARQUITECTURA:
+ * - UNA SOLA BukkitTask que actualiza todos los duelos activos
+ * - Los duelos NO crean sus propias tasks
+ * - Soporte para alta concurrencia mediante ConcurrentHashMap
+ */
+class GameManager(
+    val plugin: Plugin,
+    private val memoriasManager: MemoriasManager
+) {
+    // Duelos activos indexados por UUID único
+    private val duelosActivos = ConcurrentHashMap<UUID, DueloMemorias>()
+    
+    // Mapeo de jugadores a sus duelos
+    private val jugadorADuelo = ConcurrentHashMap<UUID, UUID>()
+    
+    // Parcelas ocupadas (para evitar colisiones)
+    private val parcelasOcupadas = ConcurrentHashMap<Parcela, UUID>()
+    
+    // Game Loop centralizado - LA ÚNICA BukkitTask
+    private var gameLoopTask: BukkitTask? = null
+    
+    // Arena configurada
+    private var arenaActual: Arena? = null
+    
+    // Cola de espera para emparejar jugadores
+    private val colaEspera = mutableListOf<Player>()
+    
+    // Tamaño del grid por defecto
+    private var defaultGridSize = 5
+    
     init {
-        loadConfig()
+        cargarConfiguracion()
     }
-
-    private fun loadConfig() {
-        // Cargar tamaño del grid
+    
+    /**
+     * Carga la configuración desde el archivo.
+     */
+    private fun cargarConfiguracion() {
         defaultGridSize = plugin.config.getInt("memorias.gridSize", 5)
         if (defaultGridSize !in 3..15) {
             defaultGridSize = 5
-            plugin.logger.warning("Tamaño de grid inválido en configuración. Usando 5x5 por defecto.")
+            plugin.logger.warning("Tamaño de grid inválido. Usando 5x5 por defecto.")
+        }
+    }
+    
+    /**
+     * Establece la arena actual del juego.
+     */
+    fun setArena(arena: Arena) {
+        this.arenaActual = arena
+        plugin.logger.info("Arena '${arena.nombre}' configurada con ${arena.getTotalParcelas()} parcelas")
+    }
+    
+    /**
+     * Obtiene la arena actual.
+     */
+    fun getArena(): Arena? = arenaActual
+    
+    /**
+     * Inicia el Game Loop centralizado.
+     * Se ejecuta cada 2 ticks (10 veces por segundo).
+     */
+    fun iniciarGameLoop() {
+        // Si ya existe, no crear otro
+        if (gameLoopTask != null && !gameLoopTask!!.isCancelled) {
+            plugin.logger.warning("Game Loop ya está activo")
+            return
         }
         
-        // Cargar ubicaciones guardadas
-        if (plugin.config.contains("memorias.lobby")) {
-            lobbyLocation = plugin.config.getLocation("memorias.lobby")
-        }
-        
-        if (plugin.config.contains("memorias.spawn")) {
-            spawnLocation = plugin.config.getLocation("memorias.spawn")
-        }
-        
-        if (plugin.config.contains("memorias.tablero")) {
-            tableroLocation = plugin.config.getLocation("memorias.tablero")
-        }
-        
-        if (plugin.config.contains("memorias.guessArea")) {
-            guessArea = plugin.config.getLocation("memorias.guessArea")
-        }
-        
-        // Cargar arenas guardadas
-        if (plugin.config.contains("memorias.arenas")) {
-            val arenasList = plugin.config.getList("memorias.arenas") as? List<Map<String, Any>>
-            if (arenasList != null) {
-                arenas.clear()
-                arenasList.forEach { arenaData ->
-                    val spawn = plugin.config.getLocation("memorias.arenas.${arenasList.indexOf(arenaData)}.spawn")
-                    val tablero = plugin.config.getLocation("memorias.arenas.${arenasList.indexOf(arenaData)}.tablero")
-                    val guess = plugin.config.getLocation("memorias.arenas.${arenasList.indexOf(arenaData)}.guess")
-                    
-                    if (spawn != null && tablero != null && guess != null) {
-                        arenas.add(Arena(spawn, tablero, guess))
+        gameLoopTask = object : BukkitRunnable() {
+            override fun run() {
+                // Iterar sobre todos los duelos activos
+                duelosActivos.values.forEach { duelo ->
+                    try {
+                        duelo.actualizar()
+                        
+                        // Si el duelo terminó, programar limpieza
+                        if (duelo.getEstado() == DueloMemorias.EstadoDuelo.FINALIZADO) {
+                            programarLimpiezaDuelo(duelo)
+                        }
+                    } catch (e: Exception) {
+                        plugin.logger.severe("Error actualizando duelo: ${e.message}")
+                        e.printStackTrace()
                     }
                 }
             }
-        }
+        }.runTaskTimer(plugin, 0L, 2L) // Cada 2 ticks
         
-        plugin.logger.info("Configuración de Memorias cargada: ${arenas.size} arenas, lobby: ${lobbyLocation != null}, spawn: ${spawnLocation != null}, tablero: ${tableroLocation != null}")
-    }
-
-    // Métodos para que los administradores configuren el juego
-    fun setLobbyLocation(location: Location) {
-        this.lobbyLocation = location
-        plugin.config.set("memorias.lobby", location)
-        plugin.saveConfig()
-    }
-
-    fun setSpawnLocation(location: Location) {
-        this.spawnLocation = location
-        plugin.config.set("memorias.spawn", location)
-        plugin.saveConfig()
-    }
-
-    fun setTableroLocation(location: Location) {
-        this.tableroLocation = location
-        plugin.config.set("memorias.tablero", location)
-        plugin.saveConfig()
+        plugin.logger.info("Game Loop iniciado (actualización cada 2 ticks)")
     }
     
     /**
-     * Establece el centro del tablero. El tablero se generará centrado en esta ubicación.
+     * Detiene el Game Loop centralizado.
      */
-    fun setTableroCenter(location: Location) {
-        this.tableroLocation = location
-        // También establecer guessArea en la misma ubicación (se usa el mismo tablero)
-        this.guessArea = location
-        plugin.config.set("memorias.tablero", location)
-        plugin.config.set("memorias.guessArea", location)
-        plugin.saveConfig()
+    fun detenerGameLoop() {
+        gameLoopTask?.cancel()
+        gameLoopTask = null
+        plugin.logger.info("Game Loop detenido")
     }
-
-    fun setGuessArea(location: Location) {
-        this.guessArea = location
-        plugin.config.set("memorias.guessArea", location)
-        plugin.saveConfig()
-    }
-
-    fun setGridSize(size: Int) {
-        if (size !in 3..15) {
-            plugin.logger.warning("El tamaño del grid debe estar entre 3 y 15. Usando tamaño por defecto: 5")
-            return
-        }
-        this.defaultGridSize = size
-        plugin.config.set("memorias.gridSize", size)
-        plugin.saveConfig()
-        plugin.logger.info("Tamaño del grid establecido a ${size}x${size}")
-    }
-
+    
     /**
-     * Crea el arena con las ubicaciones previamente configuradas.
+     * Añade un jugador a la cola de espera y intenta emparejarlo.
      */
-    fun createArenaFromCurrentLocation(sender: Player) {
-        // Verificar que todas las ubicaciones estén configuradas
-        if (lobbyLocation == null) {
-            sender.sendMessage(Component.text("✗ Falta configurar el lobby.", NamedTextColor.RED))
-            sender.sendMessage(Component.text("Usa: /memorias setlobby", NamedTextColor.YELLOW))
+    fun joinPlayer(jugador: Player) {
+        // Verificar que hay arena configurada
+        val arena = arenaActual
+        if (arena == null) {
+            jugador.sendMessage(Component.text("No hay arena configurada. Contacta a un administrador.", NamedTextColor.RED))
             return
         }
         
-        if (spawnLocation == null) {
-            sender.sendMessage(Component.text("✗ Falta configurar el spawn de jugadores.", NamedTextColor.RED))
-            sender.sendMessage(Component.text("Usa: /memorias setspawn", NamedTextColor.YELLOW))
+        // Verificar que hay parcelas disponibles
+        if (arena.getTotalParcelas() == 0) {
+            jugador.sendMessage(Component.text("El arena no tiene parcelas disponibles.", NamedTextColor.RED))
             return
         }
         
-        if (tableroLocation == null || guessArea == null) {
-            sender.sendMessage(Component.text("✗ Falta configurar el tablero.", NamedTextColor.RED))
-            sender.sendMessage(Component.text("Usa: /memorias settablero", NamedTextColor.YELLOW))
+        // Verificar que no esté ya en un duelo
+        if (jugadorADuelo.containsKey(jugador.uniqueId)) {
+            jugador.sendMessage(Component.text("Ya estás en un duelo activo.", NamedTextColor.YELLOW))
             return
         }
         
-        // Crear el arena con las ubicaciones configuradas
-        val newArena = Arena(spawnLocation!!, tableroLocation!!, guessArea!!)
-        arenas.add(newArena)
+        // Añadir a la cola
+        colaEspera.add(jugador)
+        jugador.sendMessage(Component.text("Te has unido a la cola. Jugadores esperando: ${colaEspera.size}", NamedTextColor.GREEN))
         
-        // Informar al jugador
-        sender.sendMessage(Component.text("✓ Arena creada con éxito!", NamedTextColor.GREEN))
-        sender.sendMessage(Component.text("Total de arenas: ${arenas.size}", NamedTextColor.YELLOW))
-        sender.sendMessage(Component.text("¡Listo para jugar! Los jugadores pueden usar /memorias join", NamedTextColor.GREEN))
+        // Teleportar al lobby de la arena si existe
+        arena.lobbySpawn?.let { jugador.teleport(it) }
+        
+        // Intentar emparejar
+        intentarEmparejar()
     }
-
-    fun joinPlayer(player: Player) {
-        if (arenas.isEmpty()) {
-            player.sendMessage(Component.text("No hay arenas disponibles. Un administrador debe crearlas.", NamedTextColor.RED))
-            return
-        }
-        val game = activeGames.values.firstOrNull { it.players.size < 4 } ?: createNewGame()
-        game.addPlayer(player)
-        playerToGameMap[player.uniqueId] = game
-        player.sendMessage(Component.text("Te has unido a la cola. Jugadores: ${game.players.size}/4", NamedTextColor.GREEN))
+    
+    /**
+     * Intenta emparejar jugadores de la cola y crear duelos.
+     */
+    private fun intentarEmparejar() {
+        val arena = arenaActual ?: return
         
-        // Iniciar el juego cuando haya al menos 2 jugadores
-        if (game.players.size >= 2) {
-            player.sendMessage(Component.text("¡Hay suficientes jugadores! El juego comenzará en 3 segundos...", NamedTextColor.YELLOW))
-            
-            object : org.bukkit.scheduler.BukkitRunnable() {
-                override fun run() {
-                    if (game.players.size >= 2) {
-                        game.startGame()
-                    }
+        // Mientras haya al menos 2 jugadores en cola y parcelas disponibles
+        while (colaEspera.size >= 2) {
+            // Obtener parcela libre
+            val parcela = arena.getParcelaLibre(parcelasOcupadas.keys)
+            if (parcela == null) {
+                // No hay parcelas disponibles
+                colaEspera.forEach { jugador ->
+                    jugador.sendMessage(Component.text("Todas las parcelas están ocupadas. Espera a que termine un duelo.", NamedTextColor.YELLOW))
                 }
-            }.runTaskLater(plugin, 60L) // 3 segundos
-        }
-    }
-
-    private fun createNewGame(): Game {
-        val newGame = Game(this, memoriasManager, arenas[Random.nextInt(arenas.size)], defaultGridSize)
-        activeGames[UUID.randomUUID()] = newGame
-        return newGame
-    }
-
-    fun getGameByPlayer(player: Player): Game? {
-        return playerToGameMap[player.uniqueId]
-    }
-
-    fun removePlayer(player: Player) {
-        val game = playerToGameMap.remove(player.uniqueId) ?: return
-        game.removePlayer(player)
-        if (game.players.isEmpty()) {
-            val gameId = activeGames.entries.firstOrNull { it.value == game }?.key ?: return
-            activeGames.remove(gameId)
+                break
+            }
+            
+            // Tomar dos jugadores de la cola
+            val jugador1 = colaEspera.removeAt(0)
+            val jugador2 = colaEspera.removeAt(0)
+            
+            // Crear duelo
+            crearDuelo(jugador1, jugador2, parcela)
         }
     }
     
     /**
-     * Remueve un jugador del juego y finaliza la partida, declarando ganador al jugador restante.
+     * Crea un nuevo duelo entre dos jugadores.
      */
-    fun removePlayerAndEndGame(player: Player) {
-        val game = getGameByPlayer(player)
+    private fun crearDuelo(jugador1: Player, jugador2: Player, parcela: Parcela) {
+        val dueloId = UUID.randomUUID()
+        val duelo = DueloMemorias(jugador1, jugador2, parcela, defaultGridSize)
         
-        if (game == null) {
-            // El jugador no está en un juego, solo enviarlo al lobby
-            lobbyLocation?.let { player.teleport(it) }
-            player.sendMessage(Component.text("Has salido del minijuego Memorias.", NamedTextColor.YELLOW))
-            return
+        // Registrar duelo
+        duelosActivos[dueloId] = duelo
+        jugadorADuelo[jugador1.uniqueId] = dueloId
+        jugadorADuelo[jugador2.uniqueId] = dueloId
+        parcelasOcupadas[parcela] = dueloId
+        
+        // Notificar
+        val mensaje = Component.text("¡Duelo iniciado! ${jugador1.name} vs ${jugador2.name}", NamedTextColor.GREEN)
+        jugador1.sendMessage(mensaje)
+        jugador2.sendMessage(mensaje)
+        
+        plugin.logger.info("Duelo creado: ${jugador1.name} vs ${jugador2.name} (ID: $dueloId)")
+        
+        // Iniciar Game Loop si no está activo
+        if (gameLoopTask == null || gameLoopTask!!.isCancelled) {
+            iniciarGameLoop()
         }
-        
-        // Si el juego está activo y hay más jugadores, terminar el juego
-        if (game.players.size > 1) {
-            player.sendMessage(Component.text("Has salido del juego. El juego terminará.", NamedTextColor.YELLOW))
-            
-            // Obtener el otro jugador (el ganador)
-            val winner = game.players.firstOrNull { it.uniqueId != player.uniqueId }
-            
-            // Remover al jugador que se va
-            game.removePlayer(player)
-            playerToGameMap.remove(player.uniqueId)
-            lobbyLocation?.let { player.teleport(it) }
-            
-            // Declarar ganador al jugador restante
-            if (winner != null) {
-                game.declareWinner(winner)
+    }
+    
+    /**
+     * Programa la limpieza de un duelo finalizado.
+     * Espera 5 segundos antes de limpiar para dar tiempo a los jugadores de ver los resultados.
+     */
+    private fun programarLimpiezaDuelo(duelo: DueloMemorias) {
+        object : BukkitRunnable() {
+            override fun run() {
+                limpiarDuelo(duelo)
             }
-        } else {
-            // Solo queda este jugador, simplemente removerlo
-            removePlayer(player)
-            lobbyLocation?.let { player.teleport(it) }
-            player.sendMessage(Component.text("Has salido del minijuego Memorias.", NamedTextColor.YELLOW))
+        }.runTaskLater(plugin, 100L) // 5 segundos
+    }
+    
+    /**
+     * Limpia un duelo: otorga puntos, limpia el tablero y libera recursos.
+     */
+    private fun limpiarDuelo(duelo: DueloMemorias) {
+        // Encontrar ID del duelo
+        val dueloId = duelosActivos.entries.firstOrNull { it.value == duelo }?.key ?: return
+        
+        // Otorgar puntos al ganador
+        val ganador = duelo.getGanador()
+        if (ganador != null) {
+            memoriasManager.torneoPlugin.torneoManager.addScore(
+                ganador.uniqueId,
+                memoriasManager.gameName,
+                50,
+                "Victoria en duelo de Memorias"
+            )
+            memoriasManager.recordVictory(ganador)
+        }
+        
+        // Otorgar puntos de participación
+        val player1 = duelo.player1
+        val player2 = duelo.player2
+        
+        listOf(player1, player2).forEach { jugador ->
+            val puntosParticipacion = duelo.getPuntuacion(jugador) * 5
+            if (puntosParticipacion > 0) {
+                memoriasManager.torneoPlugin.torneoManager.addScore(
+                    jugador.uniqueId,
+                    memoriasManager.gameName,
+                    puntosParticipacion,
+                    "Participación en duelo de Memorias"
+                )
+            }
+            memoriasManager.recordGamePlayed(jugador)
+        }
+        
+        // Teleportar jugadores al lobby
+        val arena = arenaActual
+        arena?.lobbySpawn?.let { lobby ->
+            if (player1.isOnline) {
+                player1.teleport(lobby)
+                player1.sendMessage(Component.text("¡Has sido enviado al lobby!", NamedTextColor.GREEN))
+            }
+            if (player2.isOnline) {
+                player2.teleport(lobby)
+                player2.sendMessage(Component.text("¡Has sido enviado al lobby!", NamedTextColor.GREEN))
+            }
+        }
+        
+        // Limpiar tablero
+        duelo.limpiarTablero()
+        
+        // Liberar recursos
+        jugadorADuelo.remove(player1.uniqueId)
+        jugadorADuelo.remove(player2.uniqueId)
+        parcelasOcupadas.entries.removeIf { it.value == dueloId }
+        duelosActivos.remove(dueloId)
+        
+        plugin.logger.info("Duelo limpiado: ${player1.name} vs ${player2.name}")
+        
+        // Detener Game Loop si no hay más duelos
+        if (duelosActivos.isEmpty()) {
+            detenerGameLoop()
         }
     }
-
-    fun getLobbyLocation(): Location? {
-        return lobbyLocation
+    
+    /**
+     * Remueve un jugador de su duelo actual.
+     */
+    fun removePlayer(jugador: Player) {
+        // Remover de cola de espera
+        colaEspera.remove(jugador)
+        
+        // Buscar duelo del jugador
+        val dueloId = jugadorADuelo[jugador.uniqueId] ?: return
+        val duelo = duelosActivos[dueloId] ?: return
+        
+        // Determinar ganador (el otro jugador)
+        val ganador = if (duelo.player1 == jugador) duelo.player2 else duelo.player1
+        
+        // Notificar abandono
+        ganador.sendMessage(Component.text("${jugador.name} abandonó el duelo. ¡Ganaste por abandono!", NamedTextColor.GOLD))
+        
+        // Limpiar inmediatamente
+        limpiarDuelo(duelo)
     }
     
-    fun hasActiveGames(): Boolean {
-        return activeGames.isNotEmpty()
+    /**
+     * Obtiene el duelo de un jugador.
+     */
+    fun getDueloByPlayer(jugador: Player): DueloMemorias? {
+        val dueloId = jugadorADuelo[jugador.uniqueId] ?: return null
+        return duelosActivos[dueloId]
     }
     
-    fun getAllActivePlayers(): List<Player> {
-        return playerToGameMap.keys.mapNotNull { org.bukkit.Bukkit.getPlayer(it) }
-    }
-    
+    /**
+     * Finaliza todos los duelos activos y limpia recursos.
+     */
     fun endAllGames() {
-        activeGames.values.forEach { it.endGame() }
-        activeGames.clear()
-        playerToGameMap.clear()
+        duelosActivos.values.toList().forEach { duelo ->
+            duelo.limpiarTablero()
+        }
+        
+        duelosActivos.clear()
+        jugadorADuelo.clear()
+        parcelasOcupadas.clear()
+        colaEspera.clear()
+        
+        detenerGameLoop()
+        
+        plugin.logger.info("Todos los duelos finalizados")
+    }
+    
+    /**
+     * Obtiene estadísticas del Game Manager.
+     */
+    fun getStats(): String {
+        return """
+            Duelos activos: ${duelosActivos.size}
+            Jugadores en duelo: ${jugadorADuelo.size}
+            Jugadores en cola: ${colaEspera.size}
+            Parcelas ocupadas: ${parcelasOcupadas.size}
+            Game Loop activo: ${gameLoopTask != null && !gameLoopTask!!.isCancelled}
+        """.trimIndent()
     }
 }

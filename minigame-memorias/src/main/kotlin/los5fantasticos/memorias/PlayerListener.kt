@@ -8,6 +8,10 @@ import org.bukkit.event.block.Action
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerQuitEvent
 
+/**
+ * Listener actualizado para el sistema refactorizado.
+ * Delega toda la lógica de juego a DueloMemorias a través del GameManager.
+ */
 class PlayerListener(private val gameManager: GameManager) : Listener {
 
     @EventHandler
@@ -34,8 +38,8 @@ class PlayerListener(private val gameManager: GameManager) : Listener {
             }
         }
         
-        // Verificar si el jugador está en un juego activo
-        val game = gameManager.getGameByPlayer(player) ?: return
+        // Verificar si el jugador está en un duelo activo
+        val duelo = gameManager.getDueloByPlayer(player) ?: return
         
         // Solo procesar clics derechos en bloques
         if (event.action != Action.RIGHT_CLICK_BLOCK) {
@@ -48,8 +52,8 @@ class PlayerListener(private val gameManager: GameManager) : Listener {
             return
         }
         
-        // Manejar el clic en el tablero
-        val success = game.handleBlockClick(player, block.location)
+        // Delegar el manejo del clic al duelo
+        val success = duelo.handlePlayerClick(player, block.location)
         if (success) {
             event.isCancelled = true
         }
@@ -70,3 +74,4 @@ class PlayerListener(private val gameManager: GameManager) : Listener {
                material == Material.PURPLE_WOOL
     }
 }
+
