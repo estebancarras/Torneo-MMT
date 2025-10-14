@@ -1,0 +1,100 @@
+# Configuración del Minijuego Laberinto
+# Minijuego de carrera contrarreloj a través de laberintos con jumpscares
+
+# Configuración general del minijuego
+game:
+  # Duración por defecto de las partidas en segundos (5 minutos)
+  default-duration: 300
+  
+  # Número mínimo de jugadores para iniciar una partida
+  min-players: 2
+  
+  # Número máximo de jugadores por partida
+  max-players: 8
+  
+  # Cooldown entre jumpscares para el mismo jugador en la misma zona (segundos)
+  jumpscare-cooldown: 30
+
+# Configuración de puntuación
+scoring:
+  # Puntos otorgados por completar el laberinto
+  completion-points: 75
+  
+  # Puntos otorgados por participar (no completar)
+  participation-points: 10
+
+# Configuración de mensajes
+messages:
+  # Mensajes de inicio de partida
+  game-start: "&a&l¡¡¡COMIENZA EL LABERINTO!!!"
+  game-instructions: "&eEncuentra la salida antes de que se acabe el tiempo!"
+  game-warning: "&c¡Cuidado con los sustos!"
+  
+  # Mensajes de finalización
+  completion: "&a&l¡¡¡FELICIDADES!!! ¡Has completado el laberinto!"
+  completion-notification: "&e{player} ha completado el laberinto!"
+  
+  # Mensajes de jumpscare
+  jumpscare: "&c&l¡¡¡SUSTO!!!"
+  
+  # Mensajes de tiempo
+  time-warning-60: "&e¡Queda 1 minuto!"
+  time-warning-30: "&6¡Quedan 30 segundos!"
+  time-warning-10: "&c¡Quedan 10 segundos!"
+  
+  # Mensajes de lobby
+  lobby-join: "&a¡Te has unido a una partida de Laberinto!"
+  lobby-countdown: "&a¡La partida comenzará pronto!"
+  lobby-waiting: "&eSe necesitan {needed} jugadores más para comenzar"
+  
+  # Mensajes de resultados
+  results-title: "&6&l════════════════════════════════════════"
+  results-header: "&6&l           RESULTADOS DEL LABERINTO"
+  results-winners: "&a&l¡GANADORES! ({points} puntos):"
+  results-participants: "&eParticipantes ({points} puntos):"
+  results-winner-prefix: "&a  ✓ "
+  results-participant-prefix: "&e  - "
+
+# Configuración de efectos
+effects:
+  # Efectos del jumpscare
+  jumpscare:
+    # Sonido del jumpscare
+    sound: "ENTITY_ENDERMAN_SCREAM"
+    # Volumen del sonido (0.0 - 2.0)
+    volume: 1.0
+    # Tono del sonido (0.5 - 2.0)
+    pitch: 0.8
+    
+    # Efectos de poción aplicados
+    potion-effects:
+      - type: "BLINDNESS"
+        duration: 20  # ticks (1 segundo)
+        amplifier: 1
+
+# Configuración de regiones
+regions:
+  # Tamaño de la región de meta por defecto (en bloques desde el centro)
+  finish-region-size: 1.5
+  
+  # Radio de detección de jumpscares (en bloques)
+  jumpscare-detection-radius: 2.0
+
+# Configuración de temporizadores
+timers:
+  # Duración de la cuenta regresiva de inicio (segundos)
+  countdown-duration: 10
+  
+  # Delay antes de teletransportar jugadores al lobby después de finalizar (ticks)
+  lobby-teleport-delay: 200  # 10 segundos
+
+# Configuración de debug
+debug:
+  # Habilitar mensajes de debug en consola
+  enabled: false
+  
+  # Log de eventos de jumpscare
+  log-jumpscares: true
+  
+  # Log de finalizaciones
+  log-completions: true
