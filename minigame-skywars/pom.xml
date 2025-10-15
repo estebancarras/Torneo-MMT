@@ -68,7 +68,7 @@
             <artifactId>skywarsreloadedcore</artifactId>
             <version>5.6.33</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/libs/SWR-5.6.33-MMT.jar</systemPath>
+            <systemPath>${project.basedir}/libs/SkyWarsReloaded 5.6.34.jar</systemPath>
         </dependency>
     </dependencies>
 </project>
