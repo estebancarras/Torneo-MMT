@@ -95,8 +95,7 @@ mvn-wrapper.properties
 .mvn/wrapper/maven-wrapper.jar
 
 # Archivos de configuración de CI/CD
-.github/*
-!.github/workflows/
+.github/
 .gitlab-ci.yml
 .travis.yml
 
