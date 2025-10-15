@@ -7,8 +7,12 @@ import net.kyori.adventure.title.Title
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Sound
+import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
+import org.bukkit.plugin.Plugin
+import java.io.File
 import java.time.Duration
+import java.util.UUID
 
 /**
  * Representa un duelo individual de Memorias entre dos jugadores.
@@ -17,43 +21,54 @@ import java.time.Duration
  * @property player1 Primer jugador del duelo
  * @property player2 Segundo jugador del duelo
  * @property parcela Parcela donde se desarrolla el duelo
- * @property gridSize Tamaño del tablero (default 5x5)
+ * @property plugin Plugin para cargar configuración
  */
 class DueloMemorias(
     val player1: Player,
     val player2: Player,
     val parcela: Parcela,
-    private val gridSize: Int = 5
+    private val plugin: Plugin
 ) {
-    // Estado del duelo
-    private var estado: EstadoDuelo = EstadoDuelo.PREPARANDO
+    // ===== CONFIGURACIÓN DEL JUEGO =====
+    private val memorizationTimeSeconds: Int
+    private val playerTimeSeconds: Int
+    private val turnChangeOnFail: Boolean
+    private val gridSize: Int
+    private val revealTimeSeconds: Int
+    
+    // ===== ESTADO DEL DUELO =====
+    private var estado: DueloEstado = DueloEstado.MEMORIZANDO
     private var ticksTranscurridos = 0
     
-    // Tablero de juego
+    // ===== FASE DE MEMORIZACIÓN =====
+    private var ticksParaMemorizar: Int
+    
+    // ===== SISTEMA DE TURNOS =====
+    private var turnoActual: UUID? = null
+    private val jugadores = listOf(player1, player2)
+    
+    // ===== TEMPORIZADORES INDIVIDUALES =====
+    private val tiempoRestante = mutableMapOf(
+        player1.uniqueId to 0,
+        player2.uniqueId to 0
+    )
+    
+    // ===== TABLERO DE JUEGO =====
     private val tablero = mutableListOf<CasillaMemorias>()
     private val materialOculto = Material.GRAY_WOOL
     
-    // Sistema de turnos
-    private var jugadorActualIndex = 0
-    private val jugadores = listOf(player1, player2)
-    
-    // Puntuaciones y estadísticas
+    // ===== PUNTUACIONES =====
     private val puntuaciones = mutableMapOf(player1 to 0, player2 to 0)
-    private val intentosUsados = mutableMapOf(player1 to 0, player2 to 0)
-    private val maxIntentos = 4
     
-    // Estado de selección (para el par)
+    // ===== ESTADO DE SELECCIÓN =====
     private var esperandoSegundoClic = false
     private var primerBloque: CasillaMemorias? = null
     private var segundoBloque: CasillaMemorias? = null
     
-    // Control de tiempo para ocultar bloques (en ticks)
+    // ===== CONTROL DE TIEMPO PARA OCULTAR BLOQUES =====
     private var ticksParaOcultar = 0
     
-    // Temporizador de turno
-    private var ticksTurnoRestantes = 30 * 20 // 30 segundos en ticks
-    
-    // Colores disponibles
+    // ===== COLORES DISPONIBLES =====
     private val coloresDisponibles = listOf(
         Material.RED_WOOL, Material.BLUE_WOOL, Material.GREEN_WOOL,
         Material.YELLOW_WOOL, Material.LIME_WOOL, Material.ORANGE_WOOL,
@@ -70,26 +85,38 @@ class DueloMemorias(
         val idPar: Int
     )
     
-    /**
-     * Estados posibles del duelo.
-     */
-    enum class EstadoDuelo {
-        PREPARANDO,     // Cuenta regresiva inicial
-        JUGANDO,        // Juego activo
-        FINALIZADO      // Duelo terminado
-    }
+    // El enum EstadoDuelo ahora es DueloEstado y se encuentra en su propio archivo
     
     init {
+        // Cargar configuración desde memorias.yml
+        val configFile = File(plugin.dataFolder, "memorias.yml")
+        val config = if (configFile.exists()) {
+            YamlConfiguration.loadConfiguration(configFile)
+        } else {
+            // Valores por defecto si el archivo no existe
+            YamlConfiguration()
+        }
+        
+        memorizationTimeSeconds = config.getInt("game-settings.memorization-time-seconds", 10)
+        playerTimeSeconds = config.getInt("game-settings.player-time-seconds", 120)
+        turnChangeOnFail = config.getBoolean("game-settings.turn-change-on-fail", true)
+        gridSize = config.getInt("game-settings.grid-size", 5)
+        revealTimeSeconds = config.getInt("game-settings.reveal-time-seconds", 2)
+        
+        // Inicializar temporizadores (en ticks, cada jugador tiene su tiempo)
+        tiempoRestante[player1.uniqueId] = playerTimeSeconds * 20
+        tiempoRestante[player2.uniqueId] = playerTimeSeconds * 20
+        
+        // Inicializar tiempo de memorización
+        ticksParaMemorizar = memorizationTimeSeconds * 20
+        
         // Teleportar jugadores a sus spawns
         player1.teleport(parcela.spawn1)
         player2.teleport(parcela.spawn2)
         
-        // Generar tablero
+        // Generar tablero y revelar todos los bloques para la fase de memorización
         generarTablero()
-        
-        // Inicializar intentos
-        intentosUsados[player1] = 0
-        intentosUsados[player2] = 0
+        revelarTodoElTablero()
     }
     
     /**
@@ -98,52 +125,56 @@ class DueloMemorias(
      */
     fun actualizar() {
         when (estado) {
-            EstadoDuelo.PREPARANDO -> actualizarPreparacion()
-            EstadoDuelo.JUGANDO -> actualizarJuego()
-            EstadoDuelo.FINALIZADO -> {}  // No hace nada, espera a ser removido
+            DueloEstado.MEMORIZANDO -> actualizarMemorizacion()
+            DueloEstado.JUGANDO -> actualizarJuego()
+            DueloEstado.FINALIZADO -> {}  // No hace nada, espera a ser removido
         }
         
         ticksTranscurridos++
     }
     
     /**
-     * Actualiza la fase de preparación (cuenta regresiva).
+     * Actualiza la fase de memorización.
+     * Todos los bloques están visibles y los jugadores tienen tiempo para memorizarlos.
      */
-    private fun actualizarPreparacion() {
-        // Cuenta regresiva: 3 segundos = 60 ticks
-        val segundosRestantes = 3 - (ticksTranscurridos / 20)
+    private fun actualizarMemorizacion() {
+        ticksParaMemorizar--
         
-        when {
-            ticksTranscurridos % 20 == 0 && segundosRestantes > 0 -> {
-                // Cada segundo, mostrar número
-                jugadores.forEach { jugador ->
-                    val titulo = Component.text("$segundosRestantes", NamedTextColor.GOLD, TextDecoration.BOLD)
-                    val subtitulo = Component.text("Preparándose...", NamedTextColor.YELLOW)
-                    val tiempos = Title.Times.times(Duration.ofMillis(250), Duration.ofMillis(750), Duration.ofMillis(250))
-                    jugador.showTitle(Title.title(titulo, subtitulo, tiempos))
-                    jugador.playSound(jugador.location, Sound.BLOCK_NOTE_BLOCK_HAT, 1.0f, 1.0f)
-                }
-            }
-            ticksTranscurridos >= 60 -> {
-                // Iniciar juego
-                estado = EstadoDuelo.JUGANDO
-                ticksTranscurridos = 0
-                
-                jugadores.forEach { jugador ->
-                    val titulo = Component.text("¡COMENZÓ!", NamedTextColor.GREEN, TextDecoration.BOLD)
-                    val subtitulo = Component.text("¡Encuentra los pares! (4 intentos)", NamedTextColor.YELLOW)
-                    val tiempos = Title.Times.times(Duration.ofMillis(250), Duration.ofSeconds(1), Duration.ofMillis(250))
-                    jugador.showTitle(Title.title(titulo, subtitulo, tiempos))
-                    jugador.playSound(jugador.location, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f)
-                }
-                
-                anunciarTurno()
+        // Actualizar action bar cada 10 ticks (0.5 segundos)
+        if (ticksParaMemorizar % 10 == 0) {
+            val segundosRestantes = (ticksParaMemorizar / 20) + 1
+            val mensaje = Component.text("¡Memoriza las posiciones! ", NamedTextColor.YELLOW, TextDecoration.BOLD)
+                .append(Component.text("Tiempo: ", NamedTextColor.GOLD))
+                .append(Component.text("${segundosRestantes}s", NamedTextColor.WHITE))
+            
+            jugadores.forEach { it.sendActionBar(mensaje) }
+        }
+        
+        // Cuando el tiempo se agota, cambiar a fase de juego
+        if (ticksParaMemorizar <= 0) {
+            // Ocultar todos los bloques
+            ocultarTodoElTablero()
+            
+            // Cambiar a estado JUGANDO
+            estado = DueloEstado.JUGANDO
+            
+            // Iniciar turno del primer jugador
+            iniciarTurno(player1)
+            
+            // Notificar a los jugadores
+            jugadores.forEach { jugador ->
+                val titulo = Component.text("¡A JUGAR!", NamedTextColor.GREEN, TextDecoration.BOLD)
+                val subtitulo = Component.text("Encuentra los pares de colores", NamedTextColor.YELLOW)
+                val tiempos = Title.Times.times(Duration.ofMillis(250), Duration.ofSeconds(2), Duration.ofMillis(500))
+                jugador.showTitle(Title.title(titulo, subtitulo, tiempos))
+                jugador.playSound(jugador.location, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f)
             }
         }
     }
     
     /**
      * Actualiza la fase de juego activo.
+     * Gestiona temporizadores individuales y lógica de turnos.
      */
     private fun actualizarJuego() {
         // Manejar ocultación de bloques temporales
@@ -154,24 +185,23 @@ class DueloMemorias(
             }
         }
         
-        // Actualizar temporizador de turno
-        if (ticksTurnoRestantes > 0) {
-            ticksTurnoRestantes--
+        // Actualizar temporizador del jugador actual
+        turnoActual?.let { uuidActual ->
+            val tiempoActual = tiempoRestante[uuidActual] ?: 0
             
-            // Actualizar hotbar cada 10 ticks
-            if (ticksTurnoRestantes % 10 == 0) {
-                actualizarHotbar()
+            if (tiempoActual > 0) {
+                tiempoRestante[uuidActual] = tiempoActual - 1
+                
+                // Actualizar action bar cada 10 ticks
+                if (tiempoRestante[uuidActual]!! % 10 == 0) {
+                    actualizarActionBars()
+                }
+                
+                // Timeout: el jugador se quedó sin tiempo
+                if (tiempoRestante[uuidActual]!! <= 0) {
+                    manejarTimeoutJugador(uuidActual)
+                }
             }
-            
-            // Timeout de turno
-            if (ticksTurnoRestantes == 0) {
-                manejarTimeoutTurno()
-            }
-        }
-        
-        // Verificar si el duelo terminó
-        if (todosJugadoresTerminaron()) {
-            finalizarDuelo()
         }
     }
     
@@ -235,32 +265,24 @@ class DueloMemorias(
      * @return true si el clic fue válido y procesado
      */
     fun handlePlayerClick(jugador: Player, ubicacionClic: Location): Boolean {
-        if (estado != EstadoDuelo.JUGANDO) {
+        // Validación: Solo permitir clics durante la fase de juego
+        if (estado != DueloEstado.JUGANDO) {
             jugador.sendMessage(Component.text("El juego aún no ha comenzado.", NamedTextColor.RED))
             return false
         }
         
-        // Verificar turno
-        val jugadorActual = jugadores[jugadorActualIndex]
-        if (jugadorActual != jugador) {
-            jugador.sendMessage(Component.text("¡No es tu turno! Espera a que ${jugadorActual.name} termine.", NamedTextColor.RED))
-            return false
-        }
-        
-        // Verificar intentos
-        val intentos = intentosUsados[jugador] ?: 0
-        if (intentos >= maxIntentos) {
-            jugador.sendMessage(Component.text("¡Ya usaste tus $maxIntentos intentos!", NamedTextColor.RED))
-            siguienteTurno()
+        // Validación: Verificar que sea el turno del jugador
+        if (jugador.uniqueId != turnoActual) {
+            jugador.sendMessage(Component.text("¡No es tu turno!", NamedTextColor.RED))
             return false
         }
         
         // Buscar casilla
         val casilla = buscarCasillaPorUbicacion(ubicacionClic) ?: return false
         
-        // Verificar si ya está revelada
+        // Verificar si ya está revelada permanentemente
         if (casilla.revelada) {
-            jugador.sendMessage(Component.text("Este par ya fue encontrado.", NamedTextColor.RED))
+            jugador.sendMessage(Component.text("Este par ya fue encontrado.", NamedTextColor.GRAY))
             return false
         }
         
@@ -271,6 +293,7 @@ class DueloMemorias(
             primerBloque = casilla
             esperandoSegundoClic = true
             jugador.sendMessage(Component.text("Selecciona un segundo bloque.", NamedTextColor.YELLOW))
+            jugador.playSound(jugador.location, Sound.BLOCK_STONE_BUTTON_CLICK_ON, 0.5f, 1.0f)
             return true
         } else {
             // Segundo clic
@@ -281,9 +304,6 @@ class DueloMemorias(
             
             revelarCasillaTemporalmente(casilla)
             segundoBloque = casilla
-            
-            // Incrementar intentos
-            intentosUsados[jugador] = intentos + 1
             
             // Verificar par
             verificarPar(jugador)
@@ -306,25 +326,35 @@ class DueloMemorias(
             val puntuacion = (puntuaciones[jugador] ?: 0) + 1
             puntuaciones[jugador] = puntuacion
             
-            val mensaje = Component.text("✓ ${jugador.name} encontró un par! ($puntuacion pares)", NamedTextColor.GREEN, TextDecoration.BOLD)
+            val mensaje = Component.text("✓ ${jugador.name} encontró un par!", NamedTextColor.GREEN, TextDecoration.BOLD)
+                .append(Component.text(" ($puntuacion pares)", NamedTextColor.AQUA))
             jugadores.forEach { it.sendMessage(mensaje) }
             
             jugador.playSound(jugador.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f)
-            jugador.playSound(jugador.location, Sound.BLOCK_NOTE_BLOCK_CHIME, 1.0f, 1.0f)
+            jugador.playSound(jugador.location, Sound.BLOCK_NOTE_BLOCK_CHIME, 1.0f, 1.5f)
             
             resetearSeleccion()
-            jugador.sendMessage(Component.text("¡Encontraste un par! Puedes seguir jugando.", NamedTextColor.GREEN))
+            
+            // Verificar si se completaron todos los pares
+            if (todosLosParesEncontrados()) {
+                finalizarDueloPorCompletado()
+            }
             
         } else {
-            // NO ES PAR - programar ocultación en 2 segundos
-            val intentosRestantes = maxIntentos - intentosUsados[jugador]!!
-            val mensaje = Component.text("✗ ${jugador.name} no encontró un par. ($intentosRestantes intentos restantes)", NamedTextColor.RED)
+            // NO ES PAR
+            val mensaje = Component.text("✗ ${jugador.name} no encontró un par", NamedTextColor.RED)
             jugadores.forEach { it.sendMessage(mensaje) }
             
             jugador.playSound(jugador.location, Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.8f)
             
-            // Configurar timer para ocultar en 40 ticks (2 segundos)
-            ticksParaOcultar = 40
+            // Configurar timer para ocultar bloques (usar tiempo de configuración)
+            ticksParaOcultar = revealTimeSeconds * 20
+            
+            // Si la configuración dice que se cambia de turno al fallar, hacerlo
+            if (turnChangeOnFail) {
+                // El cambio de turno se ejecutará después de ocultar los bloques
+                // en ocultarBloquesTemporales()
+            }
         }
     }
     
@@ -335,8 +365,11 @@ class DueloMemorias(
         segundoBloque?.let { ocultarCasilla(it) }
         primerBloque?.let { ocultarCasilla(it) }
         resetearSeleccion()
-        siguienteTurno()
-        anunciarTurno()
+        
+        // Cambiar de turno si la configuración lo indica
+        if (turnChangeOnFail) {
+            cambiarTurno()
+        }
     }
     
     /**
@@ -377,111 +410,186 @@ class DueloMemorias(
     }
     
     /**
-     * Avanza al siguiente turno.
+     * Inicia el turno de un jugador específico.
+     * Establece turnoActual y notifica a los jugadores.
      */
-    private fun siguienteTurno() {
-        jugadorActualIndex = (jugadorActualIndex + 1) % jugadores.size
-        ticksTurnoRestantes = 30 * 20 // Reset timer
-        resetearSeleccion()
-    }
-    
-    /**
-     * Anuncia el turno actual.
-     */
-    private fun anunciarTurno() {
-        val jugadorActual = jugadores[jugadorActualIndex]
-        val mensaje = Component.text("Turno de: ${jugadorActual.name}", NamedTextColor.YELLOW, TextDecoration.BOLD)
-        jugadores.forEach { it.sendMessage(mensaje) }
-    }
-    
-    /**
-     * Maneja el timeout de un turno.
-     */
-    private fun manejarTimeoutTurno() {
-        val jugadorActual = jugadores[jugadorActualIndex]
-        val mensaje = Component.text("¡Se agotó el tiempo del turno de ${jugadorActual.name}!", NamedTextColor.RED)
-        jugadores.forEach { it.sendMessage(mensaje) }
+    private fun iniciarTurno(jugador: Player) {
+        turnoActual = jugador.uniqueId
         
-        resetearSeleccion()
-        siguienteTurno()
-        anunciarTurno()
+        val mensaje = Component.text("¡Turno de ", NamedTextColor.YELLOW, TextDecoration.BOLD)
+            .append(Component.text(jugador.name, NamedTextColor.GOLD))
+            .append(Component.text("!", NamedTextColor.YELLOW))
+        
+        jugadores.forEach { it.sendMessage(mensaje) }
+        jugador.playSound(jugador.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.5f)
     }
     
     /**
-     * Actualiza el hotbar de todos los jugadores.
+     * Cambia al siguiente jugador.
      */
-    private fun actualizarHotbar() {
-        val jugadorActual = jugadores[jugadorActualIndex]
-        val segundosRestantes = ticksTurnoRestantes / 20
+    private fun cambiarTurno() {
+        val jugadorActualObj = jugadores.find { it.uniqueId == turnoActual }
+        val oponente = jugadores.find { it != jugadorActualObj }
         
+        if (oponente != null) {
+            iniciarTurno(oponente)
+        }
+    }
+    
+    /**
+     * Maneja el timeout cuando un jugador se queda sin tiempo.
+     * El jugador que se quedó sin tiempo pierde automáticamente.
+     */
+    private fun manejarTimeoutJugador(uuidJugador: UUID) {
+        val jugadorSinTiempo = jugadores.find { it.uniqueId == uuidJugador }
+        val ganador = jugadores.find { it.uniqueId != uuidJugador }
+        
+        if (jugadorSinTiempo != null && ganador != null) {
+            val mensaje = Component.text("¡${jugadorSinTiempo.name} se quedó sin tiempo!", NamedTextColor.RED, TextDecoration.BOLD)
+            jugadores.forEach { it.sendMessage(mensaje) }
+            
+            finalizarDueloPorTimeout(ganador, jugadorSinTiempo)
+        }
+    }
+    
+    /**
+     * Actualiza las action bars de todos los jugadores con información del duelo.
+     */
+    private fun actualizarActionBars() {
         jugadores.forEach { jugador ->
-            val intentos = intentosUsados[jugador] ?: 0
             val puntuacion = puntuaciones[jugador] ?: 0
-            val intentosRestantes = maxIntentos - intentos
+            val tiempoEnTicks = tiempoRestante[jugador.uniqueId] ?: 0
+            val segundosRestantes = tiempoEnTicks / 20
+            val minutos = segundosRestantes / 60
+            val segundos = segundosRestantes % 60
+            val tiempoFormateado = String.format("%d:%02d", minutos, segundos)
             
-            val colorIntentos = when {
-                intentosRestantes > 2 -> NamedTextColor.GREEN
-                intentosRestantes > 0 -> NamedTextColor.YELLOW
-                else -> NamedTextColor.RED
-            }
+            val esSuTurno = jugador.uniqueId == turnoActual
             
-            val indicadorTurno = if (jugador == jugadorActual) {
-                Component.text("TU TURNO", NamedTextColor.GOLD, TextDecoration.BOLD)
+            val indicadorTurno = if (esSuTurno) {
+                Component.text("➤ TU TURNO", NamedTextColor.GOLD, TextDecoration.BOLD)
             } else {
                 Component.text("Esperando...", NamedTextColor.GRAY)
             }
             
             val colorTiempo = when {
-                segundosRestantes > 20 -> NamedTextColor.GREEN
-                segundosRestantes > 10 -> NamedTextColor.YELLOW
+                segundosRestantes > 60 -> NamedTextColor.GREEN
+                segundosRestantes > 30 -> NamedTextColor.YELLOW
                 else -> NamedTextColor.RED
             }
             
             val mensaje = indicadorTurno
-                .append(Component.text(" | ", NamedTextColor.GRAY))
-                .append(Component.text("Tiempo: ", colorTiempo, TextDecoration.BOLD))
-                .append(Component.text("${segundosRestantes}s", NamedTextColor.WHITE))
-                .append(Component.text(" | ", NamedTextColor.GRAY))
-                .append(Component.text("Pares: ", NamedTextColor.AQUA))
-                .append(Component.text("$puntuacion", NamedTextColor.WHITE))
-                .append(Component.text(" | ", NamedTextColor.GRAY))
-                .append(Component.text("Intentos: ", colorIntentos, TextDecoration.BOLD))
-                .append(Component.text("$intentosRestantes/$maxIntentos", colorIntentos))
+                .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
+                .append(Component.text("⏱ ", colorTiempo))
+                .append(Component.text(tiempoFormateado, colorTiempo, TextDecoration.BOLD))
+                .append(Component.text(" | ", NamedTextColor.DARK_GRAY))
+                .append(Component.text("⭐ Pares: ", NamedTextColor.AQUA))
+                .append(Component.text("$puntuacion", NamedTextColor.WHITE, TextDecoration.BOLD))
             
             jugador.sendActionBar(mensaje)
         }
     }
     
     /**
-     * Verifica si todos los jugadores terminaron sus intentos.
+     * Verifica si todos los pares del tablero fueron encontrados.
      */
-    private fun todosJugadoresTerminaron(): Boolean {
-        return jugadores.all { (intentosUsados[it] ?: 0) >= maxIntentos }
+    private fun todosLosParesEncontrados(): Boolean {
+        return tablero.all { it.revelada }
     }
     
     /**
-     * Finaliza el duelo y determina el ganador.
+     * Finaliza el duelo cuando un jugador se queda sin tiempo.
      */
-    private fun finalizarDuelo() {
-        estado = EstadoDuelo.FINALIZADO
+    private fun finalizarDueloPorTimeout(ganador: Player, perdedor: Player) {
+        estado = DueloEstado.FINALIZADO
+        
+        // Mostrar resultados
+        val mensajeResultado = Component.text("¡Duelo finalizado por tiempo!", NamedTextColor.GOLD, TextDecoration.BOLD)
+            .append(Component.text("\n", NamedTextColor.WHITE))
+            .append(Component.text("¡${ganador.name} gana por tiempo!", NamedTextColor.GREEN))
+        
+        jugadores.forEach { it.sendMessage(mensajeResultado) }
+        
+        // Títulos individuales
+        val tituloGanador = Component.text("¡VICTORIA!", NamedTextColor.GOLD, TextDecoration.BOLD)
+        val subtituloGanador = Component.text("Tu oponente se quedó sin tiempo", NamedTextColor.YELLOW)
+        val tiempos = Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofMillis(500))
+        ganador.showTitle(Title.title(tituloGanador, subtituloGanador, tiempos))
+        ganador.playSound(ganador.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f)
+        
+        val tituloPerdedor = Component.text("¡DERROTA!", NamedTextColor.RED, TextDecoration.BOLD)
+        val subtituloPerdedor = Component.text("¡Te quedaste sin tiempo!", NamedTextColor.GRAY)
+        perdedor.showTitle(Title.title(tituloPerdedor, subtituloPerdedor, tiempos))
+        perdedor.playSound(perdedor.location, Sound.ENTITY_VILLAGER_NO, 1.0f, 0.8f)
+    }
+    
+    /**
+     * Finaliza el duelo cuando todos los pares fueron encontrados.
+     */
+    private fun finalizarDueloPorCompletado() {
+        estado = DueloEstado.FINALIZADO
         
         val ganador = puntuaciones.maxByOrNull { it.value }?.key
+        val puntos1 = puntuaciones[player1] ?: 0
+        val puntos2 = puntuaciones[player2] ?: 0
+        
+        // Mensaje de resultados
+        val mensajeResultado = Component.text("¡Duelo completado!", NamedTextColor.GOLD, TextDecoration.BOLD)
+            .append(Component.text("\n", NamedTextColor.WHITE))
+            .append(Component.text("${player1.name}: ", NamedTextColor.AQUA))
+            .append(Component.text("$puntos1 pares\n", NamedTextColor.WHITE))
+            .append(Component.text("${player2.name}: ", NamedTextColor.AQUA))
+            .append(Component.text("$puntos2 pares", NamedTextColor.WHITE))
+        
+        jugadores.forEach { it.sendMessage(mensajeResultado) }
         
         if (ganador != null) {
-            jugadores.forEach { jugador ->
-                if (jugador == ganador) {
-                    val titulo = Component.text("¡VICTORIA!", NamedTextColor.GOLD, TextDecoration.BOLD)
-                    val subtitulo = Component.text("¡Ganaste el duelo!", NamedTextColor.YELLOW)
-                    val tiempos = Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofMillis(500))
-                    jugador.showTitle(Title.title(titulo, subtitulo, tiempos))
-                    jugador.playSound(jugador.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f)
-                } else {
-                    val titulo = Component.text("¡PERDISTE!", NamedTextColor.RED, TextDecoration.BOLD)
-                    val subtitulo = Component.text("${ganador.name} ganó el duelo", NamedTextColor.GRAY)
-                    val tiempos = Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofMillis(500))
-                    jugador.showTitle(Title.title(titulo, subtitulo, tiempos))
-                    jugador.playSound(jugador.location, Sound.ENTITY_VILLAGER_NO, 1.0f, 0.8f)
+            val perdedor = jugadores.find { it != ganador }
+            
+            // Títulos individuales
+            val tiempos = Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofMillis(500))
+            
+            if (puntos1 == puntos2) {
+                // Empate
+                val tituloEmpate = Component.text("¡EMPATE!", NamedTextColor.YELLOW, TextDecoration.BOLD)
+                val subtituloEmpate = Component.text("Ambos encontraron $puntos1 pares", NamedTextColor.GOLD)
+                jugadores.forEach { jugador ->
+                    jugador.showTitle(Title.title(tituloEmpate, subtituloEmpate, tiempos))
+                    jugador.playSound(jugador.location, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f)
                 }
+            } else {
+                // Victoria clara
+                val tituloGanador = Component.text("¡VICTORIA!", NamedTextColor.GOLD, TextDecoration.BOLD)
+                val subtituloGanador = Component.text("¡Encontraste más pares!", NamedTextColor.YELLOW)
+                ganador.showTitle(Title.title(tituloGanador, subtituloGanador, tiempos))
+                ganador.playSound(ganador.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f)
+                
+                if (perdedor != null) {
+                    val tituloPerdedor = Component.text("¡DERROTA!", NamedTextColor.RED, TextDecoration.BOLD)
+                    val subtituloPerdedor = Component.text("${ganador.name} encontró más pares", NamedTextColor.GRAY)
+                    perdedor.showTitle(Title.title(tituloPerdedor, subtituloPerdedor, tiempos))
+                    perdedor.playSound(perdedor.location, Sound.ENTITY_VILLAGER_NO, 1.0f, 0.8f)
+                }
+            }
+        }
+    }
+    
+    /**
+     * Revela todo el tablero (para la fase de memorización).
+     */
+    private fun revelarTodoElTablero() {
+        tablero.forEach { casilla ->
+            casilla.ubicacion.block.type = casilla.colorReal
+        }
+    }
+    
+    /**
+     * Oculta todo el tablero (al iniciar la fase de juego).
+     */
+    private fun ocultarTodoElTablero() {
+        tablero.forEach { casilla ->
+            if (!casilla.revelada) {
+                casilla.ubicacion.block.type = materialOculto
             }
         }
     }
@@ -499,13 +607,13 @@ class DueloMemorias(
     /**
      * Obtiene el estado actual del duelo.
      */
-    fun getEstado(): EstadoDuelo = estado
+    fun getEstado(): DueloEstado = estado
     
     /**
      * Obtiene el ganador del duelo (solo válido si está finalizado).
      */
     fun getGanador(): Player? {
-        if (estado != EstadoDuelo.FINALIZADO) return null
+        if (estado != DueloEstado.FINALIZADO) return null
         return puntuaciones.maxByOrNull { it.value }?.key
     }
     

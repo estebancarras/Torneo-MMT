@@ -41,24 +41,6 @@ class GameManager(
     // Cola de espera para emparejar jugadores
     private val colaEspera = mutableListOf<Player>()
     
-    // Tamaño del grid por defecto
-    private var defaultGridSize = 5
-    
-    init {
-        cargarConfiguracion()
-    }
-    
-    /**
-     * Carga la configuración desde el archivo.
-     */
-    private fun cargarConfiguracion() {
-        defaultGridSize = plugin.config.getInt("memorias.gridSize", 5)
-        if (defaultGridSize !in 3..15) {
-            defaultGridSize = 5
-            plugin.logger.warning("Tamaño de grid inválido. Usando 5x5 por defecto.")
-        }
-    }
-    
     /**
      * Establece la arena actual del juego.
      */
@@ -91,7 +73,7 @@ class GameManager(
                         duelo.actualizar()
                         
                         // Si el duelo terminó, programar limpieza
-                        if (duelo.getEstado() == DueloMemorias.EstadoDuelo.FINALIZADO) {
+                        if (duelo.getEstado() == DueloEstado.FINALIZADO) {
                             programarLimpiezaDuelo(duelo)
                         }
                     } catch (e: Exception) {
@@ -176,11 +158,11 @@ class GameManager(
     }
     
     /**
-     * Crea un nuevo duelo entre dos jugadores.
+     * Crea un duelo entre dos jugadores en una parcela disponible.
      */
     private fun crearDuelo(jugador1: Player, jugador2: Player, parcela: Parcela) {
         val dueloId = UUID.randomUUID()
-        val duelo = DueloMemorias(jugador1, jugador2, parcela, defaultGridSize)
+        val duelo = DueloMemorias(jugador1, jugador2, parcela, plugin)
         
         // Registrar duelo
         duelosActivos[dueloId] = duelo

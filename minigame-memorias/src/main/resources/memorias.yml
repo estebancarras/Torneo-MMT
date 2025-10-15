@@ -1,0 +1,22 @@
+# Configuración del minijuego Memorias
+# Ajusta estos valores para modificar el comportamiento del juego
+
+game-settings:
+  # Tiempo en segundos para la fase de memorización
+  # Durante este tiempo, todos los bloques están visibles
+  memorization-time-seconds: 10
+  
+  # Tiempo total en segundos que cada jugador tiene para encontrar pares
+  # El temporizador solo corre durante el turno del jugador
+  player-time-seconds: 120
+  
+  # Si es true, el turno cambia cuando el jugador falla en encontrar un par
+  # Si es false, el jugador mantiene el turno aunque falle
+  turn-change-on-fail: true
+  
+  # Tamaño del tablero (gridSize x gridSize)
+  # Ejemplo: 5 = tablero 5x5 con 25 casillas
+  grid-size: 5
+  
+  # Tiempo en segundos para mostrar los bloques después de una selección fallida
+  reveal-time-seconds: 2
