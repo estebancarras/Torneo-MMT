@@ -42,7 +42,9 @@ Juego de memoria visual donde los jugadores deben encontrar pares de bloques de 
 ### SkyWars
 Juego de supervivencia en el aire donde los jugadores luchan hasta que solo queda uno. Los jugadores comienzan en islas separadas y deben luchar por recursos y territorio.
 
-**Puntos:** 100 puntos por victoria
+**Puntos:**
+- 100 puntos por victoria
+- 10 puntos extra por jugador eliminado
 
 ### Laberinto
 Juego de navegación donde los jugadores deben encontrar la salida del laberinto en el menor tiempo posible. La dificultad aumenta con laberintos más complejos.
@@ -75,8 +77,9 @@ Juego de supervivencia donde los jugadores luchan en un área cerrada hasta que 
 ### Opción 1: Usar el JAR Precompilado
 
 1. Descargar `TorneoMMT-1.0-SNAPSHOT.jar` de la carpeta `torneo-assembly/target/`
-2. Copiar el archivo a la carpeta `plugins/` del servidor
-3. Reiniciar el servidor
+2. Descargar `SkyWarsReloaded 5.6.34.jar` de la página [SkywarsReloaded UPDATED](https://www.spigotmc.org/resources/skywarsreloaded-updated-recoded-1-21-support-new-decentholograms-supports-all-mc-versions.69436/)
+3. Copiar los archivos a la carpeta `plugins/` del servidor
+4. Abrir / Reiniciar el servidor
 
 ### Opción 2: Compilar desde el Código Fuente
 
