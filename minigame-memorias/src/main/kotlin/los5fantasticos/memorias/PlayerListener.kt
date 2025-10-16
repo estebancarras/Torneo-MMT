@@ -116,7 +116,7 @@ class PlayerListener(private val gameManager: GameManager) : Listener {
             // Solo puede interactuar con bloques DENTRO de su parcela (tablero del juego)
             val parcela = dueloJugador.parcela
             
-            if (!parcela.isInTablero(block.location)) {
+            if (!parcela.contains(block.location)) {
                 // Bloque fuera del tablero - cancelar
                 event.isCancelled = true
                 player.sendMessage(
@@ -178,7 +178,7 @@ class PlayerListener(private val gameManager: GameManager) : Listener {
      */
     private fun isBlockInActiveParcel(location: org.bukkit.Location): Boolean {
         return gameManager.getAllActiveDuels().any { duelo ->
-            duelo.parcela.isInTablero(location)
+            duelo.parcela.contains(location)
         }
     }
     

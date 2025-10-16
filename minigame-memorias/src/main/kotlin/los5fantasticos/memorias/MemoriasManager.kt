@@ -31,6 +31,17 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
     override fun onEnable(plugin: Plugin) {
         this.plugin = plugin
         
+        // FASE 1 [CRÍTICO]: Cargar mazo de bloques
+        BlockDeckManager.loadDeck(plugin)
+        
+        if (!BlockDeckManager.isReady()) {
+            plugin.logger.severe("╔════════════════════════════════════════╗")
+            plugin.logger.severe("║ ERROR CRÍTICO: Mazo de bloques vacío   ║")
+            plugin.logger.severe("║ El minijuego no puede iniciarse        ║")
+            plugin.logger.severe("╚════════════════════════════════════════╝")
+            return
+        }
+        
         // Inicializar archivo de arenas
         arenasFile = File(plugin.dataFolder, "arenas.yml")
         if (!arenasFile.exists()) {
@@ -57,16 +68,21 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
         torneoPlugin.getCommand("memorias")?.tabCompleter = commandExecutor
         
         plugin.logger.info("✓ $gameName v$version habilitado")
+        plugin.logger.info("  - Mazo de bloques: ${BlockDeckManager.getDeckSize()} bloques únicos")
         plugin.logger.info("  - ${arenas.size} arenas cargadas")
         plugin.logger.info("  - Sistema de Game Loop centralizado activo")
     }
     
     override fun onDisable() {
-        // Guardar arenas
-        guardarArenas()
+        // Guardar arenas (solo si se inicializó correctamente)
+        if (::arenasFile.isInitialized) {
+            guardarArenas()
+        }
         
-        // Terminar todos los juegos activos
-        gameManager.endAllGames()
+        // Terminar todos los juegos activos (solo si se inicializó)
+        if (::gameManager.isInitialized) {
+            gameManager.endAllGames()
+        }
         
         // Limpiar selecciones
         SelectionManager.cleanup()
@@ -75,11 +91,13 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
     }
     
     override fun isGameRunning(): Boolean {
+        if (!::gameManager.isInitialized) return false
         return gameManager.getStats().contains("Duelos activos: ")
                 && !gameManager.getStats().contains("Duelos activos: 0")
     }
     
     override fun getActivePlayers(): List<Player> {
+        if (!::gameManager.isInitialized) return emptyList()
         // Implementación básica - el GameManager no expone directamente la lista
         return emptyList()
     }
@@ -111,12 +129,10 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
                 try {
                     val corner1 = parcelaSection.getLocation("corner1")
                     val corner2 = parcelaSection.getLocation("corner2")
-                    val spawn1 = parcelaSection.getLocation("spawn1")
-                    val spawn2 = parcelaSection.getLocation("spawn2")
                     
-                    if (corner1 != null && corner2 != null && spawn1 != null && spawn2 != null) {
+                    if (corner1 != null && corner2 != null) {
                         val cuboid = Cuboid.fromLocations(corner1, corner2)
-                        val parcela = Parcela(cuboid, spawn1, spawn2)
+                        val parcela = Parcela(cuboid)
                         arena.addParcela(parcela)
                     }
                 } catch (e: Exception) {
@@ -148,19 +164,17 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
             arena.parcelas.forEachIndexed { index, parcela ->
                 val parcelaPath = "$arenaPath.parcelas.parcela$index"
                 arenasConfig.set("$parcelaPath.corner1", Location(
-                    parcela.regionTablero.world,
-                    parcela.regionTablero.minX.toDouble(),
-                    parcela.regionTablero.minY.toDouble(),
-                    parcela.regionTablero.minZ.toDouble()
+                    parcela.region.world,
+                    parcela.region.minX.toDouble(),
+                    parcela.region.minY.toDouble(),
+                    parcela.region.minZ.toDouble()
                 ))
                 arenasConfig.set("$parcelaPath.corner2", Location(
-                    parcela.regionTablero.world,
-                    parcela.regionTablero.maxX.toDouble(),
-                    parcela.regionTablero.maxY.toDouble(),
-                    parcela.regionTablero.maxZ.toDouble()
+                    parcela.region.world,
+                    parcela.region.maxX.toDouble(),
+                    parcela.region.maxY.toDouble(),
+                    parcela.region.maxZ.toDouble()
                 ))
-                arenasConfig.set("$parcelaPath.spawn1", parcela.spawn1)
-                arenasConfig.set("$parcelaPath.spawn2", parcela.spawn2)
             }
         }
         

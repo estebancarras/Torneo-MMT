@@ -162,7 +162,8 @@ class GameManager(
      */
     private fun crearDuelo(jugador1: Player, jugador2: Player, parcela: Parcela) {
         val dueloId = UUID.randomUUID()
-        val duelo = DueloMemorias(jugador1, jugador2, parcela, plugin)
+        val torneoManager = memoriasManager.torneoPlugin.torneoManager
+        val duelo = DueloMemorias(jugador1, jugador2, parcela, plugin, torneoManager)
         
         // Registrar duelo
         duelosActivos[dueloId] = duelo

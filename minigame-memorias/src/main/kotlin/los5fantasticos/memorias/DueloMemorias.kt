@@ -1,5 +1,7 @@
 package los5fantasticos.memorias
 
+import los5fantasticos.memorias.*
+import los5fantasticos.torneo.core.TorneoManager
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
@@ -22,12 +24,14 @@ import java.util.UUID
  * @property player2 Segundo jugador del duelo
  * @property parcela Parcela donde se desarrolla el duelo
  * @property plugin Plugin para cargar configuración
+ * @property torneoManager Manager del torneo para registrar puntuaciones
  */
 class DueloMemorias(
     val player1: Player,
     val player2: Player,
     val parcela: Parcela,
-    private val plugin: Plugin
+    private val plugin: Plugin,
+    private val torneoManager: TorneoManager?
 ) {
     // ===== CONFIGURACIÓN DEL JUEGO =====
     private val memorizationTimeSeconds: Int
@@ -35,6 +39,8 @@ class DueloMemorias(
     private val turnChangeOnFail: Boolean
     private val gridSize: Int
     private val revealTimeSeconds: Int
+    private val puntosVictoria: Int
+    private val puntosParticipacion: Int
     
     // ===== ESTADO DEL DUELO =====
     private var estado: DueloEstado = DueloEstado.MEMORIZANDO
@@ -100,8 +106,10 @@ class DueloMemorias(
         memorizationTimeSeconds = config.getInt("game-settings.memorization-time-seconds", 10)
         playerTimeSeconds = config.getInt("game-settings.player-time-seconds", 120)
         turnChangeOnFail = config.getBoolean("game-settings.turn-change-on-fail", true)
-        gridSize = config.getInt("game-settings.grid-size", 5)
+        gridSize = config.getInt("game-settings.grid-size", 10)
         revealTimeSeconds = config.getInt("game-settings.reveal-time-seconds", 2)
+        puntosVictoria = config.getInt("puntuacion.por-victoria", 3)
+        puntosParticipacion = config.getInt("puntuacion.por-participacion", 1)
         
         // Inicializar temporizadores (en ticks, cada jugador tiene su tiempo)
         tiempoRestante[player1.uniqueId] = playerTimeSeconds * 20
@@ -110,12 +118,92 @@ class DueloMemorias(
         // Inicializar tiempo de memorización
         ticksParaMemorizar = memorizationTimeSeconds * 20
         
-        // Teleportar jugadores a sus spawns
-        player1.teleport(parcela.spawn1)
-        player2.teleport(parcela.spawn2)
+        // FASE 2: Setup automatizado del duelo
+        setupDuelo()
+    }
+    
+    /**
+     * FASE 2 [CRÍTICO]: Configuración automatizada del duelo.
+     * 
+     * CONVENCIÓN SOBRE CONFIGURACIÓN:
+     * 1. Calcula el centro geométrico (X, Z) de la parcela
+     * 2. Usa la Y mínima como suelo
+     * 3. Genera el tablero centrado en ese punto
+     * 4. Calcula spawns de jugadores relativos al tablero
+     * 5. Teletransporta jugadores
+     */
+    private fun setupDuelo() {
+        // 1. Obtener centro y suelo de la parcela
+        val (centroX, centroZ) = parcela.getCentroXZ()
+        val ySuelo = parcela.getYSuelo()
+        val world = parcela.region.world
         
-        // Generar tablero y revelar todos los bloques para la fase de memorización
-        generarTablero()
+        // 2. Generar tablero centrado
+        val totalCasillas = gridSize * gridSize
+        val paresNecesarios = totalCasillas / 2
+        
+        // Obtener bloques únicos del mazo
+        val materialesUnicos = BlockDeckManager.getShuffledDeck(paresNecesarios)
+        
+        // Crear pares duplicados
+        val pares = mutableListOf<Material>()
+        materialesUnicos.forEach { material ->
+            pares.add(material)
+            pares.add(material)
+        }
+        pares.shuffle()
+        
+        // Generar tablero en cuadrícula centrada
+        val offset = (gridSize - 1) / 2.0
+        var indice = 0
+        
+        for (x in 0 until gridSize) {
+            for (z in 0 until gridSize) {
+                if (indice >= pares.size) break
+                
+                val ubicacion = Location(
+                    world,
+                    centroX + (x - offset),
+                    ySuelo.toDouble(),
+                    centroZ + (z - offset)
+                )
+                
+                val casilla = CasillaMemorias(
+                    ubicacion = ubicacion,
+                    colorReal = pares[indice],
+                    revelada = false,
+                    idPar = indice / 2  // ID del par
+                )
+                
+                tablero.add(casilla)
+                indice++
+            }
+        }
+        
+        // 3. Calcular spawns de jugadores (2 bloques detrás de bordes opuestos)
+        val spawn1 = Location(
+            world,
+            centroX - offset - 2.5,  // Oeste del tablero
+            ySuelo + 1.0,
+            centroZ,
+            90f,  // Mirando hacia el este (hacia el tablero)
+            0f
+        )
+        
+        val spawn2 = Location(
+            world,
+            centroX + offset + 2.5,  // Este del tablero
+            ySuelo + 1.0,
+            centroZ,
+            -90f,  // Mirando hacia el oeste (hacia el tablero)
+            0f
+        )
+        
+        // 4. Teletransportar jugadores
+        player1.teleport(spawn1)
+        player2.teleport(spawn2)
+        
+        // 5. Revelar tablero para fase de memorización
         revelarTodoElTablero()
     }
     
@@ -201,59 +289,6 @@ class DueloMemorias(
                 if (tiempoRestante[uuidActual]!! <= 0) {
                     manejarTimeoutJugador(uuidActual)
                 }
-            }
-        }
-    }
-    
-    /**
-     * Genera el tablero de juego con pares de colores.
-     */
-    private fun generarTablero() {
-        tablero.clear()
-        
-        val totalCasillas = gridSize * gridSize
-        val paresNecesarios = totalCasillas / 2
-        
-        // Crear lista de pares
-        val pares = mutableListOf<Int>()
-        for (i in 0 until paresNecesarios) {
-            pares.add(i)
-            pares.add(i)
-        }
-        
-        // Si hay número impar, agregar una más
-        if (totalCasillas % 2 != 0) {
-            pares.add(paresNecesarios)
-        }
-        
-        pares.shuffle()
-        
-        // Generar tablero centrado
-        val centro = parcela.getCentroTablero()
-        val offset = (gridSize - 1) / 2.0
-        var indice = 0
-        
-        for (x in 0 until gridSize) {
-            for (z in 0 until gridSize) {
-                if (indice >= pares.size) break
-                
-                val ubicacion = centro.clone().add(
-                    (x - offset), 0.0, (z - offset)
-                )
-                
-                val colorMaterial = coloresDisponibles[pares[indice] % coloresDisponibles.size]
-                
-                val casilla = CasillaMemorias(
-                    ubicacion = ubicacion,
-                    colorReal = colorMaterial,
-                    revelada = false,
-                    idPar = pares[indice]
-                )
-                
-                tablero.add(casilla)
-                ubicacion.block.type = materialOculto
-                
-                indice++
             }
         }
     }
@@ -503,22 +538,36 @@ class DueloMemorias(
     private fun finalizarDueloPorTimeout(ganador: Player, perdedor: Player) {
         estado = DueloEstado.FINALIZADO
         
+        // FASE 3: Registrar puntuación en el torneo
+        torneoManager?.let { tm ->
+            tm.addScore(ganador.uniqueId, "Memorias", puntosVictoria, "Victoria por timeout")
+            tm.addScore(perdedor.uniqueId, "Memorias", puntosParticipacion, "Participación")
+            
+            plugin.logger.info("[Memorias] Puntuación registrada: ${ganador.name} +$puntosVictoria, ${perdedor.name} +$puntosParticipacion")
+        }
+        
         // Mostrar resultados
         val mensajeResultado = Component.text("¡Duelo finalizado por tiempo!", NamedTextColor.GOLD, TextDecoration.BOLD)
             .append(Component.text("\n", NamedTextColor.WHITE))
             .append(Component.text("¡${ganador.name} gana por tiempo!", NamedTextColor.GREEN))
+            .append(Component.text("\n", NamedTextColor.WHITE))
+            .append(Component.text("» Puntos: ", NamedTextColor.GRAY))
+            .append(Component.text("+$puntosVictoria", NamedTextColor.GREEN))
+            .append(Component.text(" (ganador), ", NamedTextColor.GRAY))
+            .append(Component.text("+$puntosParticipacion", NamedTextColor.YELLOW))
+            .append(Component.text(" (participación)", NamedTextColor.GRAY))
         
         jugadores.forEach { it.sendMessage(mensajeResultado) }
         
         // Títulos individuales
         val tituloGanador = Component.text("¡VICTORIA!", NamedTextColor.GOLD, TextDecoration.BOLD)
-        val subtituloGanador = Component.text("Tu oponente se quedó sin tiempo", NamedTextColor.YELLOW)
+        val subtituloGanador = Component.text("Tu oponente se quedó sin tiempo (+$puntosVictoria pts)", NamedTextColor.YELLOW)
         val tiempos = Title.Times.times(Duration.ofMillis(500), Duration.ofSeconds(3), Duration.ofMillis(500))
         ganador.showTitle(Title.title(tituloGanador, subtituloGanador, tiempos))
         ganador.playSound(ganador.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f)
         
         val tituloPerdedor = Component.text("¡DERROTA!", NamedTextColor.RED, TextDecoration.BOLD)
-        val subtituloPerdedor = Component.text("¡Te quedaste sin tiempo!", NamedTextColor.GRAY)
+        val subtituloPerdedor = Component.text("¡Te quedaste sin tiempo! (+$puntosParticipacion pts)", NamedTextColor.GRAY)
         perdedor.showTitle(Title.title(tituloPerdedor, subtituloPerdedor, tiempos))
         perdedor.playSound(perdedor.location, Sound.ENTITY_VILLAGER_NO, 1.0f, 0.8f)
     }
@@ -532,6 +581,23 @@ class DueloMemorias(
         val ganador = puntuaciones.maxByOrNull { it.value }?.key
         val puntos1 = puntuaciones[player1] ?: 0
         val puntos2 = puntuaciones[player2] ?: 0
+        
+        // FASE 3: Registrar puntuación en el torneo
+        if (puntos1 == puntos2) {
+            // Empate - ambos reciben puntos de participación
+            torneoManager?.let { tm ->
+                tm.addScore(player1.uniqueId, "Memorias", puntosParticipacion, "Empate")
+                tm.addScore(player2.uniqueId, "Memorias", puntosParticipacion, "Empate")
+                plugin.logger.info("[Memorias] Empate: ${player1.name} +$puntosParticipacion, ${player2.name} +$puntosParticipacion")
+            }
+        } else if (ganador != null) {
+            val perdedor = jugadores.find { it != ganador }
+            torneoManager?.let { tm ->
+                tm.addScore(ganador.uniqueId, "Memorias", puntosVictoria, "Victoria")
+                perdedor?.let { p -> tm.addScore(p.uniqueId, "Memorias", puntosParticipacion, "Participación") }
+                plugin.logger.info("[Memorias] Victoria: ${ganador.name} +$puntosVictoria, ${perdedor?.name} +$puntosParticipacion")
+            }
+        }
         
         // Mensaje de resultados
         val mensajeResultado = Component.text("¡Duelo completado!", NamedTextColor.GOLD, TextDecoration.BOLD)
