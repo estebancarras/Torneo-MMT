@@ -85,27 +85,47 @@ class TorneoPlugin : JavaPlugin() {
     }
     
     override fun onDisable() {
-        logger.info("Deshabilitando servicios...")
+        logger.info("═══════════════════════════════════════")
+        logger.info("  Iniciando secuencia de apagado de TorneoMMT")
+        logger.info("═══════════════════════════════════════")
         
-        // Detener el servicio de scoreboard
+        // Detener el servicio de scoreboard primero
         if (::scoreboardService.isInitialized) {
+            logger.info("Deteniendo servicio de scoreboard...")
             scoreboardService.shutdown()
+            logger.info("✓ Scoreboard service detenido")
         }
         
-        logger.info("Deshabilitando minijuegos...")
+        logger.info("Deshabilitando y guardando datos de ${minigameModules.size} minijuegos...")
         
-        // Deshabilitar todos los minijuegos
-        minigameModules.forEach { module ->
+        // Iterar sobre las instancias REALES y VIVAS que hemos guardado durante onEnable()
+        // Esto garantiza que se guarden los datos correctos, no instancias vacías
+        for (module in minigameModules) {
             try {
-                module.onDisable()
-                logger.info("✓ ${module.gameName} deshabilitado")
+                logger.info("Descargando módulo '${module.gameName}'...")
+                module.onDisable() // Cada módulo guarda sus propios datos en su onDisable()
+                logger.info("✓ ${module.gameName} deshabilitado y datos guardados")
             } catch (e: Exception) {
-                logger.severe("✗ Error al deshabilitar ${module.gameName}: ${e.message}")
+                logger.severe("✗ ERROR CRÍTICO al descargar '${module.gameName}': ${e.message}")
                 e.printStackTrace()
             }
         }
         
-        logger.info("${ChatColor.YELLOW}Plugin deshabilitado. ¡Hasta pronto!")
+        // Limpiar la lista de módulos para liberar memoria
+        minigameModules.clear()
+        logger.info("✓ Lista de módulos limpiada")
+        
+        // Guardar los datos globales del core (puntajes del torneo)
+        if (::torneoManager.isInitialized) {
+            logger.info("Guardando puntajes globales del torneo...")
+            torneoManager.saveScores()
+            logger.info("✓ Puntajes del torneo guardados")
+        }
+        
+        logger.info("═══════════════════════════════════════")
+        logger.info("  ${ChatColor.GREEN}TorneoMMT deshabilitado correctamente")
+        logger.info("  Todos los datos han sido persistidos")
+        logger.info("═══════════════════════════════════════")
     }
     
     /**

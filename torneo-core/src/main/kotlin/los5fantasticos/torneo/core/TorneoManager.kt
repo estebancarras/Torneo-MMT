@@ -242,8 +242,9 @@ class TorneoManager(private val plugin: Plugin) {
     
     /**
      * Guarda los puntajes en el archivo de datos.
+     * Este método es público para permitir el guardado explícito durante el ciclo de vida del plugin.
      */
-    private fun saveScores() {
+    fun saveScores() {
         try {
             val config = YamlConfiguration()
             

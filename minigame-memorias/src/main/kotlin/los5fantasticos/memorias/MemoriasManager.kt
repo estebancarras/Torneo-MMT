@@ -42,9 +42,9 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
             return
         }
         
-        // Inicializar archivo de arenas
+        // Inicializar archivo de arenas con nombre único para este minijuego
         plugin.dataFolder.mkdirs()
-        arenasFile = File(plugin.dataFolder, "arenas.yml")
+        arenasFile = File(plugin.dataFolder, "memorias_arenas.yml")
         
         // CRÍTICO: Solo crear archivo si no existe, pero NO sobrescribir
         if (!arenasFile.exists()) {
@@ -53,7 +53,7 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
         }
         
         arenasConfig = YamlConfiguration.loadConfiguration(arenasFile)
-        plugin.logger.info("[Memorias] Archivo arenas.yml cargado desde: ${arenasFile.absolutePath}")
+        plugin.logger.info("[Memorias] Archivo memorias_arenas.yml cargado desde: ${arenasFile.absolutePath}")
         
         // Cargar arenas
         cargarArenas()
@@ -79,10 +79,19 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
     }
     
     override fun onDisable() {
+        plugin.logger.info("[Memorias] ═══ INICIANDO SECUENCIA DE APAGADO ═══")
+        plugin.logger.info("[Memorias] Estado de inicialización:")
+        plugin.logger.info("[Memorias]   - arenasFile: ${::arenasFile.isInitialized}")
+        plugin.logger.info("[Memorias]   - gameManager: ${::gameManager.isInitialized}")
+        plugin.logger.info("[Memorias]   - Arenas en memoria: ${arenas.size}")
+        
         // Guardar arenas (solo si se inicializó correctamente)
         if (::arenasFile.isInitialized) {
+            plugin.logger.info("[Memorias] Llamando a guardarArenas()...")
             guardarArenas()
-            plugin.logger.info("Configuración de arenas de Memorias guardada en el disco.")
+            plugin.logger.info("[Memorias] Configuración de arenas guardada en: ${arenasFile.absolutePath}")
+        } else {
+            plugin.logger.warning("[Memorias] ⚠ arenasFile NO inicializado, no se puede guardar")
         }
         
         // Terminar todos los juegos activos (solo si se inicializó)
@@ -93,7 +102,8 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
         // Limpiar selecciones
         SelectionManager.cleanup()
         
-        plugin.logger.info("✓ $gameName deshabilitado")
+        plugin.logger.info("[Memorias] ✓ $gameName deshabilitado")
+        plugin.logger.info("[Memorias] ═══ SECUENCIA DE APAGADO COMPLETADA ═══")
     }
     
     override fun isGameRunning(): Boolean {
@@ -149,7 +159,7 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
             arenas[nombreArena] = arena
         }
         
-        plugin.logger.info("Cargadas ${arenas.size} arenas desde arenas.yml")
+        plugin.logger.info("Cargadas ${arenas.size} arenas desde memorias_arenas.yml")
     }
     
     /**
@@ -166,7 +176,8 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
                 return
             }
             
-            arenasConfig = YamlConfiguration()
+            // CRÍTICO: Limpiar la configuración existente sin perder la referencia al archivo
+            arenasConfig.getKeys(false).forEach { key -> arenasConfig.set(key, null) }
             
             for ((nombreArena, arena) in arenas) {
                 val arenaPath = "arenas.$nombreArena"
