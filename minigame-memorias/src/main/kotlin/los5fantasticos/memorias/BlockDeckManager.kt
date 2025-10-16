@@ -20,6 +20,28 @@ object BlockDeckManager {
     private val deck = mutableListOf<Material>()
     
     /**
+     * Lista negra de bloques problemáticos que no deben usarse en el juego.
+     * Incluye bloques visualmente ambiguos, no sólidos o con interacciones especiales.
+     */
+    private val BLACKLIST = setOf(
+        // Bloques visualmente ambiguos
+        "PUMPKIN", "CARVED_PUMPKIN",
+        // No son bloques completos/sólidos
+        "REDSTONE_WIRE", "TRIPWIRE", "GLASS_PANE",
+        // Tienen inventarios o interacciones especiales
+        "CHEST", "TRAPPED_CHEST", "ENDER_CHEST",
+        "FURNACE", "BLAST_FURNACE", "SMOKER",
+        "BREWING_STAND", "ENCHANTING_TABLE",
+        // Escaleras y vallas (no son cubos completos)
+        "ACACIA_STAIRS", "BIRCH_STAIRS", "DARK_OAK_STAIRS",
+        "JUNGLE_STAIRS", "OAK_STAIRS", "SPRUCE_STAIRS",
+        "OAK_FENCE", "SPRUCE_FENCE", "BIRCH_FENCE",
+        "JUNGLE_FENCE", "ACACIA_FENCE", "DARK_OAK_FENCE",
+        // Losas (no son cubos completos)
+        "STONE_SLAB", "OAK_SLAB", "SPRUCE_SLAB"
+    )
+    
+    /**
      * Carga el mazo de bloques desde la configuración.
      * 
      * VALIDACIONES:
@@ -63,9 +85,23 @@ object BlockDeckManager {
             try {
                 val material = Material.valueOf(materialName.uppercase())
                 
-                // VALIDACIÓN CRÍTICA: Solo bloques sólidos
+                // VALIDACIÓN 1: Material debe ser un bloque
+                if (!material.isBlock) {
+                    plugin.logger.warning("[Memorias] Descartando material (no es bloque): '$materialName'")
+                    invalidCount++
+                    continue
+                }
+                
+                // VALIDACIÓN 2: Material debe ser sólido
                 if (!material.isSolid) {
-                    plugin.logger.warning("⚠ Material descartado (no sólido): $materialName")
+                    plugin.logger.warning("[Memorias] Descartando material (no sólido): '$materialName'")
+                    invalidCount++
+                    continue
+                }
+                
+                // VALIDACIÓN 3: Material NO debe estar en lista negra
+                if (BLACKLIST.contains(material.name)) {
+                    plugin.logger.warning("[Memorias] Descartando material en lista negra: '$materialName'")
                     invalidCount++
                     continue
                 }
@@ -74,7 +110,7 @@ object BlockDeckManager {
                 validCount++
                 
             } catch (e: IllegalArgumentException) {
-                plugin.logger.warning("⚠ Material inválido descartado: $materialName")
+                plugin.logger.warning("[Memorias] Descartando material inválido: '$materialName'")
                 invalidCount++
             }
         }

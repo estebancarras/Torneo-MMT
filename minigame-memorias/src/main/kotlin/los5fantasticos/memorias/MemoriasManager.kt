@@ -43,12 +43,17 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
         }
         
         // Inicializar archivo de arenas
+        plugin.dataFolder.mkdirs()
         arenasFile = File(plugin.dataFolder, "arenas.yml")
+        
+        // CRÍTICO: Solo crear archivo si no existe, pero NO sobrescribir
         if (!arenasFile.exists()) {
-            plugin.dataFolder.mkdirs()
             arenasFile.createNewFile()
+            plugin.logger.info("[Memorias] Archivo arenas.yml creado")
         }
+        
         arenasConfig = YamlConfiguration.loadConfiguration(arenasFile)
+        plugin.logger.info("[Memorias] Archivo arenas.yml cargado desde: ${arenasFile.absolutePath}")
         
         // Cargar arenas
         cargarArenas()
@@ -77,6 +82,7 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
         // Guardar arenas (solo si se inicializó correctamente)
         if (::arenasFile.isInitialized) {
             guardarArenas()
+            plugin.logger.info("Configuración de arenas de Memorias guardada en el disco.")
         }
         
         // Terminar todos los juegos activos (solo si se inicializó)
@@ -150,38 +156,56 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
      * Guarda las arenas en el archivo de configuración.
      */
     fun guardarArenas() {
-        arenasConfig = YamlConfiguration()
-        
-        for ((nombreArena, arena) in arenas) {
-            val arenaPath = "arenas.$nombreArena"
-            
-            // Guardar lobby spawn
-            arena.lobbySpawn?.let {
-                arenasConfig.set("$arenaPath.lobby", it)
-            }
-            
-            // Guardar parcelas
-            arena.parcelas.forEachIndexed { index, parcela ->
-                val parcelaPath = "$arenaPath.parcelas.parcela$index"
-                arenasConfig.set("$parcelaPath.corner1", Location(
-                    parcela.region.world,
-                    parcela.region.minX.toDouble(),
-                    parcela.region.minY.toDouble(),
-                    parcela.region.minZ.toDouble()
-                ))
-                arenasConfig.set("$parcelaPath.corner2", Location(
-                    parcela.region.world,
-                    parcela.region.maxX.toDouble(),
-                    parcela.region.maxY.toDouble(),
-                    parcela.region.maxZ.toDouble()
-                ))
-            }
-        }
-        
         try {
+            plugin.logger.info("[Memorias] Iniciando guardado de arenas...")
+            plugin.logger.info("[Memorias] Total de arenas a guardar: ${arenas.size}")
+            
+            // PROTECCIÓN: No sobrescribir con archivo vacío si no hay arenas
+            if (arenas.isEmpty()) {
+                plugin.logger.warning("[Memorias] No hay arenas para guardar, se omite el guardado")
+                return
+            }
+            
+            arenasConfig = YamlConfiguration()
+            
+            for ((nombreArena, arena) in arenas) {
+                val arenaPath = "arenas.$nombreArena"
+                plugin.logger.info("[Memorias] Guardando arena: $nombreArena")
+                
+                // Guardar lobby spawn
+                arena.lobbySpawn?.let {
+                    arenasConfig.set("$arenaPath.lobby", it)
+                    plugin.logger.info("[Memorias]   - Lobby guardado")
+                }
+                
+                // Guardar parcelas
+                plugin.logger.info("[Memorias]   - Guardando ${arena.parcelas.size} parcelas")
+                arena.parcelas.forEachIndexed { index, parcela ->
+                    val parcelaPath = "$arenaPath.parcelas.parcela$index"
+                    arenasConfig.set("$parcelaPath.corner1", Location(
+                        parcela.region.world,
+                        parcela.region.minX.toDouble(),
+                        parcela.region.minY.toDouble(),
+                        parcela.region.minZ.toDouble()
+                    ))
+                    arenasConfig.set("$parcelaPath.corner2", Location(
+                        parcela.region.world,
+                        parcela.region.maxX.toDouble(),
+                        parcela.region.maxY.toDouble(),
+                        parcela.region.maxZ.toDouble()
+                    ))
+                }
+            }
+            
+            plugin.logger.info("[Memorias] Escribiendo archivo: ${arenasFile.absolutePath}")
             arenasConfig.save(arenasFile)
+            plugin.logger.info("[Memorias] ✓ Arenas guardadas exitosamente")
+            
         } catch (e: Exception) {
-            plugin.logger.severe("Error guardando arenas: ${e.message}")
+            plugin.logger.severe("[Memorias] ✗ ERROR CRÍTICO guardando arenas:")
+            plugin.logger.severe("[Memorias]   Mensaje: ${e.message}")
+            plugin.logger.severe("[Memorias]   Tipo: ${e.javaClass.simpleName}")
+            e.printStackTrace()
         }
     }
     

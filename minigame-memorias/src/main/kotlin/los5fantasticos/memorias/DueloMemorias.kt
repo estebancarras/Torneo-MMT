@@ -71,6 +71,9 @@ class DueloMemorias(
     private var primerBloque: CasillaMemorias? = null
     private var segundoBloque: CasillaMemorias? = null
     
+    // ===== SISTEMA DE BLOQUEO ANTI-EXPLOIT =====
+    private var aceptandoInput: Boolean = true
+    
     // ===== CONTROL DE TIEMPO PARA OCULTAR BLOQUES =====
     private var ticksParaOcultar = 0
     
@@ -300,15 +303,8 @@ class DueloMemorias(
      * @return true si el clic fue válido y procesado
      */
     fun handlePlayerClick(jugador: Player, ubicacionClic: Location): Boolean {
-        // Validación: Solo permitir clics durante la fase de juego
-        if (estado != DueloEstado.JUGANDO) {
-            jugador.sendMessage(Component.text("El juego aún no ha comenzado.", NamedTextColor.RED))
-            return false
-        }
-        
-        // Validación: Verificar que sea el turno del jugador
-        if (jugador.uniqueId != turnoActual) {
-            jugador.sendMessage(Component.text("¡No es tu turno!", NamedTextColor.RED))
+        // GUARDA DE SEGURIDAD PRINCIPAL: Anti-exploit de múltiples clics
+        if (!aceptandoInput || estado != DueloEstado.JUGANDO || jugador.uniqueId != turnoActual) {
             return false
         }
         
@@ -337,6 +333,9 @@ class DueloMemorias(
                 return false
             }
             
+            // BLOQUEO INMEDIATO: Prevenir más clics hasta que se resuelva este turno
+            aceptandoInput = false
+            
             revelarCasillaTemporalmente(casilla)
             segundoBloque = casilla
             
@@ -353,7 +352,8 @@ class DueloMemorias(
         val primera = primerBloque ?: return
         val segunda = segundoBloque ?: return
         
-        if (primera.idPar == segunda.idPar) {
+        // CORRECCIÓN CRÍTICA: Comparar materiales directamente, no idPar
+        if (primera.colorReal == segunda.colorReal) {
             // ¡PAR ENCONTRADO!
             primera.revelada = true
             segunda.revelada = true
@@ -369,6 +369,9 @@ class DueloMemorias(
             jugador.playSound(jugador.location, Sound.BLOCK_NOTE_BLOCK_CHIME, 1.0f, 1.5f)
             
             resetearSeleccion()
+            
+            // DESBLOQUEO: Permitir siguiente acción del jugador
+            aceptandoInput = true
             
             // Verificar si se completaron todos los pares
             if (todosLosParesEncontrados()) {
@@ -450,6 +453,9 @@ class DueloMemorias(
      */
     private fun iniciarTurno(jugador: Player) {
         turnoActual = jugador.uniqueId
+        
+        // DESBLOQUEO: Permitir input del nuevo jugador (importante para cambios de turno por fallo)
+        aceptandoInput = true
         
         val mensaje = Component.text("¡Turno de ", NamedTextColor.YELLOW, TextDecoration.BOLD)
             .append(Component.text(jugador.name, NamedTextColor.GOLD))
