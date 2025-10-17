@@ -7,6 +7,7 @@ import org.bukkit.plugin.Plugin
 import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
 import com.walrusone.skywarsreloaded.events.SkyWarsWinEvent
+import com.walrusone.skywarsreloaded.events.SkyWarsKillEvent
 
 /**
  * Manager del minijuego SkyWars.
@@ -134,10 +135,11 @@ class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule, 
     /**
      * Listener para el evento de victoria en SkyWarsReloaded.
      * Asigna puntos automáticamente al ganador.
+     * Se ejecuta varias veces cuando hay varios ganadores (en caso de equipos).
      */
     @EventHandler
     fun onSkyWarsWin(event: SkyWarsWinEvent) {
-        val winner = event.player
+        val winner = event.player // Implicitamente getPlayer()
         if (winner != null) {
             // Asignar 100 puntos por victoria
             torneoPlugin.torneoManager.addScore(winner.uniqueId, gameName, 100, "Victoria en SkyWars")
@@ -145,6 +147,22 @@ class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule, 
             torneoPlugin.torneoManager.recordGameWon(winner, gameName)
 
             plugin.logger.info("Puntos asignados automáticamente a ${winner.name} por victoria en SkyWars")
+        }
+    }
+
+    /**
+     * Listener para el evento de asesinato en SkyWarsReloaded.
+     * Asigna 10 puntos al asesino.
+     */
+    @EventHandler
+    fun onSkyWarsKill(event: SkyWarsKillEvent) {
+        val killer = event.killer // Implicitamente getKiller()
+        val killed = event.killed // Implicitamente getKilled()
+        if (killer != null && killed != null) {
+            // Asignar 10 puntos por asesinato
+            torneoPlugin.torneoManager.addScore(killer.uniqueId, gameName, 10, "Asesinato en SkyWars")
+
+            plugin.logger.info("10 puntos asignados a ${killer.name} por asesinato de ${killed.name} en SkyWars")
         }
     }
 }

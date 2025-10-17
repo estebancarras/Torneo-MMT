@@ -69,6 +69,9 @@ Cambia el tamaño del tablero de memorias. El valor por defecto es 5x5. Números
 3. [Opcional] Ejecute `/memorias size 5` para configurar el tamaño del tablero.
 4. Ejecute `/memorias setarena` para crear automáticamente toda el área de juego.
 5. El minijuego está ahora configurado y listo para recibir jugadores.
+### 3.3. Minijuego: Skywars
+Consulta el archivo [GUIA_SKYWARS](GUIA_SKYWARS.md)
+
 
 ## 4. Gestión de Partidas y Jugadores
 
