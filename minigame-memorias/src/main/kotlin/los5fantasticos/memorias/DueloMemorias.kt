@@ -46,6 +46,12 @@ class DueloMemorias(
     private val puntosVictoria: Int
     private val puntosParticipacion: Int
     
+    // ===== SISTEMA DE PUNTUACIÓN DINÁMICA =====
+    private val puntosPorPar: Int
+    private val bonusPorRacha: Int
+    private val bonusPrimerAcierto: Int
+    private val bonusRemontada: Int
+    
     // ===== ESTADO DEL DUELO =====
     private var estado: DueloEstado = DueloEstado.MEMORIZANDO
     private var ticksTranscurridos = 0
@@ -73,6 +79,19 @@ class DueloMemorias(
     
     // ===== PUNTUACIONES =====
     private val puntuaciones = mutableMapOf(player1 to 0, player2 to 0)
+    
+    // ===== SISTEMA DE RACHAS Y BONUS =====
+    private val rachaActual = mutableMapOf(
+        player1.uniqueId to 0,
+        player2.uniqueId to 0
+    )
+    private var primerAciertoOtorgado = false
+    
+    // Rastreo de puntos del torneo para bonus de remontada
+    private val puntosTorneoAcumulados = mutableMapOf(
+        player1.uniqueId to 0,
+        player2.uniqueId to 0
+    )
     
     // ===== ESTADO DE SELECCIÓN =====
     private var esperandoSegundoClic = false
@@ -119,8 +138,13 @@ class DueloMemorias(
         turnChangeOnFail = config.getBoolean("game-settings.turn-change-on-fail", true)
         gridSize = config.getInt("game-settings.grid-size", 10)
         revealTimeSeconds = config.getInt("game-settings.reveal-time-seconds", 2)
-        puntosVictoria = config.getInt("puntuacion.por-victoria", 3)
-        puntosParticipacion = config.getInt("puntuacion.por-participacion", 1)
+        // Cargar puntuación dinámica
+        puntosPorPar = config.getInt("puntuacion.por-par-encontrado", 2)
+        bonusPorRacha = config.getInt("puntuacion.bonus-por-racha", 2)
+        bonusPrimerAcierto = config.getInt("puntuacion.bonus-primer-acierto", 5)
+        bonusRemontada = config.getInt("puntuacion.bonus-remontada", 10)
+        puntosVictoria = config.getInt("puntuacion.por-victoria", 20)
+        puntosParticipacion = config.getInt("puntuacion.por-participacion", 5)
         
         // Inicializar temporizadores (en ticks, cada jugador tiene su tiempo)
         tiempoRestante[player1.uniqueId] = playerTimeSeconds * 20
@@ -358,6 +382,7 @@ class DueloMemorias(
     
     /**
      * Verifica si las dos casillas seleccionadas forman un par.
+     * SISTEMA DE PUNTUACIÓN DINÁMICA: Otorga puntos en tiempo real con bonus.
      */
     private fun verificarPar(jugador: Player) {
         val primera = primerBloque ?: return
@@ -372,8 +397,59 @@ class DueloMemorias(
             val puntuacion = (puntuaciones[jugador] ?: 0) + 1
             puntuaciones[jugador] = puntuacion
             
+            // ═══ SISTEMA DE PUNTUACIÓN DINÁMICA ═══
+            
+            // 1. BONUS PRIMER ACIERTO (solo una vez en el duelo)
+            if (!primerAciertoOtorgado) {
+                torneoManager?.addScore(
+                    jugador.uniqueId,
+                    "Memorias",
+                    bonusPrimerAcierto,
+                    "Primer Acierto"
+                )
+                puntosTorneoAcumulados[jugador.uniqueId] = (puntosTorneoAcumulados[jugador.uniqueId] ?: 0) + bonusPrimerAcierto
+                primerAciertoOtorgado = true
+                
+                jugador.sendMessage(
+                    Component.text("⭐ ", NamedTextColor.GOLD)
+                        .append(Component.text("Bonus Primer Acierto: +$bonusPrimerAcierto puntos", NamedTextColor.YELLOW))
+                )
+            }
+            
+            // 2. PUNTOS POR PAR ENCONTRADO (siempre)
+            torneoManager?.addScore(
+                jugador.uniqueId,
+                "Memorias",
+                puntosPorPar,
+                "Par Encontrado"
+            )
+            puntosTorneoAcumulados[jugador.uniqueId] = (puntosTorneoAcumulados[jugador.uniqueId] ?: 0) + puntosPorPar
+            
+            // 3. INCREMENTAR RACHA
+            val rachaPrevia = rachaActual[jugador.uniqueId] ?: 0
+            rachaActual[jugador.uniqueId] = rachaPrevia + 1
+            val rachaActualJugador = rachaActual[jugador.uniqueId]!!
+            
+            // 4. BONUS POR RACHA (si tiene 2+ aciertos consecutivos)
+            if (rachaActualJugador > 1) {
+                torneoManager?.addScore(
+                    jugador.uniqueId,
+                    "Memorias",
+                    bonusPorRacha,
+                    "Racha de Aciertos"
+                )
+                puntosTorneoAcumulados[jugador.uniqueId] = (puntosTorneoAcumulados[jugador.uniqueId] ?: 0) + bonusPorRacha
+                
+                jugador.sendMessage(
+                    Component.text("🔥 ", NamedTextColor.RED)
+                        .append(Component.text("Racha x$rachaActualJugador: +$bonusPorRacha puntos", NamedTextColor.GOLD))
+                )
+            }
+            
+            // Mensaje principal de acierto
             val mensaje = Component.text("✓ ${jugador.name} encontró un par!", NamedTextColor.GREEN, TextDecoration.BOLD)
                 .append(Component.text(" ($puntuacion pares)", NamedTextColor.AQUA))
+                .append(Component.text(" [+$puntosPorPar pts]", NamedTextColor.YELLOW))
             jugadores.forEach { it.sendMessage(mensaje) }
             
             jugador.playSound(jugador.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f)
@@ -390,7 +466,9 @@ class DueloMemorias(
             }
             
         } else {
-            // NO ES PAR
+            // NO ES PAR - REINICIAR RACHA
+            rachaActual[jugador.uniqueId] = 0
+            
             val mensaje = Component.text("✗ ${jugador.name} no encontró un par", NamedTextColor.RED)
             jugadores.forEach { it.sendMessage(mensaje) }
             
@@ -478,10 +556,16 @@ class DueloMemorias(
     
     /**
      * Cambia al siguiente jugador.
+     * SISTEMA DE PUNTUACIÓN DINÁMICA: Reinicia la racha del jugador saliente.
      */
     private fun cambiarTurno() {
         val jugadorActualObj = jugadores.find { it.uniqueId == turnoActual }
         val oponente = jugadores.find { it != jugadorActualObj }
+        
+        // Reiniciar racha del jugador que termina su turno
+        jugadorActualObj?.let {
+            rachaActual[it.uniqueId] = 0
+        }
         
         if (oponente != null) {
             iniciarTurno(oponente)
@@ -591,6 +675,7 @@ class DueloMemorias(
     
     /**
      * Finaliza el duelo cuando todos los pares fueron encontrados.
+     * SISTEMA DE PUNTUACIÓN DINÁMICA: Implementa bonus de remontada.
      */
     private fun finalizarDueloPorCompletado() {
         estado = DueloEstado.FINALIZADO
@@ -599,7 +684,7 @@ class DueloMemorias(
         val puntos1 = puntuaciones[player1] ?: 0
         val puntos2 = puntuaciones[player2] ?: 0
         
-        // FASE 3: Registrar puntuación en el torneo
+        // FASE 3: Registrar puntuación final en el torneo
         if (puntos1 == puntos2) {
             // Empate - ambos reciben puntos de participación
             torneoManager?.let { tm ->
@@ -609,8 +694,32 @@ class DueloMemorias(
             }
         } else if (ganador != null) {
             val perdedor = jugadores.find { it != ganador }
+            
+            // ═══ BONUS DE REMONTADA ═══
+            // Si el ganador estaba 3+ puntos atrás en algún momento, otorgar bonus
+            val puntosGanador = puntosTorneoAcumulados[ganador.uniqueId] ?: 0
+            val puntosPerdedor = perdedor?.let { puntosTorneoAcumulados[it.uniqueId] } ?: 0
+            val diferenciaFinal = puntosGanador - puntosPerdedor
+            
+            // Verificar si hubo remontada (el ganador final tenía menos puntos durante el juego)
+            // Lógica: Si la diferencia final es positiva pero fue negativa antes, hubo remontada
+            val huboRemontada = diferenciaFinal >= 0 && puntosPerdedor - puntosGanador >= 3
+            
             torneoManager?.let { tm ->
+                // Puntos de victoria
                 tm.addScore(ganador.uniqueId, "Memorias", puntosVictoria, "Victoria")
+                
+                // Bonus de remontada si aplica
+                if (huboRemontada) {
+                    tm.addScore(ganador.uniqueId, "Memorias", bonusRemontada, "Remontada Épica")
+                    ganador.sendMessage(
+                        Component.text("🏆 ", NamedTextColor.GOLD)
+                            .append(Component.text("¡REMONTADA ÉPICA! +$bonusRemontada puntos bonus", NamedTextColor.LIGHT_PURPLE, TextDecoration.BOLD))
+                    )
+                    plugin.logger.info("[Memorias] Remontada: ${ganador.name} +$bonusRemontada")
+                }
+                
+                // Puntos de participación para el perdedor
                 perdedor?.let { p -> tm.addScore(p.uniqueId, "Memorias", puntosParticipacion, "Participación") }
                 plugin.logger.info("[Memorias] Victoria: ${ganador.name} +$puntosVictoria, ${perdedor?.name} +$puntosParticipacion")
             }

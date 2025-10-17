@@ -94,11 +94,25 @@ block-set:
   - "RED_TERRACOTTA"
   - "BLACK_TERRACOTTA"
 
-# ═══ SISTEMA DE PUNTUACIÓN ═══
-# Puntos otorgados al finalizar un duelo
+# ═══ SISTEMA DE PUNTUACIÓN DINÁMICA ═══
+# Sistema completo con bonus de rendimiento
 puntuacion:
+  # ─── Puntos Durante el Duelo ───
+  # Puntos por cada par encontrado
+  por-par-encontrado: 2
+  
+  # Bonus por mantener racha de aciertos (2+ aciertos consecutivos)
+  bonus-por-racha: 2
+  
+  # Bonus especial para el primer jugador que encuentre un par
+  bonus-primer-acierto: 5
+  
+  # ─── Puntos al Finalizar el Duelo ───
   # Puntos para el ganador del duelo
-  por-victoria: 3
-
+  por-victoria: 20
+  
   # Puntos para el perdedor (por participación)
-  por-participacion: 1
+  por-participacion: 5
+  
+  # Bonus de remontada (si el ganador estaba 3+ puntos atrás)
+  bonus-remontada: 10
