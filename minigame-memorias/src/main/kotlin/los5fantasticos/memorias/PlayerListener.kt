@@ -11,6 +11,7 @@ import org.bukkit.event.block.Action
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
 
 /**
@@ -20,7 +21,10 @@ import org.bukkit.event.player.PlayerQuitEvent
  * FUNCIONALIDADES:
  * - Manejo de clics en bloques del tablero
  * - Sistema de selección con varita para administradores
- * - Protección de parcelas activas contra modificaciones no autorizadas
+ * - Protección INTEGRAL de parcelas activas:
+ *   * Bloqueo total de modificación de bloques (romper/colocar)
+ *   * Sistema anti-escape (límites físicos de la parcela)
+ *   * Inmunidad para administradores con permiso memorias.admin
  */
 class PlayerListener(private val gameManager: GameManager) : Listener {
 
@@ -94,45 +98,27 @@ class PlayerListener(private val gameManager: GameManager) : Listener {
     /**
      * Protege las parcelas activas contra destrucción de bloques.
      * 
-     * LÓGICA:
-     * - Si el jugador está en un duelo: Solo puede romper bloques FUERA de su tablero
-     * - Si el jugador NO está en un duelo: No puede romper bloques en NINGUNA parcela activa
+     * LÓGICA REFACTORIZADA:
+     * - NINGÚN jugador puede romper bloques dentro de una parcela con duelo activo
+     * - La única interacción permitida es el clic derecho en bloques del tablero (manejado en onPlayerInteract)
+     * - Administradores con permiso memorias.admin o OP pueden ignorar esta restricción
      */
     @EventHandler(priority = EventPriority.HIGH)
     fun onBlockBreak(event: BlockBreakEvent) {
         val player = event.player
         val block = event.block
         
-        // Permitir a admins romper bloques
+        // EXCEPCIÓN: Permitir a admins romper bloques para configuración/depuración
         if (player.hasPermission("memorias.admin") || player.isOp) {
             return
         }
         
-        // Obtener duelo del jugador
-        val dueloJugador = gameManager.getDueloByPlayer(player)
-        
-        if (dueloJugador != null) {
-            // El jugador está en un duelo
-            // Solo puede interactuar con bloques DENTRO de su parcela (tablero del juego)
-            val parcela = dueloJugador.parcela
-            
-            if (!parcela.contains(block.location)) {
-                // Bloque fuera del tablero - cancelar
-                event.isCancelled = true
-                player.sendMessage(
-                    Component.text("✗ No puedes romper bloques fuera del tablero durante el duelo", NamedTextColor.RED)
-                )
-            }
-            // Si está dentro del tablero, el juego maneja la lógica
-        } else {
-            // El jugador NO está en un duelo
-            // Verificar si el bloque pertenece a alguna parcela activa
-            if (isBlockInActiveParcel(block.location)) {
-                event.isCancelled = true
-                player.sendMessage(
-                    Component.text("✗ No puedes romper bloques en parcelas de juego activas", NamedTextColor.RED)
-                )
-            }
+        // PROTECCIÓN TOTAL: Verificar si el bloque está en alguna parcela activa
+        if (isBlockInActiveParcel(block.location)) {
+            event.isCancelled = true
+            player.sendActionBar(
+                Component.text("✗ No puedes romper bloques en áreas de juego activas", NamedTextColor.RED)
+            )
         }
     }
     
@@ -146,40 +132,83 @@ class PlayerListener(private val gameManager: GameManager) : Listener {
         val player = event.player
         val block = event.block
         
-        // Permitir a admins colocar bloques
+        // EXCEPCIÓN: Permitir a admins colocar bloques para configuración/depuración
         if (player.hasPermission("memorias.admin") || player.isOp) {
             return
         }
         
-        // Obtener duelo del jugador
-        val dueloJugador = gameManager.getDueloByPlayer(player)
-        
-        if (dueloJugador != null) {
-            // El jugador está en un duelo
-            // No puede colocar bloques en ninguna parte
+        // PROTECCIÓN TOTAL: Verificar si el bloque está en alguna parcela activa
+        if (isBlockInActiveParcel(block.location)) {
             event.isCancelled = true
-            player.sendMessage(
-                Component.text("✗ No puedes colocar bloques durante un duelo", NamedTextColor.RED)
+            // Mensaje discreto (no intrusivo)
+            player.sendActionBar(
+                Component.text("✗ No puedes modificar bloques en áreas de juego activas", NamedTextColor.RED)
             )
-        } else {
-            // El jugador NO está en un duelo
-            // Verificar si el bloque pertenece a alguna parcela activa
-            if (isBlockInActiveParcel(block.location)) {
-                event.isCancelled = true
-                player.sendMessage(
-                    Component.text("✗ No puedes colocar bloques en parcelas de juego activas", NamedTextColor.RED)
-                )
-            }
+        }
+    }
+    
+    /**
+     * PROTECCIÓN DE LÍMITES FÍSICOS (ANTI-ESCAPE).
+     * 
+     * Impide que los jugadores en duelo salgan de los límites de su parcela.
+     * Usa ActionBar para mensajes discretos y no intrusivos.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    fun onPlayerMove(event: PlayerMoveEvent) {
+        val player = event.player
+        
+        // Optimización: Solo verificar si el jugador realmente se movió de bloque
+        val from = event.from
+        val to = event.to ?: return
+        
+        if (from.blockX == to.blockX && from.blockY == to.blockY && from.blockZ == to.blockZ) {
+            return // No hubo movimiento de bloque
+        }
+        
+        // INMUNIDAD DE ADMINISTRADOR
+        if (player.hasPermission("memorias.admin") || player.isOp) {
+            return
+        }
+        
+        // Verificar si el jugador está en un duelo
+        val duelo = gameManager.getDueloByPlayer(player) ?: return
+        
+        // Verificar si la nueva posición está fuera de la parcela
+        val parcela = duelo.parcela
+        
+        if (!parcela.contains(to)) {
+            // El jugador está intentando salir de la parcela - BLOQUEAR
+            event.isCancelled = true
+            
+            // Mensaje discreto en ActionBar (no intrusivo)
+            player.sendActionBar(
+                Component.text("⚠ No puedes salir del área de juego", NamedTextColor.GOLD)
+            )
         }
     }
     
     /**
      * Verifica si una ubicación pertenece a alguna parcela activa (con duelo en curso).
+     * 
+     * @deprecated Usar findParcelForLocation() en su lugar para mejor rendimiento
      */
+    @Deprecated("Usar findParcelForLocation() para obtener la parcela directamente")
     private fun isBlockInActiveParcel(location: org.bukkit.Location): Boolean {
         return gameManager.getAllActiveDuels().any { duelo ->
             duelo.parcela.contains(location)
         }
+    }
+    
+    /**
+     * Encuentra la parcela activa que contiene una ubicación específica.
+     * 
+     * @param location Ubicación a verificar
+     * @return La parcela que contiene la ubicación, o null si no está en ninguna parcela activa
+     */
+    private fun findParcelForLocation(location: org.bukkit.Location): Parcela? {
+        return gameManager.getAllActiveDuels()
+            .map { it.parcela }
+            .firstOrNull { it.contains(location) }
     }
     
     /**
