@@ -184,17 +184,16 @@ class PlayerListener(private val gameManager: GameManager) : Listener {
     
     /**
      * Verifica si un material es parte del juego de memorias.
+     * Acepta el material oculto (GRAY_WOOL) y cualquier bloque sólido del mazo.
      */
     private fun isGameBlock(material: Material): Boolean {
-        return material == Material.GRAY_WOOL ||
-               material == Material.RED_WOOL ||
-               material == Material.BLUE_WOOL ||
-               material == Material.GREEN_WOOL ||
-               material == Material.YELLOW_WOOL ||
-               material == Material.LIME_WOOL ||
-               material == Material.ORANGE_WOOL ||
-               material == Material.PINK_WOOL ||
-               material == Material.PURPLE_WOOL
+        // Material oculto siempre es parte del juego
+        if (material == Material.GRAY_WOOL) {
+            return true
+        }
+        
+        // Verificar si es un bloque sólido (todos los del mazo lo son)
+        return material.isBlock && material.isSolid
     }
 }
 

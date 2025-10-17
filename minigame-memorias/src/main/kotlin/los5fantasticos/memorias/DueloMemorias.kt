@@ -6,9 +6,13 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.title.Title
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Sound
+import org.bukkit.boss.BarColor
+import org.bukkit.boss.BarStyle
+import org.bukkit.boss.BossBar
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
@@ -58,6 +62,10 @@ class DueloMemorias(
         player1.uniqueId to 0,
         player2.uniqueId to 0
     )
+    
+    // ===== BOSSBARS PARA VISUALIZACIÓN DE TEMPORIZADORES =====
+    private lateinit var bossBar1: BossBar
+    private lateinit var bossBar2: BossBar
     
     // ===== TABLERO DE JUEGO =====
     private val tablero = mutableListOf<CasillaMemorias>()
@@ -206,7 +214,10 @@ class DueloMemorias(
         player1.teleport(spawn1)
         player2.teleport(spawn2)
         
-        // 5. Revelar tablero para fase de memorización
+        // 5. Inicializar BossBars para ambos jugadores
+        inicializarBossBars()
+        
+        // 6. Revelar tablero para fase de memorización
         revelarTodoElTablero()
     }
     
@@ -283,9 +294,9 @@ class DueloMemorias(
             if (tiempoActual > 0) {
                 tiempoRestante[uuidActual] = tiempoActual - 1
                 
-                // Actualizar action bar cada 10 ticks
+                // Actualizar BossBars cada 10 ticks (0.5 segundos)
                 if (tiempoRestante[uuidActual]!! % 10 == 0) {
-                    actualizarActionBars()
+                    actualizarBossBars()
                 }
                 
                 // Timeout: el jugador se quedó sin tiempo
@@ -667,13 +678,92 @@ class DueloMemorias(
     }
     
     /**
-     * Limpia todos los bloques del tablero.
+     * Inicializa las BossBars para ambos jugadores.
+     */
+    private fun inicializarBossBars() {
+        // BossBar para jugador 1 (Verde)
+        bossBar1 = Bukkit.createBossBar(
+            "${player1.name}",
+            BarColor.GREEN,
+            BarStyle.SOLID
+        )
+        bossBar1.addPlayer(player1)
+        bossBar1.addPlayer(player2)
+        
+        // BossBar para jugador 2 (Azul)
+        bossBar2 = Bukkit.createBossBar(
+            "${player2.name}",
+            BarColor.BLUE,
+            BarStyle.SOLID
+        )
+        bossBar2.addPlayer(player1)
+        bossBar2.addPlayer(player2)
+        
+        // Actualizar inmediatamente
+        actualizarBossBars()
+    }
+    
+    /**
+     * Actualiza las BossBars con el tiempo restante de cada jugador.
+     */
+    private fun actualizarBossBars() {
+        // Actualizar BossBar del jugador 1
+        val tiempo1 = tiempoRestante[player1.uniqueId] ?: 0
+        val segundos1 = tiempo1 / 20
+        val minutos1 = segundos1 / 60
+        val segs1 = segundos1 % 60
+        val tiempoFormateado1 = String.format("%d:%02d", minutos1, segs1)
+        
+        val progress1 = (tiempo1.toDouble() / (playerTimeSeconds * 20)).coerceIn(0.0, 1.0)
+        bossBar1.progress = progress1
+        
+        val color1 = when {
+            segundos1 <= 10 -> BarColor.RED
+            segundos1 <= 30 -> BarColor.YELLOW
+            else -> BarColor.GREEN
+        }
+        bossBar1.color = color1
+        
+        val indicador1 = if (turnoActual == player1.uniqueId) "➤ " else ""
+        bossBar1.setTitle("$indicador1${player1.name}: $tiempoFormateado1")
+        
+        // Actualizar BossBar del jugador 2
+        val tiempo2 = tiempoRestante[player2.uniqueId] ?: 0
+        val segundos2 = tiempo2 / 20
+        val minutos2 = segundos2 / 60
+        val segs2 = segundos2 % 60
+        val tiempoFormateado2 = String.format("%d:%02d", minutos2, segs2)
+        
+        val progress2 = (tiempo2.toDouble() / (playerTimeSeconds * 20)).coerceIn(0.0, 1.0)
+        bossBar2.progress = progress2
+        
+        val color2 = when {
+            segundos2 <= 10 -> BarColor.RED
+            segundos2 <= 30 -> BarColor.YELLOW
+            else -> BarColor.BLUE
+        }
+        bossBar2.color = color2
+        
+        val indicador2 = if (turnoActual == player2.uniqueId) "➤ " else ""
+        bossBar2.setTitle("$indicador2${player2.name}: $tiempoFormateado2")
+    }
+    
+    /**
+     * Limpia todos los bloques del tablero y recursos de BossBars.
      */
     fun limpiarTablero() {
         tablero.forEach { casilla ->
             casilla.ubicacion.block.type = Material.AIR
         }
         tablero.clear()
+        
+        // Limpiar BossBars
+        if (::bossBar1.isInitialized) {
+            bossBar1.removeAll()
+        }
+        if (::bossBar2.isInitialized) {
+            bossBar2.removeAll()
+        }
     }
     
     /**
