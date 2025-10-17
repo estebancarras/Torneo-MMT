@@ -38,8 +38,12 @@ class GameManager(
     // Arena configurada
     private var arenaActual: Arena? = null
     
-    // Cola de espera para emparejar jugadores
-    private val colaEspera = mutableListOf<Player>()
+    // ===== SISTEMA DE SALA DE ESPERA (LOBBY) =====
+    // Jugadores esperando en el lobby para que un admin inicie la ronda
+    private val jugadoresEnLobby = mutableListOf<Player>()
+    
+    // Task de feedback del lobby (muestra contador de jugadores)
+    private var lobbyFeedbackTask: BukkitTask? = null
     
     /**
      * Establece la arena actual del juego.
@@ -97,7 +101,8 @@ class GameManager(
     }
     
     /**
-     * Añade un jugador a la cola de espera y intenta emparejarlo.
+     * Añade un jugador a la sala de espera (lobby).
+     * NO empareja automáticamente - espera a que un admin inicie la ronda.
      */
     fun joinPlayer(jugador: Player) {
         // Verificar que hay arena configurada
@@ -119,48 +124,118 @@ class GameManager(
             return
         }
         
-        // Añadir a la cola
-        colaEspera.add(jugador)
-        jugador.sendMessage(Component.text("Te has unido a la cola. Jugadores esperando: ${colaEspera.size}", NamedTextColor.GREEN))
+        // Verificar que no esté ya en el lobby
+        if (jugadoresEnLobby.contains(jugador)) {
+            jugador.sendMessage(Component.text("Ya estás en el lobby esperando.", NamedTextColor.YELLOW))
+            return
+        }
+        
+        // Añadir al lobby
+        jugadoresEnLobby.add(jugador)
+        jugador.sendMessage(
+            Component.text("✓ Te has unido al lobby de Memorias.", NamedTextColor.GREEN)
+                .append(Component.newline())
+                .append(Component.text("Esperando a que un administrador inicie la ronda...", NamedTextColor.YELLOW))
+        )
         
         // Teleportar al lobby de la arena si existe
         arena.lobbySpawn?.let { jugador.teleport(it) }
         
-        // Intentar emparejar
-        intentarEmparejar()
-    }
-    
-    /**
-     * Intenta emparejar jugadores de la cola y crear duelos.
-     */
-    private fun intentarEmparejar() {
-        val arena = arenaActual ?: return
-        
-        // Mientras haya al menos 2 jugadores en cola y parcelas disponibles
-        while (colaEspera.size >= 2) {
-            // Obtener parcela libre
-            val parcela = arena.getParcelaLibre(parcelasOcupadas.keys)
-            if (parcela == null) {
-                // No hay parcelas disponibles
-                colaEspera.forEach { jugador ->
-                    jugador.sendMessage(Component.text("Todas las parcelas están ocupadas. Espera a que termine un duelo.", NamedTextColor.YELLOW))
-                }
-                break
-            }
-            
-            // Tomar dos jugadores de la cola
-            val jugador1 = colaEspera.removeAt(0)
-            val jugador2 = colaEspera.removeAt(0)
-            
-            // Crear duelo
-            crearDuelo(jugador1, jugador2, parcela)
+        // Iniciar feedback del lobby si es el primer jugador
+        if (jugadoresEnLobby.size == 1) {
+            iniciarLobbyFeedback()
         }
     }
     
     /**
-     * Crea un duelo entre dos jugadores en una parcela disponible.
+     * Inicia el sistema de feedback del lobby.
+     * Muestra un contador de jugadores listos en la ActionBar.
      */
-    private fun crearDuelo(jugador1: Player, jugador2: Player, parcela: Parcela) {
+    private fun iniciarLobbyFeedback() {
+        // Cancelar tarea anterior si existe
+        lobbyFeedbackTask?.cancel()
+        
+        lobbyFeedbackTask = object : BukkitRunnable() {
+            override fun run() {
+                // Si no hay jugadores, detener la tarea
+                if (jugadoresEnLobby.isEmpty()) {
+                    cancel()
+                    lobbyFeedbackTask = null
+                    return
+                }
+                
+                // Enviar ActionBar a todos los jugadores en el lobby
+                val mensaje = Component.text("⏳ Jugadores Listos: ${jugadoresEnLobby.size}", NamedTextColor.YELLOW)
+                jugadoresEnLobby.forEach { jugador ->
+                    jugador.sendActionBar(mensaje)
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 20L) // Cada segundo
+    }
+    
+    /**
+     * Inicia una ronda de torneo con todos los jugadores en el lobby.
+     * 
+     * VALIDACIONES:
+     * 1. Número par de jugadores (si es impar, requiere comodín)
+     * 2. Suficientes parcelas disponibles
+     * 
+     * @return Mensaje de error si falla, null si tiene éxito
+     */
+    fun startRound(): String? {
+        val arena = arenaActual ?: return "Error: No hay arena configurada"
+        
+        // VALIDACIÓN 1: Verificar que hay jugadores
+        if (jugadoresEnLobby.isEmpty()) {
+            return "Error: No hay jugadores en el lobby"
+        }
+        
+        // VALIDACIÓN 2: Número par de jugadores
+        if (jugadoresEnLobby.size % 2 != 0) {
+            return "Error: Hay un número impar de jugadores (${jugadoresEnLobby.size}). Se requiere que un comodín se una."
+        }
+        
+        // VALIDACIÓN 3: Suficientes parcelas
+        val duelosNecesarios = jugadoresEnLobby.size / 2
+        val parcelasLibres = arena.parcelas.filter { !parcelasOcupadas.containsKey(it) }
+        
+        if (parcelasLibres.size < duelosNecesarios) {
+            return "Error: No hay suficientes parcelas libres. Se necesitan $duelosNecesarios pero solo hay ${parcelasLibres.size} disponibles."
+        }
+        
+        // EMPAREJAMIENTO ALEATORIO
+        val jugadoresBarajados = jugadoresEnLobby.shuffled()
+        val parejas = jugadoresBarajados.chunked(2)
+        
+        // CREACIÓN DE DUELOS
+        var duelosCreados = 0
+        parejas.forEachIndexed { index, pareja ->
+            if (pareja.size == 2) {
+                val jugador1 = pareja[0]
+                val jugador2 = pareja[1]
+                val parcela = parcelasLibres[index]
+                
+                crearDuelo(jugador1, jugador2, parcela)
+                duelosCreados++
+            }
+        }
+        
+        // LIMPIEZA: Vaciar el lobby
+        jugadoresEnLobby.clear()
+        
+        // Detener feedback del lobby
+        lobbyFeedbackTask?.cancel()
+        lobbyFeedbackTask = null
+        
+        // Éxito - devolver null
+        return null
+    }
+    
+    /**
+     * Crea un duelo entre dos jugadores en una parcela disponible.
+     * NOTA: Ahora es pública para ser usada por startRound()
+     */
+    fun crearDuelo(jugador1: Player, jugador2: Player, parcela: Parcela) {
         val dueloId = UUID.randomUUID()
         val torneoManager = memoriasManager.torneoPlugin.torneoManager
         val duelo = DueloMemorias(jugador1, jugador2, parcela, plugin, torneoManager)
@@ -263,11 +338,11 @@ class GameManager(
     }
     
     /**
-     * Remueve un jugador de su duelo actual.
+     * Remueve un jugador de su duelo actual o del lobby.
      */
     fun removePlayer(jugador: Player) {
-        // Remover de cola de espera
-        colaEspera.remove(jugador)
+        // Remover del lobby si está ahí
+        jugadoresEnLobby.remove(jugador)
         
         // Buscar duelo del jugador
         val dueloId = jugadorADuelo[jugador.uniqueId] ?: return
@@ -302,7 +377,7 @@ class GameManager(
         duelosActivos.clear()
         jugadorADuelo.clear()
         parcelasOcupadas.clear()
-        colaEspera.clear()
+        jugadoresEnLobby.clear()
         
         detenerGameLoop()
         
@@ -324,7 +399,7 @@ class GameManager(
         return """
             Duelos activos: ${duelosActivos.size}
             Jugadores en duelo: ${jugadorADuelo.size}
-            Jugadores en cola: ${colaEspera.size}
+            Jugadores en lobby: ${jugadoresEnLobby.size}
             Parcelas ocupadas: ${parcelasOcupadas.size}
             Game Loop activo: ${gameLoopTask != null && !gameLoopTask!!.isCancelled}
         """.trimIndent()

@@ -37,6 +37,7 @@ class MemoriasCommand(
             "varita", "wand" -> return handleVarita(sender)
             "arena" -> return handleArena(sender, args)
             "parcela" -> return handleParcela(sender, args)
+            "admin" -> return handleAdmin(sender, args)
             else -> {
                 sender.sendMessage(Component.text("Subcomando desconocido. Usa /memorias para ver los comandos.", NamedTextColor.RED))
                 return true
@@ -59,6 +60,8 @@ class MemoriasCommand(
         if (sender.hasPermission("memorias.admin") || sender.isOp) {
             sender.sendMessage(Component.empty())
             sender.sendMessage(Component.text("═══ Comandos de Admin ═══", NamedTextColor.GOLD))
+            sender.sendMessage(Component.text("/memorias admin startround", NamedTextColor.YELLOW)
+                .append(Component.text(" - Iniciar ronda de torneo", NamedTextColor.GRAY)))
             sender.sendMessage(Component.text("/memorias varita", NamedTextColor.YELLOW)
                 .append(Component.text(" - Activar/desactivar varita de selección", NamedTextColor.GRAY)))
             sender.sendMessage(Component.empty())
@@ -358,6 +361,66 @@ class MemoriasCommand(
         return "(${loc.blockX}, ${loc.blockY}, ${loc.blockZ})"
     }
     
+    /**
+     * Maneja los subcomandos de administración.
+     */
+    private fun handleAdmin(sender: CommandSender, args: Array<out String>): Boolean {
+        if (!checkAdmin(sender)) return true
+        
+        if (args.size < 2) {
+            sender.sendMessage(Component.text("Uso: /memorias admin <subcomando>", NamedTextColor.RED))
+            sender.sendMessage(Component.text("Subcomandos disponibles:", NamedTextColor.YELLOW))
+            sender.sendMessage(Component.text("  - startround: Iniciar ronda de torneo", NamedTextColor.GRAY))
+            return true
+        }
+        
+        when (args[1].lowercase()) {
+            "startround" -> return handleAdminStartRound(sender)
+            else -> {
+                sender.sendMessage(Component.text("Subcomando de admin desconocido", NamedTextColor.RED))
+                return true
+            }
+        }
+    }
+    
+    /**
+     * Inicia una ronda de torneo con todos los jugadores en el lobby.
+     * 
+     * VALIDACIONES AUTOMÁTICAS:
+     * - Número par de jugadores
+     * - Suficientes parcelas disponibles
+     */
+    private fun handleAdminStartRound(sender: CommandSender): Boolean {
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        sender.sendMessage(Component.text("  Iniciando Ronda de Torneo", NamedTextColor.YELLOW))
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        
+        // Intentar iniciar la ronda
+        val error = gameManager.startRound()
+        
+        if (error != null) {
+            // Hubo un error - mostrar al administrador
+            sender.sendMessage(Component.text("✗ $error", NamedTextColor.RED))
+            
+            // Si es error de número impar, dar sugerencia
+            if (error.contains("impar")) {
+                sender.sendMessage(Component.empty())
+                sender.sendMessage(Component.text("💡 Sugerencia:", NamedTextColor.YELLOW))
+                sender.sendMessage(Component.text("  Pide a un jugador comodín que use /memorias join", NamedTextColor.GRAY))
+            }
+        } else {
+            // Éxito - obtener estadísticas
+            val stats = gameManager.getStats()
+            
+            sender.sendMessage(Component.text("✓ Ronda iniciada exitosamente", NamedTextColor.GREEN))
+            sender.sendMessage(Component.empty())
+            sender.sendMessage(Component.text(stats, NamedTextColor.YELLOW))
+        }
+        
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        return true
+    }
+    
     override fun onTabComplete(
         sender: CommandSender,
         command: Command,
@@ -365,7 +428,11 @@ class MemoriasCommand(
         args: Array<out String>
     ): List<String>? {
         if (args.size == 1) {
-            return listOf("join", "leave", "stats", "varita", "arena", "parcela").filter { it.startsWith(args[0].lowercase()) }
+            return listOf("join", "leave", "stats", "varita", "arena", "parcela", "admin").filter { it.startsWith(args[0].lowercase()) }
+        }
+        
+        if (args.size == 2 && args[0].equals("admin", true)) {
+            return listOf("startround").filter { it.startsWith(args[1].lowercase()) }
         }
         
         if (args.size == 2 && args[0].equals("arena", true)) {
