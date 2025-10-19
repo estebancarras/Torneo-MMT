@@ -307,17 +307,12 @@ class GameManager(
             memoriasManager.recordGamePlayed(jugador)
         }
         
-        // Teleportar jugadores al lobby
-        val arena = arenaActual
-        arena?.lobbySpawn?.let { lobby ->
-            if (player1.isOnline) {
-                player1.teleport(lobby)
-                player1.sendMessage(Component.text("¡Has sido enviado al lobby!", NamedTextColor.GREEN))
-            }
-            if (player2.isOnline) {
-                player2.teleport(lobby)
-                player2.sendMessage(Component.text("¡Has sido enviado al lobby!", NamedTextColor.GREEN))
-            }
+        // Teleportar jugadores al lobby global usando TournamentFlowManager
+        if (player1.isOnline) {
+            los5fantasticos.torneo.services.TournamentFlowManager.returnToLobby(player1)
+        }
+        if (player2.isOnline) {
+            los5fantasticos.torneo.services.TournamentFlowManager.returnToLobby(player2)
         }
         
         // Limpiar tablero

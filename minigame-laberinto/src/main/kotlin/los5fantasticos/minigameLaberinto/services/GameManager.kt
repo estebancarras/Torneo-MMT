@@ -362,19 +362,17 @@ class GameManager(private val minigame: MinigameLaberinto) {
     }
     
     /**
-     * Teletransporta todos los jugadores de vuelta al lobby.
+     * Teletransporta todos los jugadores de vuelta al lobby global.
      * 
      * @param game Partida
      */
     private fun teleportPlayersToLobby(game: LaberintoGame) {
-        val lobbyLocation = minigame.arenaManager.getLobbyLocation()
-        if (lobbyLocation != null) {
-            game.players.forEach { player ->
-                // Restaurar modo de juego a supervivencia
-                player.gameMode = org.bukkit.GameMode.SURVIVAL
-                player.teleport(lobbyLocation)
-                player.sendMessage(Component.text("¡Gracias por jugar Laberinto!").color(NamedTextColor.GREEN))
-            }
+        game.players.forEach { player ->
+            // Restaurar modo de juego a supervivencia
+            player.gameMode = org.bukkit.GameMode.SURVIVAL
+            
+            // Retornar al lobby global usando TournamentFlowManager
+            los5fantasticos.torneo.services.TournamentFlowManager.returnToLobby(player)
         }
     }
     

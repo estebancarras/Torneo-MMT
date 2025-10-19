@@ -8,6 +8,7 @@ import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
+import org.bukkit.event.player.PlayerMoveEvent
 
 /**
  * Listener para proteger el lobby global del torneo.
@@ -79,6 +80,48 @@ class GlobalLobbyListener : Listener {
                 player.sendActionBar(
                     Component.text("✗ No puedes colocar bloques en el lobby", NamedTextColor.RED)
                 )
+            }
+        }
+    }
+    
+    /**
+     * Protege los límites del lobby - evita que jugadores salgan de la región.
+     * Solo aplica cuando el jugador está en el lobby (no en un minijuego activo).
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    fun onPlayerMove(event: PlayerMoveEvent) {
+        val player = event.player
+        val from = event.from
+        val to = event.to ?: return
+        
+        // Optimización: Solo verificar si cambió de bloque
+        if (from.blockX == to.blockX && from.blockY == to.blockY && from.blockZ == to.blockZ) {
+            return
+        }
+        
+        // EXCEPCIÓN: Administradores con permiso especial
+        if (player.hasPermission("torneo.admin.build") || player.isOp) {
+            return
+        }
+        
+        // Verificar si el jugador está en un minijuego activo
+        val activeMinigame = TournamentFlowManager.activeMinigame
+        val isInActiveGame = activeMinigame?.getActivePlayers()?.contains(player) ?: false
+        
+        // Si el jugador NO está en un minijuego, está en el lobby
+        if (!isInActiveGame) {
+            val lobbyRegion = TournamentFlowManager.getLobbyRegion()
+            
+            // Si hay región definida y el jugador intenta salir de ella
+            if (lobbyRegion != null && !lobbyRegion.contains(to)) {
+                // Verificar si estaba dentro antes
+                if (lobbyRegion.contains(from)) {
+                    // Intentando salir del lobby - CANCELAR
+                    event.isCancelled = true
+                    player.sendActionBar(
+                        Component.text("✗ No puedes salir del lobby durante el torneo", NamedTextColor.RED)
+                    )
+                }
             }
         }
     }

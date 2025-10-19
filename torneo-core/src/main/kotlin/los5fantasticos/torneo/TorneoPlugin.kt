@@ -73,7 +73,9 @@ class TorneoPlugin : JavaPlugin() {
         logger.info("✓ GlobalScoreboardService inicializado")
         
         // Registrar listeners
-        server.pluginManager.registerEvents(PlayerConnectionListener(scoreboardService), this)
+        val playerConnectionListener = PlayerConnectionListener(scoreboardService)
+        playerConnectionListener.initialize(this) // Inicializar con la instancia del plugin
+        server.pluginManager.registerEvents(playerConnectionListener, this)
         server.pluginManager.registerEvents(GlobalLobbyListener(), this)
         server.pluginManager.registerEvents(SelectionListener(), this)
         logger.info("✓ Listeners registrados")

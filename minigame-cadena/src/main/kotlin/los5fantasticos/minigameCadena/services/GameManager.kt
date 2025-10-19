@@ -238,9 +238,15 @@ class GameManager(
         // PR3: Detener encadenamiento
         minigame?.chainService?.stopChaining(game)
         
-        // Limpiar jugadores
+        // Teletransportar jugadores al lobby global y limpiar
         game.teams.forEach { team ->
             team.players.forEach { playerId ->
+                // Obtener el jugador online
+                val player = org.bukkit.Bukkit.getPlayer(playerId)
+                if (player != null && player.isOnline) {
+                    // Retornar al lobby global usando TournamentFlowManager
+                    los5fantasticos.torneo.services.TournamentFlowManager.returnToLobby(player)
+                }
                 playerToGame.remove(playerId)
             }
         }
