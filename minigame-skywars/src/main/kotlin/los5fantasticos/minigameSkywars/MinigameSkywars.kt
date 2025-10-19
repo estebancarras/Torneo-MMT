@@ -8,6 +8,8 @@ import org.bukkit.event.Listener
 import org.bukkit.event.EventHandler
 import com.walrusone.skywarsreloaded.events.SkyWarsWinEvent
 import com.walrusone.skywarsreloaded.events.SkyWarsKillEvent
+import los5fantasticos.minigameSkywars.commands.SkywarsCommand
+import org.bukkit.command.CommandExecutor
 
 /**
  * Manager del minijuego SkyWars.
@@ -37,6 +39,11 @@ class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule, 
         // - Registrar comandos
 
         plugin.logger.info("✓ $gameName v$version habilitado")
+    }
+
+    override fun getCommandExecutors(): Map<String, CommandExecutor> {
+        val executor = SkywarsCommand(this, torneoPlugin)
+        return mapOf("skywars" to executor)
     }
     
     override fun onDisable() {

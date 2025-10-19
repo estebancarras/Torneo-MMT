@@ -46,6 +46,13 @@ Juego de supervivencia en el aire donde los jugadores luchan hasta que solo qued
 - 100 puntos por victoria
 - 10 puntos extra por jugador eliminado
 
+**Comandos:**
+- `/sw join` - Unirse a la partida disponible
+- `/sw quit` - Salirse de la partida
+- `/skywars joinall <map>` - [Admin] enviar a todos los jugadores
+- `/swm arenas ` - [Admin] Administrador de arenas
+- `/sw spectate <map>` - [Admin] Entrar en modo espectador
+
 ### Laberinto
 Juego de navegación donde los jugadores deben encontrar la salida del laberinto en el menor tiempo posible. La dificultad aumenta con laberintos más complejos.
 
@@ -74,14 +81,19 @@ Juego de supervivencia donde los jugadores luchan en un área cerrada hasta que 
 
 ## Instalación
 
-### Opción 1: Usar el JAR Precompilado
+### Opción 1: Descarga directa
 
-1. Descargar `TorneoMMT-1.0-SNAPSHOT.jar` de la carpeta `torneo-assembly/target/`
-2. Descargar `SkyWarsReloaded 5.6.34.jar` de la página [SkywarsReloaded UPDATED](https://www.spigotmc.org/resources/skywarsreloaded-updated-recoded-1-21-support-new-decentholograms-supports-all-mc-versions.69436/)
+1. Descargar los [archivos](https://github.com/estebancarras/Torneo-MMT/releases)
 3. Copiar los archivos a la carpeta `plugins/` del servidor
 4. Abrir / Reiniciar el servidor
 
-### Opción 2: Compilar desde el Código Fuente
+### Opción 2: Usar el JAR Precompilado
+
+1. Descargar `TorneoMMT-1.0-SNAPSHOT.jar` de la carpeta `torneo-assembly/target/`
+3. Copiar los archivos a la carpeta `plugins/` del servidor
+4. Abrir / Reiniciar el servidor
+
+### Opción 3: Compilar desde el Código Fuente
 
 ```bash
 # Clonar el repositorio
