@@ -2,6 +2,7 @@ package los5fantasticos.memorias
 
 import los5fantasticos.torneo.TorneoPlugin
 import los5fantasticos.torneo.api.MinigameModule
+import los5fantasticos.torneo.util.selection.Cuboid
 import org.bukkit.Location
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
@@ -114,8 +115,41 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
     
     override fun getActivePlayers(): List<Player> {
         if (!::gameManager.isInitialized) return emptyList()
-        // Implementación básica - el GameManager no expone directamente la lista
-        return emptyList()
+        // Obtener jugadores de todos los duelos activos
+        return gameManager.getAllActiveDuels().flatMap { duelo ->
+            listOf(duelo.player1, duelo.player2)
+        }
+    }
+    
+    /**
+     * Inicia el minijuego en modo torneo centralizado.
+     * Todos los jugadores son añadidos al lobby del minijuego.
+     */
+    override fun onTournamentStart(players: List<Player>) {
+        if (!::gameManager.isInitialized) {
+            plugin.logger.severe("[Memorias] GameManager no inicializado, no se puede iniciar torneo")
+            return
+        }
+        
+        plugin.logger.info("[Memorias] ═══ INICIO DE TORNEO ═══")
+        plugin.logger.info("[Memorias] Añadiendo ${players.size} jugadores al lobby")
+        
+        // Iniciar el Game Loop si no está activo
+        gameManager.iniciarGameLoop()
+        
+        // Añadir todos los jugadores al lobby del minijuego
+        players.forEach { player ->
+            try {
+                gameManager.joinPlayer(player)
+                plugin.logger.info("[Memorias] Jugador ${player.name} añadido al lobby")
+            } catch (e: Exception) {
+                plugin.logger.severe("[Memorias] Error añadiendo ${player.name}: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+        
+        plugin.logger.info("[Memorias] ✓ Torneo iniciado con ${players.size} jugadores")
+        plugin.logger.info("[Memorias] Usa /memorias admin startround para iniciar la ronda")
     }
     
     /**

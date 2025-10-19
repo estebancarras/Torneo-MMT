@@ -61,6 +61,23 @@ interface MinigameModule {
     fun getActivePlayers(): List<Player>
     
     /**
+     * Inicia el minijuego en modo torneo para una lista de jugadores.
+     * 
+     * FLUJO CENTRALIZADO:
+     * Este método es llamado por el TournamentFlowManager cuando un administrador
+     * ejecuta /torneo start <minigame>. Todos los jugadores online son enviados
+     * al minijuego simultáneamente.
+     * 
+     * IMPLEMENTACIÓN RECOMENDADA:
+     * - Añadir todos los jugadores a la sala de espera del minijuego
+     * - Teletransportarlos al lobby del minijuego
+     * - NO iniciar el juego automáticamente - esperar comando admin específico
+     * 
+     * @param players Lista de jugadores que participarán en el minijuego
+     */
+    fun onTournamentStart(players: List<Player>)
+    
+    /**
      * Proporciona los ejecutores de comandos que este minijuego necesita registrar.
      * 
      * El mapa devuelto asocia nombres de comandos con sus ejecutores correspondientes.

@@ -62,6 +62,24 @@ class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule, 
     }
     
     /**
+     * Inicia el minijuego en modo torneo centralizado.
+     * Delega al comando de SkyWars para manejar la lógica específica.
+     */
+    override fun onTournamentStart(players: List<Player>) {
+        plugin.logger.info("[$gameName] ═══ INICIO DE TORNEO ═══")
+        plugin.logger.info("[$gameName] ${players.size} jugadores disponibles")
+        plugin.logger.info("[$gameName] Los jugadores deben unirse a las arenas de SkyWars")
+        
+        // Marcar jugadores como activos
+        players.forEach { player ->
+            activePlayers.add(player)
+        }
+        
+        gameRunning = true
+        plugin.logger.info("[$gameName] ✓ Torneo iniciado - Usa /skywars para gestionar partidas")
+    }
+    
+    /**
      * Inicia una nueva partida de SkyWars.
      */
     @Suppress("unused")

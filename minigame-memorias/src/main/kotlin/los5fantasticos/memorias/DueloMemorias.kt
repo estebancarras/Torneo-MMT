@@ -2,6 +2,7 @@ package los5fantasticos.memorias
 
 import los5fantasticos.memorias.*
 import los5fantasticos.torneo.core.TorneoManager
+import los5fantasticos.torneo.services.TournamentFlowManager
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
@@ -859,6 +860,7 @@ class DueloMemorias(
     
     /**
      * Limpia todos los bloques del tablero y recursos de BossBars.
+     * FLUJO CENTRALIZADO: Devuelve jugadores al lobby global.
      */
     fun limpiarTablero() {
         tablero.forEach { casilla ->
@@ -872,6 +874,11 @@ class DueloMemorias(
         }
         if (::bossBar2.isInitialized) {
             bossBar2.removeAll()
+        }
+        
+        // FLUJO CENTRALIZADO: Devolver jugadores al lobby global
+        jugadores.forEach { player ->
+            TournamentFlowManager.returnToLobby(player)
         }
     }
     

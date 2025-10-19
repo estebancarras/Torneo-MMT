@@ -112,4 +112,32 @@ class MinigameLaberinto(val torneoPlugin: TorneoPlugin) : MinigameModule {
             .flatMap { game -> game.players }
     }
     
+    /**
+     * Inicia el minijuego en modo torneo centralizado.
+     */
+    override fun onTournamentStart(players: List<Player>) {
+        plugin.logger.info("[$gameName] ═══ INICIO DE TORNEO ═══")
+        plugin.logger.info("[$gameName] Teletransportando ${players.size} jugadores al lobby")
+        
+        // Obtener el lobby del laberinto
+        val lobbyLocation = arenaManager.getLobbyLocation()
+        if (lobbyLocation == null) {
+            plugin.logger.severe("[$gameName] No hay lobby configurado")
+            return
+        }
+        
+        // Teletransportar todos los jugadores al lobby
+        players.forEach { player ->
+            try {
+                player.teleport(lobbyLocation)
+                plugin.logger.info("[$gameName] Jugador ${player.name} teletransportado al lobby")
+            } catch (e: Exception) {
+                plugin.logger.severe("[$gameName] Error teletransportando ${player.name}: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+        
+        plugin.logger.info("[$gameName] ✓ Torneo iniciado con ${players.size} jugadores")
+    }
+    
 }

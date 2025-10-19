@@ -48,6 +48,22 @@ class MinigameHungergames(private val torneoPlugin: TorneoPlugin) : MinigameModu
     }
     
     /**
+     * Inicia el minijuego en modo torneo centralizado.
+     */
+    override fun onTournamentStart(players: List<Player>) {
+        plugin.logger.info("[$gameName] ═══ INICIO DE TORNEO ═══")
+        plugin.logger.info("[$gameName] ${players.size} jugadores disponibles")
+        
+        // Añadir jugadores a la lista activa
+        players.forEach { player ->
+            activePlayers.add(player)
+        }
+        
+        gameRunning = true
+        plugin.logger.info("[$gameName] ✓ Torneo iniciado con ${players.size} jugadores")
+    }
+    
+    /**
      * Inicia una nueva partida de Hunger Games.
      */
     @Suppress("unused")

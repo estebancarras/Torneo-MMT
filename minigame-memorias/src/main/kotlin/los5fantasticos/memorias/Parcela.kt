@@ -1,5 +1,6 @@
 package los5fantasticos.memorias
 
+import los5fantasticos.torneo.util.selection.Cuboid
 import org.bukkit.Location
 
 /**

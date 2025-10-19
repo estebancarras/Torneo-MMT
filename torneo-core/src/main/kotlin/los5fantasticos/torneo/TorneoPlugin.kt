@@ -3,8 +3,13 @@ package los5fantasticos.torneo
 import los5fantasticos.torneo.api.MinigameModule
 import los5fantasticos.torneo.core.TorneoManager
 import los5fantasticos.torneo.commands.RankingCommand
+import los5fantasticos.torneo.commands.TorneoAdminCommand
+import los5fantasticos.torneo.listeners.GlobalLobbyListener
 import los5fantasticos.torneo.listeners.PlayerConnectionListener
+import los5fantasticos.torneo.listeners.SelectionListener
 import los5fantasticos.torneo.services.GlobalScoreboardService
+import los5fantasticos.torneo.services.TournamentFlowManager
+import los5fantasticos.torneo.util.selection.SelectionManager
 import org.bukkit.ChatColor
 import org.bukkit.plugin.java.JavaPlugin
 
@@ -69,6 +74,8 @@ class TorneoPlugin : JavaPlugin() {
         
         // Registrar listeners
         server.pluginManager.registerEvents(PlayerConnectionListener(scoreboardService), this)
+        server.pluginManager.registerEvents(GlobalLobbyListener(), this)
+        server.pluginManager.registerEvents(SelectionListener(), this)
         logger.info("✓ Listeners registrados")
         
         // Registrar comandos del core
@@ -122,6 +129,12 @@ class TorneoPlugin : JavaPlugin() {
             logger.info("✓ Puntajes del torneo guardados")
         }
         
+        // Limpiar sistemas centralizados
+        logger.info("Limpiando sistemas centralizados...")
+        TournamentFlowManager.cleanup()
+        SelectionManager.cleanup()
+        logger.info("✓ Sistemas centralizados limpiados")
+        
         logger.info("═══════════════════════════════════════")
         logger.info("  ${ChatColor.GREEN}TorneoMMT deshabilitado correctamente")
         logger.info("  Todos los datos han sido persistidos")
@@ -132,8 +145,15 @@ class TorneoPlugin : JavaPlugin() {
      * Registra los comandos del núcleo del torneo.
      */
     private fun registerCoreCommands() {
+        // Comando de ranking
         getCommand("ranking")?.setExecutor(RankingCommand(torneoManager))
-        getCommand("torneo")?.setExecutor(RankingCommand(torneoManager)) // Alias
+        
+        // Comando de administración del torneo
+        val torneoAdminCmd = TorneoAdminCommand(torneoManager)
+        getCommand("torneo")?.apply {
+            setExecutor(torneoAdminCmd)
+            tabCompleter = torneoAdminCmd
+        }
     }
     
     /**

@@ -86,6 +86,28 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule, Listene
     }
 
     override fun isGameRunning(): Boolean = gameRunning
+    
+    /**
+     * Inicia el minijuego en modo torneo centralizado.
+     * Todos los jugadores son añadidos al juego automáticamente.
+     */
+    override fun onTournamentStart(players: List<Player>) {
+        plugin.logger.info("[$gameName] ═══ INICIO DE TORNEO ═══")
+        plugin.logger.info("[$gameName] Añadiendo ${players.size} jugadores al juego")
+        
+        // Añadir todos los jugadores al juego
+        players.forEach { player ->
+            try {
+                joinGame(player)
+                plugin.logger.info("[$gameName] Jugador ${player.name} añadido al juego")
+            } catch (e: Exception) {
+                plugin.logger.severe("[$gameName] Error añadiendo ${player.name}: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+        
+        plugin.logger.info("[$gameName] ✓ Torneo iniciado con ${players.size} jugadores")
+    }
 
     // ===== Eventos =====
 

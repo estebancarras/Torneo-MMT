@@ -63,6 +63,29 @@ class TorneoManager(private val plugin: Plugin) {
     }
     
     /**
+     * Obtiene un minijuego por su nombre (case-insensitive).
+     * Usado por el sistema de torneo centralizado.
+     * 
+     * @param name Nombre del minijuego
+     * @return El módulo del minijuego, o null si no existe
+     */
+    fun getMinigameByName(name: String): MinigameModule? {
+        return minigames.values.firstOrNull { 
+            it.gameName.equals(name, ignoreCase = true) 
+        }
+    }
+    
+    /**
+     * Obtiene la lista de minijuegos disponibles.
+     * Alias de getAllMinigames() para compatibilidad con TournamentFlowManager.
+     * 
+     * @return Lista de todos los módulos de minijuegos
+     */
+    fun getAvailableMinigames(): List<MinigameModule> {
+        return getAllMinigames()
+    }
+    
+    /**
      * Añade puntos a un jugador desde un minijuego específico.
      * 
      * @param player Jugador que recibe los puntos
