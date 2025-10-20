@@ -3,6 +3,7 @@ package los5fantasticos.minigameCarrerabarcos.services
 import los5fantasticos.minigameCarrerabarcos.game.ArenaCarrera
 import los5fantasticos.minigameCarrerabarcos.game.Carrera
 import los5fantasticos.torneo.TorneoPlugin
+import los5fantasticos.torneo.util.GameTimer
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
@@ -43,6 +44,10 @@ class GameManager(
         private const val PUNTOS_TERCER_LUGAR = 50
         private const val PUNTOS_PARTICIPACION = 25
         private const val PUNTOS_CHECKPOINT = 5
+        
+        // Tiempos
+        private const val COUNTDOWN_SECONDS = 5
+        private const val RACE_DURATION_SECONDS = 300 // 5 minutos
     }
     
     /**
@@ -54,6 +59,11 @@ class GameManager(
      * Mapa de jugadores a sus carreras activas.
      */
     private val jugadorEnCarrera = mutableMapOf<Player, Carrera>()
+    
+    /**
+     * Mapa de temporizadores de carrera.
+     */
+    private val timersPorCarrera = mutableMapOf<Carrera, GameTimer>()
     
     /**
      * Inicia una nueva carrera en una arena específica.
@@ -137,21 +147,23 @@ class GameManager(
     }
     
     /**
-     * Inicia el countdown antes de comenzar la carrera.
+     * Inicia el countdown antes de comenzar la carrera con temporizador visual.
      */
     private fun iniciarCountdown(carrera: Carrera) {
         carrera.setEstado(Carrera.EstadoCarrera.INICIANDO)
         
         val jugadores = carrera.getJugadores()
         
-        object : BukkitRunnable() {
-            var contador = 3
-            
-            override fun run() {
-                if (contador > 0) {
-                    // Mostrar número
+        // Crear temporizador de countdown con BossBar
+        val countdownTimer = GameTimer(
+            plugin = torneoPlugin,
+            durationInSeconds = COUNTDOWN_SECONDS,
+            title = "§e§l⚠ PREPARÁNDOSE PARA INICIAR",
+            onTick = { secondsLeft ->
+                // Mostrar títulos y sonidos durante el countdown
+                if (secondsLeft > 0 && secondsLeft <= 3) {
                     val title = Title.title(
-                        Component.text(contador.toString(), NamedTextColor.YELLOW, TextDecoration.BOLD),
+                        Component.text(secondsLeft.toString(), NamedTextColor.YELLOW, TextDecoration.BOLD),
                         Component.text("Prepárate...", NamedTextColor.GRAY),
                         Title.Times.times(Duration.ZERO, Duration.ofSeconds(1), Duration.ZERO)
                     )
@@ -160,28 +172,102 @@ class GameManager(
                         player.showTitle(title)
                         player.playSound(player.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_HAT, 1.0f, 1.0f)
                     }
-                    
-                    contador--
-                } else {
-                    // ¡GO!
-                    val goTitle = Title.title(
-                        Component.text("¡GO!", NamedTextColor.GREEN, TextDecoration.BOLD),
-                        Component.text("¡Buena suerte!", NamedTextColor.YELLOW),
-                        Title.Times.times(Duration.ZERO, Duration.ofSeconds(2), Duration.ofMillis(500))
-                    )
-                    
-                    jugadores.forEach { player ->
-                        player.showTitle(goTitle)
-                        player.playSound(player.location, org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 1.5f)
-                    }
-                    
-                    carrera.setEstado(Carrera.EstadoCarrera.EN_CURSO)
-                    plugin.logger.info("[Carrera de Barcos] Carrera en '${carrera.arena.nombre}' iniciada")
-                    
-                    cancel()
                 }
+            },
+            onFinish = {
+                // ¡GO!
+                val goTitle = Title.title(
+                    Component.text("¡GO!", NamedTextColor.GREEN, TextDecoration.BOLD),
+                    Component.text("¡Buena suerte!", NamedTextColor.YELLOW),
+                    Title.Times.times(Duration.ZERO, Duration.ofSeconds(2), Duration.ofMillis(500))
+                )
+                
+                jugadores.forEach { player ->
+                    player.showTitle(goTitle)
+                    player.playSound(player.location, org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 1.5f)
+                }
+                
+                carrera.setEstado(Carrera.EstadoCarrera.EN_CURSO)
+                plugin.logger.info("[Carrera de Barcos] Carrera en '${carrera.arena.nombre}' iniciada")
+                
+                // Iniciar temporizador de duración de la carrera
+                iniciarTemporizadorCarrera(carrera)
             }
-        }.runTaskTimer(plugin, 0L, 20L) // Cada segundo
+        )
+        
+        // Añadir todos los jugadores al temporizador
+        countdownTimer.addPlayers(jugadores)
+        
+        // Iniciar el countdown
+        countdownTimer.start()
+    }
+    
+    /**
+     * Inicia el temporizador de duración de la carrera con BossBar.
+     */
+    private fun iniciarTemporizadorCarrera(carrera: Carrera) {
+        val jugadores = carrera.getJugadores()
+        
+        // Crear temporizador de duración de la carrera
+        val raceTimer = GameTimer(
+            plugin = torneoPlugin,
+            durationInSeconds = RACE_DURATION_SECONDS,
+            title = "§6§l🏁 CARRERA DE BARCOS",
+            onTick = { secondsLeft ->
+                // Avisos cuando queda poco tiempo
+                when (secondsLeft) {
+                    60 -> {
+                        jugadores.forEach { player ->
+                            player.sendMessage(
+                                Component.text("⚠ ", NamedTextColor.GOLD)
+                                    .append(Component.text("¡Queda 1 minuto!", NamedTextColor.YELLOW, TextDecoration.BOLD))
+                            )
+                            player.playSound(player.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.0f)
+                        }
+                    }
+                    30 -> {
+                        jugadores.forEach { player ->
+                            player.sendMessage(
+                                Component.text("⚠ ", NamedTextColor.RED)
+                                    .append(Component.text("¡Quedan 30 segundos!", NamedTextColor.YELLOW, TextDecoration.BOLD))
+                            )
+                            player.playSound(player.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.2f)
+                        }
+                    }
+                    10 -> {
+                        jugadores.forEach { player ->
+                            player.sendMessage(
+                                Component.text("⚠ ", NamedTextColor.DARK_RED)
+                                    .append(Component.text("¡ÚLTIMOS 10 SEGUNDOS!", NamedTextColor.RED, TextDecoration.BOLD))
+                            )
+                            player.playSound(player.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.5f)
+                        }
+                    }
+                }
+            },
+            onFinish = {
+                // Tiempo agotado - finalizar carrera
+                plugin.logger.info("[Carrera de Barcos] Tiempo agotado en carrera '${carrera.arena.nombre}'")
+                
+                jugadores.forEach { player ->
+                    player.sendMessage(
+                        Component.text("⏱ ", NamedTextColor.RED, TextDecoration.BOLD)
+                            .append(Component.text("¡Tiempo agotado!", NamedTextColor.YELLOW))
+                    )
+                }
+                
+                finalizarCarreraPorTiempo(carrera)
+            }
+        )
+        
+        // Añadir todos los jugadores al temporizador
+        raceTimer.addPlayers(jugadores)
+        
+        // Guardar referencia al temporizador
+        timersPorCarrera[carrera] = raceTimer
+        
+        // Iniciar el temporizador
+        raceTimer.start()
     }
     
     /**
@@ -311,6 +397,10 @@ class GameManager(
     fun finalizarCarrera(carrera: Carrera) {
         carrera.setEstado(Carrera.EstadoCarrera.FINALIZADA)
         
+        // Detener el temporizador si existe
+        timersPorCarrera[carrera]?.stop()
+        timersPorCarrera.remove(carrera)
+        
         plugin.logger.info("[Carrera de Barcos] Carrera en '${carrera.arena.nombre}' finalizada")
         
         // Mostrar podio
@@ -322,6 +412,47 @@ class GameManager(
                 limpiarCarrera(carrera)
             }
         }.runTaskLater(plugin, 200L) // 10 segundos
+    }
+    
+    /**
+     * Finaliza una carrera por tiempo agotado.
+     * Asigna posiciones según el progreso de cada jugador.
+     */
+    private fun finalizarCarreraPorTiempo(carrera: Carrera) {
+        // Obtener jugadores que no han finalizado
+        val jugadoresActivos = carrera.getJugadores().filter { player ->
+            !carrera.getJugadoresFinalizados().contains(player)
+        }
+        
+        // Ordenar por progreso (más checkpoints = mejor posición)
+        val jugadoresOrdenados = jugadoresActivos.sortedByDescending { player ->
+            carrera.getProgreso(player)
+        }
+        
+        // Asignar posiciones finales
+        jugadoresOrdenados.forEach { player ->
+            val progreso = carrera.getProgreso(player)
+            
+            // Otorgar puntos según progreso
+            val puntos = PUNTOS_PARTICIPACION + (progreso * PUNTOS_CHECKPOINT)
+            
+            torneoPlugin.torneoManager.addScore(
+                player.uniqueId,
+                GAME_NAME,
+                puntos,
+                "Participación ($progreso checkpoints)"
+            )
+            
+            torneoPlugin.torneoManager.recordGamePlayed(player, GAME_NAME)
+            
+            player.sendMessage(
+                Component.text("Progreso: ", NamedTextColor.GRAY)
+                    .append(Component.text("$progreso/${carrera.arena.checkpoints.size}", NamedTextColor.YELLOW))
+                    .append(Component.text(" checkpoints", NamedTextColor.GRAY))
+            )
+        }
+        
+        finalizarCarrera(carrera)
     }
     
     /**
@@ -429,6 +560,12 @@ class GameManager(
      * Finaliza todas las carreras activas (para shutdown).
      */
     fun finalizarTodasLasCarreras() {
+        // Detener todos los temporizadores
+        timersPorCarrera.values.forEach { timer ->
+            timer.stop()
+        }
+        timersPorCarrera.clear()
+        
         carrerasActivas.toList().forEach { carrera ->
             limpiarCarrera(carrera)
         }
