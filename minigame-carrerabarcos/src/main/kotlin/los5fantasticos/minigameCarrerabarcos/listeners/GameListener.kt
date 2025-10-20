@@ -2,9 +2,13 @@ package los5fantasticos.minigameCarrerabarcos.listeners
 
 import los5fantasticos.minigameCarrerabarcos.game.Carrera
 import los5fantasticos.minigameCarrerabarcos.services.GameManager
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
+import org.bukkit.event.block.BlockBreakEvent
+import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
 
@@ -14,6 +18,8 @@ import org.bukkit.event.player.PlayerQuitEvent
  * RESPONSABILIDADES:
  * - Detectar cuando un jugador atraviesa un checkpoint
  * - Detectar cuando un jugador cruza la meta
+ * - Proteger la arena (bloquear construcción/destrucción)
+ * - Evitar que jugadores salgan de la región de protección
  * - Manejar desconexiones durante carreras
  * 
  * ARQUITECTURA:
@@ -49,6 +55,9 @@ class GameListener(private val gameManager: GameManager) : Listener {
         if (carrera.estado != Carrera.EstadoCarrera.EN_CURSO) {
             return
         }
+        
+        // Verificar protección de región
+        verificarProteccionRegion(player, carrera, to, event)
         
         // Verificar checkpoints
         verificarCheckpoint(player, carrera, to)
@@ -94,6 +103,64 @@ class GameListener(private val gameManager: GameManager) : Listener {
         if (meta.contains(location)) {
             // Notificar al GameManager para finalizar al jugador
             gameManager.finalizarJugador(player)
+        }
+    }
+    
+    /**
+     * Verifica si el jugador intenta salir de la región de protección.
+     */
+    private fun verificarProteccionRegion(
+        player: org.bukkit.entity.Player,
+        carrera: Carrera,
+        location: org.bukkit.Location,
+        event: PlayerMoveEvent
+    ) {
+        val protectionRegion = carrera.arena.protectionRegion ?: return
+        
+        // Si el jugador intenta salir de la región de protección, cancelar movimiento
+        if (!protectionRegion.contains(location)) {
+            event.isCancelled = true
+            player.sendActionBar(
+                Component.text("✗ No puedes salir del área de la carrera", NamedTextColor.RED)
+            )
+        }
+    }
+    
+    /**
+     * Evita que jugadores rompan bloques durante la carrera.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    fun onBlockBreak(event: BlockBreakEvent) {
+        val player = event.player
+        
+        // Si el jugador está en una carrera
+        if (gameManager.estaEnCarrera(player)) {
+            // Solo permitir si tiene permiso de admin
+            if (!player.hasPermission("torneo.admin.build")) {
+                event.isCancelled = true
+                player.sendActionBar(
+                    Component.text("✗ No puedes romper bloques durante la carrera", NamedTextColor.RED)
+                )
+            }
+        }
+    }
+    
+    /**
+     * Evita que jugadores coloquen bloques durante la carrera.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    fun onBlockPlace(event: BlockPlaceEvent) {
+        val player = event.player
+        
+        // Si el jugador está en una carrera
+        if (gameManager.estaEnCarrera(player)) {
+            // Solo permitir si tiene permiso de admin
+            if (!player.hasPermission("torneo.admin.build")) {
+                event.isCancelled = true
+                player.sendActionBar(
+                    Component.text("✗ No puedes colocar bloques durante la carrera", NamedTextColor.RED)
+                )
+            }
         }
     }
     

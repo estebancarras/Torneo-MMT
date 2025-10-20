@@ -1,0 +1,62 @@
+# ═══════════════════════════════════════════════════════════════
+# Configuración del Minijuego: Carrera de Barcos
+# ═══════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────
+# SISTEMA DE PUNTUACIÓN DINÁMICA
+# ───────────────────────────────────────────────────────────────
+puntuacion:
+  # Puntos por checkpoint (primeros en llegar)
+  por-checkpoint-primer-lugar: 10
+  por-checkpoint-segundo-lugar: 5
+  por-checkpoint-tercer-lugar: 3
+  
+  # Puntos por cruzar la meta (posición final)
+  por-meta-primer-lugar: 100
+  por-meta-segundo-lugar: 75
+  por-meta-tercer-lugar: 50
+  por-meta-cuarto-lugar: 30
+  por-participacion: 10
+  
+  # Bonus por tiempo (recompensa velocidad)
+  # Fórmula: max(0, bonus-tiempo-base - (segundos_tardados * multiplicador))
+  # Ejemplo: Si tardas 60 segundos = max(0, 200 - (60 * 0.5)) = 170 puntos
+  bonus-tiempo-base: 200
+  bonus-tiempo-multiplicador-perdida: 0.5
+
+# ───────────────────────────────────────────────────────────────
+# TEMPORIZADORES
+# ───────────────────────────────────────────────────────────────
+temporizadores:
+  # Duración del countdown antes de iniciar (en segundos)
+  countdown-segundos: 5
+  
+  # Duración máxima de la carrera (en segundos)
+  # 300 segundos = 5 minutos
+  duracion-carrera-segundos: 300
+
+# ───────────────────────────────────────────────────────────────
+# CONFIGURACIÓN DE JUEGO
+# ───────────────────────────────────────────────────────────────
+juego:
+  # Permitir que jugadores abandonen durante la carrera
+  permitir-abandonar: true
+  
+  # Teletransportar al lobby al finalizar
+  teletransportar-al-finalizar: true
+  
+  # Tiempo de espera antes de limpiar la carrera (en segundos)
+  tiempo-limpieza-segundos: 10
+
+# ───────────────────────────────────────────────────────────────
+# MENSAJES Y FEEDBACK
+# ───────────────────────────────────────────────────────────────
+mensajes:
+  # Mostrar posición en tiempo real
+  mostrar-posicion-tiempo-real: true
+  
+  # Avisos de tiempo restante
+  avisos-tiempo:
+    - 60  # 1 minuto
+    - 30  # 30 segundos
+    - 10  # 10 segundos

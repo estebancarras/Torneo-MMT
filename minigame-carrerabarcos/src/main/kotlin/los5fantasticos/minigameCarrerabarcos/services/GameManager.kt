@@ -35,6 +35,11 @@ class GameManager(
     private val torneoPlugin: TorneoPlugin
 ) {
     
+    /**
+     * Servicio de puntuación dinámica.
+     */
+    private val scoreService = ScoreService(plugin, torneoPlugin)
+    
     companion object {
         private const val GAME_NAME = "Carrera de Barcos"
         
@@ -99,6 +104,9 @@ class GameManager(
         }
         
         carrerasActivas.add(carrera)
+        
+        // Reiniciar ScoreService para esta carrera
+        scoreService.resetForNewRace(carrera)
         
         plugin.logger.info("[Carrera de Barcos] Carrera iniciada en '${arena.nombre}' con ${jugadores.size} jugadores")
         
@@ -260,6 +268,8 @@ class GameManager(
             }
         )
         
+        plugin.logger.info("[Carrera de Barcos] Temporizador de carrera iniciado (${RACE_DURATION_SECONDS}s)")
+        
         // Añadir todos los jugadores al temporizador
         raceTimer.addPlayers(jugadores)
         
@@ -290,20 +300,21 @@ class GameManager(
         if (avanzado) {
             val progreso = carrera.getProgreso(player)
             val totalCheckpoints = carrera.arena.checkpoints.size
+            val checkpointIndex = progreso - 1 // progreso ya fue incrementado
+            
+            // Otorgar puntos dinámicos por checkpoint
+            val puntosGanados = scoreService.onCheckpointReached(player, checkpointIndex)
             
             // Feedback al jugador
-            player.sendActionBar(
+            val mensaje = if (puntosGanados > 0) {
+                Component.text("✓ Checkpoint $progreso/$totalCheckpoints ", NamedTextColor.GREEN, TextDecoration.BOLD)
+                    .append(Component.text("(+$puntosGanados pts)", NamedTextColor.GOLD))
+            } else {
                 Component.text("✓ Checkpoint $progreso/$totalCheckpoints", NamedTextColor.GREEN, TextDecoration.BOLD)
-            )
-            player.playSound(player.location, org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.5f)
+            }
             
-            // Otorgar puntos por checkpoint
-            torneoPlugin.torneoManager.addScore(
-                player.uniqueId,
-                GAME_NAME,
-                PUNTOS_CHECKPOINT,
-                "Checkpoint $progreso"
-            )
+            player.sendActionBar(mensaje)
+            player.playSound(player.location, org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.5f)
             
             plugin.logger.info("[Carrera de Barcos] ${player.name} pasó checkpoint $progreso/$totalCheckpoints")
         }
@@ -335,28 +346,8 @@ class GameManager(
         // Marcar como finalizado
         val posicion = carrera.finalizarJugador(player)
         
-        // Otorgar puntos según posición
-        val puntos = when (posicion) {
-            1 -> PUNTOS_PRIMER_LUGAR
-            2 -> PUNTOS_SEGUNDO_LUGAR
-            3 -> PUNTOS_TERCER_LUGAR
-            else -> PUNTOS_PARTICIPACION
-        }
-        
-        torneoPlugin.torneoManager.addScore(
-            player.uniqueId,
-            GAME_NAME,
-            puntos,
-            "Posición #$posicion"
-        )
-        
-        // Registrar victoria si es primer lugar
-        if (posicion == 1) {
-            torneoPlugin.torneoManager.recordGameWon(player, GAME_NAME)
-        }
-        
-        // Registrar partida jugada
-        torneoPlugin.torneoManager.recordGamePlayed(player, GAME_NAME)
+        // Otorgar puntos dinámicos (posición + bonus tiempo)
+        val totalPuntos = scoreService.onPlayerFinished(player, posicion)
         
         // Anuncio
         val mensaje = when (posicion) {
@@ -368,7 +359,7 @@ class GameManager(
         
         val title = Title.title(
             mensaje,
-            Component.text("+$puntos puntos", NamedTextColor.YELLOW),
+            Component.text("+$totalPuntos puntos", NamedTextColor.YELLOW),
             Title.Times.times(Duration.ZERO, Duration.ofSeconds(3), Duration.ofSeconds(1))
         )
         
@@ -385,8 +376,24 @@ class GameManager(
         
         plugin.logger.info("[Carrera de Barcos] ${player.name} finalizó en posición #$posicion")
         
-        // Verificar si todos terminaron
+        // Verificar condiciones de finalización
+        checkEndCondition(carrera)
+    }
+    
+    /**
+     * Verifica si la carrera debe finalizar.
+     * La carrera termina si:
+     * 1. Todos los jugadores han cruzado la meta
+     * 2. El temporizador llegó a cero (manejado en iniciarTemporizadorCarrera)
+     */
+    private fun checkEndCondition(carrera: Carrera) {
+        if (carrera.estado != Carrera.EstadoCarrera.EN_CURSO) {
+            return
+        }
+        
+        // Verificar si todos los jugadores terminaron
         if (carrera.todosFinalizaron()) {
+            plugin.logger.info("[Carrera de Barcos] Todos los jugadores han finalizado")
             finalizarCarrera(carrera)
         }
     }
@@ -429,17 +436,21 @@ class GameManager(
             carrera.getProgreso(player)
         }
         
-        // Asignar posiciones finales
-        jugadoresOrdenados.forEach { player ->
+        // Asignar posiciones finales y puntos por participación
+        jugadoresOrdenados.forEachIndexed { index, player ->
             val progreso = carrera.getProgreso(player)
+            val posicionFinal = carrera.getJugadoresFinalizados().size + index + 1
             
-            // Otorgar puntos según progreso
-            val puntos = PUNTOS_PARTICIPACION + (progreso * PUNTOS_CHECKPOINT)
+            // Marcar como finalizado con posición basada en progreso
+            carrera.finalizarJugador(player)
+            
+            // Otorgar puntos de participación
+            val puntosParticipacion = scoreService.getConfigValue("puntuacion.por-participacion", 10) as Int
             
             torneoPlugin.torneoManager.addScore(
                 player.uniqueId,
                 GAME_NAME,
-                puntos,
+                puntosParticipacion,
                 "Participación ($progreso checkpoints)"
             )
             
@@ -448,7 +459,7 @@ class GameManager(
             player.sendMessage(
                 Component.text("Progreso: ", NamedTextColor.GRAY)
                     .append(Component.text("$progreso/${carrera.arena.checkpoints.size}", NamedTextColor.YELLOW))
-                    .append(Component.text(" checkpoints", NamedTextColor.GRAY))
+                    .append(Component.text(" checkpoints (+$puntosParticipacion pts)", NamedTextColor.GRAY))
             )
         }
         
