@@ -37,10 +37,10 @@ commands:
     usage: /<command> [setup|start|stop]
     permission: torneo.admin
   
-  carrerabarcos:
+  carrera:
     description: Comandos del minijuego Carrera de Barcos
-    usage: /<command> [setup|start|stop]
-    permission: torneo.admin
+    usage: /<command> [crear|setlobby|addspawn|addcheckpoint|setmeta|list|unirse|salir]
+    aliases: [carrerabarcos]
   
   cadena:
     description: Comandos del minijuego Cadena (parkour cooperativo encadenado)
