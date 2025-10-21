@@ -72,6 +72,10 @@ class TorneoPlugin : JavaPlugin() {
         scoreboardService.startUpdating()
         logger.info("✓ GlobalScoreboardService inicializado")
         
+        // Inicializar TournamentFlowManager con persistencia
+        TournamentFlowManager.initialize(this)
+        logger.info("✓ TournamentFlowManager inicializado con persistencia")
+        
         // Registrar listeners
         val playerConnectionListener = PlayerConnectionListener(scoreboardService)
         playerConnectionListener.initialize(this) // Inicializar con la instancia del plugin
