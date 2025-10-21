@@ -140,10 +140,15 @@ class Carrera(
      * Marca a un jugador como finalizado.
      * 
      * @param player Jugador que finalizó
-     * @return La posición del jugador (1 = primero, 2 = segundo, etc.)
+     * @return La posición del jugador (1 = primero, 2 = segundo, etc.), o -1 si ya había finalizado
      */
     fun finalizarJugador(player: Player): Int {
         val racePlayer = racePlayers[player] ?: return -1
+        
+        // PROTECCIÓN: Si el jugador ya finalizó, no procesarlo de nuevo
+        if (racePlayer.hasFinished()) {
+            return racePlayer.finalPosition ?: -1
+        }
         
         // Calcular posición (contar cuántos ya terminaron + 1)
         val posicion = racePlayers.values.count { it.hasFinished() } + 1

@@ -153,16 +153,24 @@ class TorneoAdminCommand(
             return true
         }
         
-        val minigameName = args[1]
+        // Unir todos los argumentos después de "start" para soportar nombres con espacios
+        // Ejemplo: /torneo start Carrera de Barcos -> "Carrera de Barcos"
+        val minigameName = args.drop(1).joinToString(" ")
         
         sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
         sender.sendMessage(Component.text("  Iniciando Minijuego", NamedTextColor.YELLOW, TextDecoration.BOLD))
         sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        sender.sendMessage(Component.text("  Buscando: '$minigameName'", NamedTextColor.GRAY))
         
         val error = TournamentFlowManager.startMinigame(minigameName, torneoManager)
         
         if (error != null) {
             sender.sendMessage(Component.text("✗ $error", NamedTextColor.RED))
+            sender.sendMessage(Component.empty())
+            sender.sendMessage(Component.text("Minijuegos disponibles:", NamedTextColor.YELLOW))
+            torneoManager.getAvailableMinigames().forEach { minigame ->
+                sender.sendMessage(Component.text("  - ${minigame.gameName}", NamedTextColor.GRAY))
+            }
         } else {
             sender.sendMessage(Component.text("✓ Minijuego iniciado exitosamente", NamedTextColor.GREEN))
             sender.sendMessage(Component.text("  Usa /torneo end para finalizarlo", NamedTextColor.GRAY))

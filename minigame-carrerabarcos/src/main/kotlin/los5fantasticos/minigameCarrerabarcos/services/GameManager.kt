@@ -13,6 +13,8 @@ import org.bukkit.entity.Boat
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
+import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionEffectType
 import org.bukkit.scheduler.BukkitRunnable
 import java.time.Duration
 
@@ -31,7 +33,7 @@ import java.time.Duration
  * Separa completamente la lógica de negocio de los comandos y eventos.
  */
 class GameManager(
-    private val plugin: Plugin,
+    val plugin: Plugin,  // Público para acceso desde GameListener
     private val torneoPlugin: TorneoPlugin
 ) {
     
@@ -139,6 +141,19 @@ class GameManager(
                 player.health = 20.0
                 player.foodLevel = 20
                 
+                // CONGELAR al jugador hasta que inicie la carrera
+                // Aplicar efecto de lentitud extrema para evitar movimiento
+                player.addPotionEffect(
+                    PotionEffect(
+                        PotionEffectType.SLOW,
+                        Int.MAX_VALUE, // Duración infinita (se removerá manualmente)
+                        255, // Nivel máximo para congelar completamente
+                        false, // No mostrar partículas
+                        false, // No mostrar icono
+                        false  // No mostrar en ambiente
+                    )
+                )
+                
                 // Crear barco
                 val boat = spawn.world?.spawnEntity(spawn, EntityType.BOAT) as? Boat
                 if (boat != null) {
@@ -193,6 +208,9 @@ class GameManager(
                 jugadores.forEach { player ->
                     player.showTitle(goTitle)
                     player.playSound(player.location, org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 1.5f)
+                    
+                    // DESCONGELAR al jugador - remover efecto de lentitud
+                    player.removePotionEffect(PotionEffectType.SLOW)
                 }
                 
                 carrera.setEstado(Carrera.EstadoCarrera.EN_CURSO)
@@ -335,6 +353,14 @@ class GameManager(
             return
         }
         
+        // PROTECCIÓN TEMPRANA: Si el jugador ya finalizó, ignorar silenciosamente
+        // Esto evita spam de mensajes y procesamiento innecesario
+        val racePlayer = carrera.getRacePlayer(player)
+        if (racePlayer?.hasFinished() == true) {
+            // Jugador ya finalizó - ignorar completamente para evitar spam
+            return
+        }
+        
         // Verificar que el jugador haya pasado todos los checkpoints
         if (!carrera.puedeFinalizarCarrera(player)) {
             player.sendActionBar(
@@ -345,6 +371,19 @@ class GameManager(
         
         // Marcar como finalizado
         val posicion = carrera.finalizarJugador(player)
+        
+        // PROTECCIÓN ADICIONAL: Si el jugador ya había finalizado (posición -1), no otorgar puntos de nuevo
+        if (posicion == -1) {
+            plugin.logger.warning("[Carrera de Barcos] Intento de finalizar a ${player.name} que ya había finalizado - ignorado")
+            return
+        }
+        
+        // REMOVER EL BARCO del jugador que finalizó
+        val barco = carrera.getBarco(player)
+        if (barco != null && !barco.isDead) {
+            barco.remove()
+            plugin.logger.info("[Carrera de Barcos] Barco de ${player.name} removido al finalizar")
+        }
         
         // Otorgar puntos dinámicos (posición + bonus tiempo)
         val totalPuntos = scoreService.onPlayerFinished(player, posicion)
@@ -504,18 +543,23 @@ class GameManager(
     
     /**
      * Limpia una carrera (remueve barcos, jugadores, etc.).
+     * 
+     * INTEGRACIÓN CON TORNEO:
+     * Los jugadores son devueltos al lobby global del torneo usando TournamentFlowManager.
+     * Esto garantiza que todos los jugadores regresen al mapa del Duoc UC después de la carrera.
      */
     private fun limpiarCarrera(carrera: Carrera) {
         // Limpiar barcos
         carrera.limpiarBarcos()
         
-        // Remover jugadores del mapa
+        // Remover jugadores del mapa y devolverlos al lobby global
         carrera.getJugadores().forEach { player ->
             jugadorEnCarrera.remove(player)
             
-            // Teletransportar al lobby si existe
-            carrera.arena.lobby?.let { lobby ->
-                player.teleport(lobby)
+            // INTEGRACIÓN CON TORNEO: Devolver al lobby global del Duoc UC
+            if (player.isOnline) {
+                los5fantasticos.torneo.services.TournamentFlowManager.returnToLobby(player)
+                plugin.logger.info("[Carrera de Barcos] ${player.name} devuelto al lobby global")
             }
         }
         
@@ -541,6 +585,9 @@ class GameManager(
     
     /**
      * Remueve a un jugador de su carrera actual.
+     * 
+     * INTEGRACIÓN CON TORNEO:
+     * El jugador es devuelto al lobby global del torneo.
      */
     fun removerJugadorDeCarrera(player: Player) {
         val carrera = jugadorEnCarrera[player] ?: return
@@ -555,9 +602,9 @@ class GameManager(
             Component.text("Has abandonado la carrera", NamedTextColor.YELLOW)
         )
         
-        // Teletransportar al lobby
-        carrera.arena.lobby?.let { lobby ->
-            player.teleport(lobby)
+        // INTEGRACIÓN CON TORNEO: Devolver al lobby global
+        if (player.isOnline) {
+            los5fantasticos.torneo.services.TournamentFlowManager.returnToLobby(player)
         }
         
         plugin.logger.info("[Carrera de Barcos] ${player.name} abandonó la carrera")

@@ -11,6 +11,10 @@ import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.event.vehicle.VehicleExitEvent
+import org.bukkit.event.vehicle.VehicleDestroyEvent
+import org.bukkit.entity.Boat
+import org.bukkit.entity.EntityType
 
 /**
  * Listener de eventos de juego para carreras.
@@ -188,5 +192,118 @@ class GameListener(private val gameManager: GameManager) : Listener {
         if (gameManager.estaEnCarrera(player)) {
             gameManager.removerJugadorDeCarrera(player)
         }
+    }
+    
+    /**
+     * MECÁNICA ANTI-SALIDA: Evita que los jugadores se bajen del barco durante la carrera.
+     * 
+     * COMPORTAMIENTO:
+     * - Si un jugador intenta bajarse del barco durante una carrera activa, el evento se cancela
+     * - Como medida adicional de robustez, vuelve a montar al jugador en su barco
+     * - Esto garantiza que bugs o interacciones no expulsen al jugador del barco
+     * 
+     * CRÍTICO PARA EL TORNEO:
+     * Esta mecánica es fundamental para evitar que los jugadores pierdan progreso
+     * por accidentes o bugs durante el evento presencial.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    fun onVehicleExit(event: VehicleExitEvent) {
+        // Solo procesar si es un jugador saliendo de un barco
+        val player = event.exited as? org.bukkit.entity.Player ?: return
+        val boat = event.vehicle as? Boat ?: return
+        
+        // Verificar si el jugador está en una carrera activa
+        if (!gameManager.estaEnCarrera(player)) {
+            return
+        }
+        
+        val carrera = gameManager.getCarreraDeJugador(player) ?: return
+        
+        // Solo aplicar durante la carrera activa (no en lobby ni finalizada)
+        if (carrera.estado != Carrera.EstadoCarrera.EN_CURSO && 
+            carrera.estado != Carrera.EstadoCarrera.INICIANDO) {
+            return
+        }
+        
+        // CANCELAR el evento para evitar que se baje
+        event.isCancelled = true
+        
+        // MEDIDA ADICIONAL: Volver a montar al jugador en el barco
+        // Esto se ejecuta en el siguiente tick para garantizar que funcione
+        org.bukkit.Bukkit.getScheduler().runTask(
+            gameManager.plugin,
+            Runnable {
+                if (player.isOnline && !boat.isDead && boat.passengers.isEmpty()) {
+                    boat.addPassenger(player)
+                }
+            }
+        )
+        
+        // Feedback al jugador
+        player.sendActionBar(
+            Component.text("✗ No puedes bajarte del barco durante la carrera", NamedTextColor.RED)
+        )
+    }
+    
+    /**
+     * SISTEMA DE RECUPERACIÓN: Regenera barcos destruidos durante la carrera.
+     * 
+     * COMPORTAMIENTO:
+     * - Si el barco de un jugador es destruido durante una carrera activa
+     * - Se genera un nuevo barco inmediatamente en la posición del jugador
+     * - El jugador es montado automáticamente en el nuevo barco
+     * - Esto evita que bugs o accidentes dejen al jugador sin barco
+     * 
+     * CRÍTICO PARA EL TORNEO:
+     * Garantiza que los jugadores siempre tengan un barco funcional durante la carrera.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    fun onVehicleDestroy(event: VehicleDestroyEvent) {
+        val boat = event.vehicle as? Boat ?: return
+        
+        // Buscar si algún jugador en carrera tiene este barco
+        val player = boat.passengers.firstOrNull() as? org.bukkit.entity.Player ?: return
+        
+        // Verificar si el jugador está en una carrera activa
+        if (!gameManager.estaEnCarrera(player)) {
+            return
+        }
+        
+        val carrera = gameManager.getCarreraDeJugador(player) ?: return
+        
+        // Solo aplicar durante la carrera activa
+        if (carrera.estado != Carrera.EstadoCarrera.EN_CURSO && 
+            carrera.estado != Carrera.EstadoCarrera.INICIANDO) {
+            return
+        }
+        
+        // CANCELAR la destrucción del barco
+        event.isCancelled = true
+        
+        // Si aún así el barco se destruye (algunos eventos no se pueden cancelar),
+        // crear uno nuevo en el siguiente tick
+        org.bukkit.Bukkit.getScheduler().runTask(
+            gameManager.plugin,
+            Runnable {
+                if (player.isOnline && boat.isDead) {
+                    // Crear nuevo barco en la posición del jugador
+                    val newBoat = player.world.spawnEntity(
+                        player.location,
+                        EntityType.BOAT
+                    ) as Boat
+                    
+                    // Montar al jugador en el nuevo barco
+                    newBoat.addPassenger(player)
+                    
+                    // Actualizar la referencia del barco en la carrera
+                    carrera.setBarco(player, newBoat)
+                    
+                    // Feedback al jugador
+                    player.sendActionBar(
+                        Component.text("✓ Barco regenerado", NamedTextColor.GREEN)
+                    )
+                }
+            }
+        )
     }
 }

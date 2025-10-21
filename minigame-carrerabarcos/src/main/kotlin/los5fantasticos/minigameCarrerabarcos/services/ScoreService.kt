@@ -50,6 +50,12 @@ class ScoreService(
      */
     private val startTimes = mutableMapOf<UUID, Long>()
     
+    /**
+     * Registro de jugadores que ya finalizaron (para evitar puntos duplicados).
+     * Set<UUID>
+     */
+    private val finishedPlayers = mutableSetOf<UUID>()
+    
     init {
         // Cargar configuración
         val configFile = File(plugin.dataFolder, "carrerabarcos.yml")
@@ -68,6 +74,7 @@ class ScoreService(
     fun resetForNewRace(carrera: Carrera) {
         checkpointCompletions.clear()
         startTimes.clear()
+        finishedPlayers.clear()
         
         // Inicializar listas para cada checkpoint
         for (i in 0 until carrera.arena.checkpoints.size) {
@@ -135,6 +142,16 @@ class ScoreService(
      */
     fun onPlayerFinished(player: Player, posicionFinal: Int): Int {
         val uuid = player.uniqueId
+        
+        // PROTECCIÓN: Si el jugador ya finalizó, no otorgar puntos de nuevo
+        if (finishedPlayers.contains(uuid)) {
+            plugin.logger.warning("[Carrera de Barcos] ScoreService: ${player.name} ya había finalizado - no se otorgan puntos")
+            return 0
+        }
+        
+        // Marcar como finalizado
+        finishedPlayers.add(uuid)
+        
         var totalPuntos = 0
         
         // 1. Puntos por posición en meta

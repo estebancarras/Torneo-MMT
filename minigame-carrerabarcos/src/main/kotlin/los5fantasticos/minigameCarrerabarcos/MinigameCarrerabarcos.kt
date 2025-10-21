@@ -85,19 +85,42 @@ class MinigameCarrerabarcos(private val torneoPlugin: TorneoPlugin) : MinigameMo
     /**
      * Inicia el minijuego en modo torneo centralizado.
      * 
+     * INTEGRACIÓN CON TORNEO:
+     * Este método es llamado por TournamentFlowManager cuando un administrador
+     * ejecuta /torneo start carrerabarcos. Todos los jugadores online son enviados
+     * a la carrera simultáneamente.
+     * 
      * COMPORTAMIENTO:
-     * Intenta iniciar una carrera en la primera arena válida disponible.
-     * Si no hay arenas configuradas, registra un error.
+     * 1. Carga las arenas configuradas
+     * 2. Busca la primera arena válida (con lobby, spawns, checkpoints y meta)
+     * 3. Inicia la carrera para todos los jugadores
+     * 4. Si no hay arenas válidas, registra un error detallado
      */
     override fun onTournamentStart(players: List<Player>) {
-        plugin.logger.info("[$gameName] ═══ INICIO DE TORNEO ===")
+        plugin.logger.info("[$gameName] ═══════════════════════════════════")
+        plugin.logger.info("[$gameName] INICIO DE TORNEO - CARRERA DE BARCOS")
         plugin.logger.info("[$gameName] ${players.size} jugadores disponibles")
+        plugin.logger.info("[$gameName] ═══════════════════════════════════")
+        
+        // Validación: Verificar que hay jugadores
+        if (players.isEmpty()) {
+            plugin.logger.warning("[$gameName] ✗ No hay jugadores para iniciar la carrera")
+            return
+        }
         
         // Cargar arenas de manera segura bajo demanda
         try {
             arenaManager.loadArenas()
         } catch (e: Exception) {
-            plugin.logger.severe("[$gameName] ✗ Error al cargar arenas: ${e.message}")
+            plugin.logger.severe("[$gameName] ✗ Error crítico al cargar arenas: ${e.message}")
+            e.printStackTrace()
+            
+            // Notificar a los jugadores
+            players.forEach { player ->
+                player.sendMessage(
+                    net.kyori.adventure.text.Component.text("✗ Error al cargar la arena de carreras", net.kyori.adventure.text.format.NamedTextColor.RED)
+                )
+            }
             return
         }
         
@@ -105,18 +128,51 @@ class MinigameCarrerabarcos(private val torneoPlugin: TorneoPlugin) : MinigameMo
         val arena = arenaManager.getAllArenas().firstOrNull { it.isValid() }
         
         if (arena == null) {
-            plugin.logger.severe("[$gameName] ✗ No hay arenas configuradas válidas")
-            plugin.logger.severe("[$gameName] Los administradores deben crear y configurar arenas con /carrera")
+            plugin.logger.severe("[$gameName] ═══════════════════════════════════")
+            plugin.logger.severe("[$gameName] ✗ ERROR: No hay arenas configuradas válidas")
+            plugin.logger.severe("[$gameName] Una arena válida requiere:")
+            plugin.logger.severe("[$gameName]   - Lobby configurado (/carrera setlobby)")
+            plugin.logger.severe("[$gameName]   - Al menos 1 spawn (/carrera addspawn)")
+            plugin.logger.severe("[$gameName]   - Al menos 1 checkpoint (/carrera addcheckpoint)")
+            plugin.logger.severe("[$gameName]   - Meta configurada (/carrera setmeta)")
+            plugin.logger.severe("[$gameName] ═══════════════════════════════════")
+            
+            // Notificar a los jugadores
+            players.forEach { player ->
+                player.sendMessage(
+                    net.kyori.adventure.text.Component.text("✗ La arena de carreras no está configurada", net.kyori.adventure.text.format.NamedTextColor.RED)
+                )
+                player.sendMessage(
+                    net.kyori.adventure.text.Component.text("Contacta a un administrador", net.kyori.adventure.text.format.NamedTextColor.GRAY)
+                )
+            }
             return
         }
+        
+        plugin.logger.info("[$gameName] Arena seleccionada: '${arena.nombre}'")
+        plugin.logger.info("[$gameName]   - Spawns: ${arena.spawns.size}")
+        plugin.logger.info("[$gameName]   - Checkpoints: ${arena.checkpoints.size}")
+        plugin.logger.info("[$gameName]   - Capacidad máxima: ${arena.getMaxPlayers()} jugadores")
         
         // Iniciar carrera
         val carrera = gameManager.iniciarCarrera(arena, players)
         
         if (carrera != null) {
-            plugin.logger.info("[$gameName] ✓ Carrera iniciada en '${arena.nombre}' con ${players.size} jugadores")
+            plugin.logger.info("[$gameName] ✓ Carrera iniciada exitosamente")
+            plugin.logger.info("[$gameName]   - Arena: '${arena.nombre}'")
+            plugin.logger.info("[$gameName]   - Jugadores: ${players.size}")
+            plugin.logger.info("[$gameName]   - Estado: ${carrera.estado}")
+            plugin.logger.info("[$gameName] ═══════════════════════════════════")
         } else {
             plugin.logger.severe("[$gameName] ✗ Error al iniciar la carrera")
+            plugin.logger.severe("[$gameName] Revisa los logs anteriores para más detalles")
+            
+            // Notificar a los jugadores
+            players.forEach { player ->
+                player.sendMessage(
+                    net.kyori.adventure.text.Component.text("✗ Error al iniciar la carrera", net.kyori.adventure.text.format.NamedTextColor.RED)
+                )
+            }
         }
     }
     
