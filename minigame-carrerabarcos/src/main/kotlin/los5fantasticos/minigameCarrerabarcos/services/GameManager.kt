@@ -545,6 +545,9 @@ class GameManager(
     fun removerJugadorDeCarrera(player: Player) {
         val carrera = jugadorEnCarrera[player] ?: return
         
+        // Remover del timer (BossBar)
+        timersPorCarrera[carrera]?.removePlayer(player)
+        
         carrera.removeJugador(player)
         jugadorEnCarrera.remove(player)
         

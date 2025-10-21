@@ -81,6 +81,9 @@ class GameListener(private val gameManager: GameManager) : Listener {
         // Obtener el próximo checkpoint
         val proximoCheckpoint = checkpoints[progresoActual]
         
+        // DEBUG: Log para verificar detección
+        // player.sendActionBar(Component.text("Checkpoint ${progresoActual + 1}: ${proximoCheckpoint.contains(location)}", NamedTextColor.GRAY))
+        
         // Verificar si el jugador está dentro del checkpoint
         if (proximoCheckpoint.contains(location)) {
             // Notificar al GameManager para actualizar progreso
@@ -94,8 +97,18 @@ class GameListener(private val gameManager: GameManager) : Listener {
     private fun verificarMeta(player: org.bukkit.entity.Player, carrera: Carrera, location: org.bukkit.Location) {
         val meta = carrera.arena.meta ?: return
         
+        // DEBUG: Mostrar progreso
+        val progreso = carrera.getProgreso(player)
+        val totalCheckpoints = carrera.arena.checkpoints.size
+        
         // Verificar si el jugador puede finalizar (ha pasado todos los checkpoints)
         if (!carrera.puedeFinalizarCarrera(player)) {
+            // Si está en la meta pero no ha completado checkpoints, notificar
+            if (meta.contains(location)) {
+                player.sendActionBar(
+                    Component.text("✗ Debes pasar todos los checkpoints primero ($progreso/$totalCheckpoints)", NamedTextColor.RED)
+                )
+            }
             return
         }
         

@@ -66,6 +66,7 @@ class CarreraCommand(
             "unirse" -> cmdUnirse(sender, args)
             "salir" -> cmdSalir(sender)
             "stats" -> cmdStats(sender)
+            "debug" -> cmdDebug(sender, args)
             
             // Ayuda
             "help" -> showHelp(sender)
@@ -473,6 +474,78 @@ class CarreraCommand(
         }
         
         sender.sendMessage(Component.text(gameManager.getEstadisticas(), NamedTextColor.WHITE))
+    }
+    
+    private fun cmdDebug(sender: CommandSender, args: Array<out String>) {
+        if (!sender.hasPermission("torneo.admin")) {
+            sender.sendMessage(Component.text("✗ No tienes permisos", NamedTextColor.RED))
+            return
+        }
+        
+        if (sender !is Player) {
+            sender.sendMessage(Component.text("✗ Solo jugadores pueden usar este comando", NamedTextColor.RED))
+            return
+        }
+        
+        if (args.size < 2) {
+            sender.sendMessage(Component.text("Uso: /carrera debug <arena>", NamedTextColor.YELLOW))
+            return
+        }
+        
+        val nombre = args[1]
+        val arena = arenaManager.getArena(nombre)
+        
+        if (arena == null) {
+            sender.sendMessage(Component.text("✗ Arena no encontrada", NamedTextColor.RED))
+            return
+        }
+        
+        sender.sendMessage(Component.text("=== DEBUG: $nombre ===", NamedTextColor.GOLD))
+        sender.sendMessage(Component.text("Checkpoints: ${arena.checkpoints.size}", NamedTextColor.YELLOW))
+        
+        arena.checkpoints.forEachIndexed { index, checkpoint ->
+            val isInside = checkpoint.contains(sender.location)
+            val status = if (isInside) "✓ DENTRO" else "✗ FUERA"
+            val color = if (isInside) NamedTextColor.GREEN else NamedTextColor.RED
+            
+            sender.sendMessage(
+                Component.text("  Checkpoint ${index + 1}: ", NamedTextColor.GRAY)
+                    .append(Component.text(status, color))
+            )
+            sender.sendMessage(
+                Component.text("    Mundo: ${checkpoint.world.name}", NamedTextColor.GRAY)
+            )
+            sender.sendMessage(
+                Component.text("    Min: (${checkpoint.minX}, ${checkpoint.minY}, ${checkpoint.minZ})", NamedTextColor.GRAY)
+            )
+            sender.sendMessage(
+                Component.text("    Max: (${checkpoint.maxX}, ${checkpoint.maxY}, ${checkpoint.maxZ})", NamedTextColor.GRAY)
+            )
+        }
+        
+        arena.meta?.let { meta ->
+            val isInside = meta.contains(sender.location)
+            val status = if (isInside) "✓ DENTRO" else "✗ FUERA"
+            val color = if (isInside) NamedTextColor.GREEN else NamedTextColor.RED
+            
+            sender.sendMessage(
+                Component.text("Meta: ", NamedTextColor.YELLOW)
+                    .append(Component.text(status, color))
+            )
+            sender.sendMessage(
+                Component.text("  Mundo: ${meta.world.name}", NamedTextColor.GRAY)
+            )
+            sender.sendMessage(
+                Component.text("  Min: (${meta.minX}, ${meta.minY}, ${meta.minZ})", NamedTextColor.GRAY)
+            )
+            sender.sendMessage(
+                Component.text("  Max: (${meta.maxX}, ${meta.maxY}, ${meta.maxZ})", NamedTextColor.GRAY)
+            )
+        }
+        
+        sender.sendMessage(
+            Component.text("Tu posición: (${sender.location.blockX}, ${sender.location.blockY}, ${sender.location.blockZ})", NamedTextColor.AQUA)
+        )
     }
     
     // ========== AYUDA ==========

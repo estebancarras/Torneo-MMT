@@ -232,28 +232,22 @@ class ArenaManager(private val plugin: Plugin) {
     private fun deserializeLocationSafe(section: org.bukkit.configuration.ConfigurationSection): Location? {
         try {
             val worldName = section.getString("world") ?: "world"
-            val world = Bukkit.getWorld(worldName) ?: return null
+            val world = Bukkit.getWorld(worldName)
+            
+            if (world == null) {
+                plugin.logger.warning("[Carrera de Barcos] Mundo '$worldName' no encontrado para ubicación")
+                return null
+            }
             
             val x = section.getDouble("x")
             val y = section.getDouble("y")
             val z = section.getDouble("z")
+            val yaw = section.getDouble("yaw", 0.0).toFloat()
+            val pitch = section.getDouble("pitch", 0.0).toFloat()
             
-            // Validar que el chunk esté cargado o sea seguro de cargar
-            val chunkX = (x / 16).toInt()
-            val chunkZ = (z / 16).toInt()
-            
-            // Solo crear la location si el chunk está cargado o es cercano al spawn
-            if (world.isChunkLoaded(chunkX, chunkZ) || world.spawnLocation.distanceSquared(org.bukkit.Location(world, x, y, z)) < 10000) {
-                return Location(
-                    world,
-                    x, y, z,
-                    section.getDouble("yaw").toFloat(),
-                    section.getDouble("pitch").toFloat()
-                )
-            } else {
-                plugin.logger.warning("[Carrera de Barcos] Chunk no cargado para ubicación ($x, $y, $z), ignorando")
-                return null
-            }
+            // Crear la location sin validar chunks
+            // Los chunks se cargarán automáticamente cuando se necesiten
+            return Location(world, x, y, z, yaw, pitch)
         } catch (e: Exception) {
             plugin.logger.warning("[Carrera de Barcos] Error al deserializar ubicación: ${e.message}")
             return null
@@ -263,7 +257,12 @@ class ArenaManager(private val plugin: Plugin) {
     private fun deserializeCuboidSafe(section: org.bukkit.configuration.ConfigurationSection): Cuboid? {
         try {
             val worldName = section.getString("world") ?: "world"
-            val world = Bukkit.getWorld(worldName) ?: return null
+            val world = Bukkit.getWorld(worldName)
+            
+            if (world == null) {
+                plugin.logger.warning("[Carrera de Barcos] Mundo '$worldName' no encontrado para cuboid")
+                return null
+            }
             
             val minX = section.getInt("minX")
             val minY = section.getInt("minY")
@@ -272,21 +271,9 @@ class ArenaManager(private val plugin: Plugin) {
             val maxY = section.getInt("maxY")
             val maxZ = section.getInt("maxZ")
             
-            // Validar que al menos uno de los chunks esté cargado
-            val chunksToCheck = listOf(
-                (minX / 16) to (minZ / 16),
-                (maxX / 16) to (maxZ / 16),
-                ((minX + maxX) / 2 / 16) to ((minZ + maxZ) / 2 / 16)
-            )
-            
-            val hasLoadedChunk = chunksToCheck.any { (cx, cz) -> world.isChunkLoaded(cx, cz) }
-            
-            if (hasLoadedChunk) {
-                return Cuboid(world, minX, minY, minZ, maxX, maxY, maxZ)
-            } else {
-                plugin.logger.warning("[Carrera de Barcos] Ningún chunk cargado para cuboid, ignorando")
-                return null
-            }
+            // Crear el cuboid sin validar chunks
+            // Los chunks se cargarán automáticamente cuando los jugadores se acerquen
+            return Cuboid(world, minX, minY, minZ, maxX, maxY, maxZ)
         } catch (e: Exception) {
             plugin.logger.warning("[Carrera de Barcos] Error al deserializar cuboid: ${e.message}")
             return null
