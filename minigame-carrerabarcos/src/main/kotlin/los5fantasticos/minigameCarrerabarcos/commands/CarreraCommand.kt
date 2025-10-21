@@ -146,6 +146,7 @@ class CarreraCommand(
         }
         
         arena.lobby = sender.location
+        arenaManager.saveArenas() // Auto-guardar
         sender.sendMessage(
             Component.text("✓ Lobby establecido para '", NamedTextColor.GREEN)
                 .append(Component.text(nombre, NamedTextColor.YELLOW))
@@ -178,6 +179,7 @@ class CarreraCommand(
         }
         
         arena.spawns.add(sender.location)
+        arenaManager.saveArenas() // Auto-guardar
         sender.sendMessage(
             Component.text("✓ Spawn #${arena.spawns.size} añadido a '", NamedTextColor.GREEN)
                 .append(Component.text(nombre, NamedTextColor.YELLOW))
@@ -221,6 +223,7 @@ class CarreraCommand(
         }
         
         arena.checkpoints.add(selection)
+        arenaManager.saveArenas() // Auto-guardar
         sender.sendMessage(
             Component.text("✓ Checkpoint #${arena.checkpoints.size} añadido a '", NamedTextColor.GREEN)
                 .append(Component.text(nombre, NamedTextColor.YELLOW))
@@ -267,6 +270,7 @@ class CarreraCommand(
         }
         
         arena.meta = selection
+        arenaManager.saveArenas() // Auto-guardar
         sender.sendMessage(
             Component.text("✓ Meta establecida para '", NamedTextColor.GREEN)
                 .append(Component.text(nombre, NamedTextColor.YELLOW))
@@ -310,6 +314,7 @@ class CarreraCommand(
         }
         
         arena.protectionRegion = selection
+        arenaManager.saveArenas() // Auto-guardar
         sender.sendMessage(
             Component.text("✓ Región de protección establecida para '", NamedTextColor.GREEN)
                 .append(Component.text(nombre, NamedTextColor.YELLOW))

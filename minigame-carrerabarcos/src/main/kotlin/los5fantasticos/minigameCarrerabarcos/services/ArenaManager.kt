@@ -48,9 +48,8 @@ class ArenaManager(private val plugin: Plugin) {
         arenasConfig = YamlConfiguration.loadConfiguration(arenasFile)
         plugin.logger.info("[Carrera de Barcos] Archivo de arenas cargado desde: ${arenasFile.absolutePath}")
         
-        // NO cargar arenas automáticamente en onEnable para evitar bloqueos
-        // Solo cargar cuando sea necesario
-        plugin.logger.info("[Carrera de Barcos] Arenas serán cargadas bajo demanda")
+        // Cargar arenas automáticamente al iniciar
+        loadArenas()
     }
     
     /**
@@ -187,6 +186,7 @@ class ArenaManager(private val plugin: Plugin) {
         
         val arena = ArenaCarrera(nombre = nombre)
         arenas[nombre] = arena
+        saveArenas() // Auto-guardar al crear
         return arena
     }
     
@@ -208,7 +208,11 @@ class ArenaManager(private val plugin: Plugin) {
      * Elimina una arena.
      */
     fun removeArena(nombre: String): Boolean {
-        return arenas.remove(nombre) != null
+        val removed = arenas.remove(nombre) != null
+        if (removed) {
+            saveArenas() // Auto-guardar al eliminar
+        }
+        return removed
     }
     
     /**
