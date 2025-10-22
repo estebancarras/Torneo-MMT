@@ -71,8 +71,15 @@ class SkywarsCommand(
                 return true
             }
 
+            val alreadyIn = gMap.getAllPlayers()
             for (p in targets) {
                 try {
+                    // Saltar si el jugador ya está en la partida/mapa
+                    if (alreadyIn.contains(p)) {
+                        p.sendMessage(Component.text("§6[SkyWars] §eYa estás en la partida ${gMap.name}, skippeado.", NamedTextColor.YELLOW))
+                        continue
+                    }
+
                     val added = gMap.addPlayers(null, p)
                     if (added) {
                         p.sendMessage(Component.text("§6[SkyWars] §aHas sido enviado al mapa ${gMap.name}.", NamedTextColor.GREEN))
