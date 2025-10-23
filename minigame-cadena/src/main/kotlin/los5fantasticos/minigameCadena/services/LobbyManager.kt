@@ -6,6 +6,7 @@ import los5fantasticos.minigameCadena.game.GameState
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
+import org.bukkit.ChatColor
 import org.bukkit.Sound
 import org.bukkit.scheduler.BukkitRunnable
 import org.bukkit.scheduler.BukkitTask
@@ -27,7 +28,7 @@ class LobbyManager(
     /**
      * Tiempo de cuenta atrás en segundos.
      */
-    private val countdownTime = 30
+    private val countdownTime = 10
     
     /**
      * Tareas de cuenta atrás activas por partida.
@@ -56,14 +57,24 @@ class LobbyManager(
             return
         }
         
-        // Iniciar cuenta atrás
-        startCountdown(game)
+        // TAREA 3: Desactivar inicio automático - solo notificar que está listo
+        plugin.plugin.logger.info("[${plugin.gameName}] Partida lista para iniciar - esperando comando de admin")
+        
+        // Notificar a los admins online que la partida está lista
+        org.bukkit.Bukkit.getOnlinePlayers().forEach { player ->
+            if (player.hasPermission("cadena.admin")) {
+                player.sendMessage("${ChatColor.GOLD}[Cadena] ${ChatColor.GREEN}La partida está lista para iniciar!")
+                player.sendMessage("${ChatColor.YELLOW}Usa ${ChatColor.WHITE}/cadena admin forcestart ${ChatColor.YELLOW}para comenzar.")
+            }
+        }
     }
     
     /**
-     * Inicia la cuenta atrás para una partida.
+     * Inicia la cuenta atrás para una partida manualmente (llamado por comando de admin).
+     * Ahora es público para que pueda ser llamado desde el comando.
      */
-    private fun startCountdown(game: CadenaGame) {
+    fun startCountdown(game: CadenaGame) {
+    
         // Cambiar estado a COUNTDOWN
         if (!gameManager.startGame(game)) {
             return

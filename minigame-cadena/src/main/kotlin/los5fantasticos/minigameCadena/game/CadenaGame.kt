@@ -22,7 +22,7 @@ class CadenaGame(
 ) {
     /**
      * Lista de equipos predefinidos para el lobby.
-     * Inicializada automáticamente con 4 equipos (Rojo, Azul, Verde, Amarillo).
+     * Inicializada automáticamente con 10 equipos para soportar hasta 40 jugadores (10 equipos × 4 jugadores).
      */
     val teams: MutableList<Team> = mutableListOf(
         Team(
@@ -48,6 +48,42 @@ class CadenaGame(
             displayName = "§eEquipo Amarillo",
             color = NamedTextColor.YELLOW,
             material = Material.YELLOW_WOOL
+        ),
+        Team(
+            teamId = "NARANJA",
+            displayName = "§6Equipo Naranja",
+            color = NamedTextColor.GOLD,
+            material = Material.ORANGE_WOOL
+        ),
+        Team(
+            teamId = "MORADO",
+            displayName = "§5Equipo Morado",
+            color = NamedTextColor.DARK_PURPLE,
+            material = Material.PURPLE_WOOL
+        ),
+        Team(
+            teamId = "CIAN",
+            displayName = "§bEquipo Cian",
+            color = NamedTextColor.AQUA,
+            material = Material.CYAN_WOOL
+        ),
+        Team(
+            teamId = "ROSADO",
+            displayName = "§dEquipo Rosado",
+            color = NamedTextColor.LIGHT_PURPLE,
+            material = Material.PINK_WOOL
+        ),
+        Team(
+            teamId = "GRIS",
+            displayName = "§8Equipo Gris",
+            color = NamedTextColor.DARK_GRAY,
+            material = Material.GRAY_WOOL
+        ),
+        Team(
+            teamId = "BLANCO",
+            displayName = "§fEquipo Blanco",
+            color = NamedTextColor.WHITE,
+            material = Material.WHITE_WOOL
         )
     )
     /**

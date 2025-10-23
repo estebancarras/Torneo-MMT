@@ -75,19 +75,58 @@ class GlobalScoreboardService(
      * @param player Jugador que verá el scoreboard
      */
     fun showToPlayer(player: Player) {
-        player.scoreboard = scoreboard
+        try {
+            player.scoreboard = scoreboard
+        } catch (e: Exception) {
+            plugin.logger.warning("Error al asignar scoreboard a ${player.name}: ${e.message}")
+        }
+    }
+    
+    /**
+     * Asigna el scoreboard a todos los jugadores online.
+     * Útil para recuperación masiva.
+     */
+    fun showToAllPlayers() {
+        Bukkit.getOnlinePlayers().forEach { player ->
+            showToPlayer(player)
+        }
+        plugin.logger.info("Scoreboard asignado a ${Bukkit.getOnlinePlayers().size} jugadores")
     }
     
     /**
      * Inicia la tarea repetitiva de actualización.
      * Se ejecuta cada 4 segundos (80 ticks).
+     * Incluye re-asignación automática cada 30 segundos para prevenir desaparición.
      */
     fun startUpdating() {
         updateTask = Bukkit.getScheduler().runTaskTimer(plugin, Runnable {
-            updateScoreboard()
+            try {
+                updateScoreboard()
+                
+                // Cada 30 segundos (cada 7-8 actualizaciones), re-asignar a todos
+                // Esto previene que el scoreboard desaparezca por conflictos
+                if (System.currentTimeMillis() % 30000 < 4000) {
+                    reassignToAllPlayers()
+                }
+            } catch (e: Exception) {
+                plugin.logger.warning("Error al actualizar scoreboard: ${e.message}")
+                e.printStackTrace()
+            }
         }, 0L, 80L) // 80 ticks = 4 segundos
         
         plugin.logger.info("✓ Tarea de actualización de scoreboard iniciada")
+    }
+    
+    /**
+     * Re-asigna silenciosamente el scoreboard a todos los jugadores.
+     * Solo lo hace si el jugador no tiene el scoreboard correcto.
+     */
+    private fun reassignToAllPlayers() {
+        Bukkit.getOnlinePlayers().forEach { player ->
+            if (player.scoreboard != scoreboard) {
+                showToPlayer(player)
+            }
+        }
     }
     
     /**

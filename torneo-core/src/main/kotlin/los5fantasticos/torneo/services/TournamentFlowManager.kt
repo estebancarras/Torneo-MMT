@@ -188,11 +188,11 @@ object TournamentFlowManager {
         }
         
         try {
-            // Obtener jugadores activos antes de desactivar
+            // Obtener jugadores activos antes de finalizar
             val activePlayers = minigame.getActivePlayers()
             
-            // Desactivar el minijuego
-            minigame.onDisable()
+            // Finalizar todas las partidas activas (SIN deshabilitar el módulo)
+            minigame.endAllGames()
             
             // Devolver jugadores al lobby
             activePlayers.forEach { player ->

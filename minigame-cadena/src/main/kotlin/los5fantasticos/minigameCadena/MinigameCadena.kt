@@ -42,7 +42,8 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
     /**
      * Gestor de lobby y cuenta atrás.
      */
-    private lateinit var lobbyManager: LobbyManager
+    lateinit var lobbyManager: LobbyManager
+        private set
     
     /**
      * Servicio de encadenamiento entre jugadores.
@@ -197,8 +198,19 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
             }
         }
         
+        // TAREA 1: Añadir jugadores al lobby del juego para que reciban los items de selección
+        players.forEach { player ->
+            try {
+                // Esta llamada iniciará la lógica de lobby para cada jugador
+                gameManager.addPlayer(player)
+                plugin.logger.info("[$gameName] Jugador ${player.name} añadido al lobby del juego.")
+            } catch (e: Exception) {
+                plugin.logger.severe("[$gameName] Error añadiendo a ${player.name} al lobby del juego: ${e.message}")
+            }
+        }
+        
         plugin.logger.info("[$gameName] ✓ Torneo iniciado con ${players.size} jugadores")
-        plugin.logger.info("[$gameName] Los jugadores deben formar equipos y unirse con /cadena join")
+        plugin.logger.info("[$gameName] Los jugadores pueden seleccionar su equipo con las lanas de colores")
     }
     
     fun awardPoints(player: Player, points: Int, reason: String) {
@@ -225,5 +237,51 @@ class MinigameCadena(val torneoPlugin: TorneoPlugin) : MinigameModule {
      */
     private fun recordGamePlayed(player: Player) {
         torneoPlugin.torneoManager.recordGamePlayed(player, gameName)
+    }
+    
+    /**
+     * Finaliza todas las partidas activas sin deshabilitar el módulo.
+     * Mantiene las arenas y configuración intactas.
+     */
+    override fun endAllGames() {
+        plugin.logger.info("[$gameName] Finalizando todas las partidas activas...")
+        
+        // Obtener todas las partidas activas
+        val activeGames = gameManager.getActiveGames().toList()
+        
+        // Finalizar cada partida
+        activeGames.forEach { game ->
+            try {
+                // Limpiar inventarios de jugadores
+                game.teams.forEach { team ->
+                    team.getOnlinePlayers().forEach { player ->
+                        player.inventory.clear()
+                    }
+                }
+                
+                // Detener temporizador
+                game.gameTimer?.stop()
+                
+                // Detener servicios de la partida
+                chainService.stopChaining(game)
+                chainVisualizerService.clearAllChains()
+                
+                // Finalizar la partida a través del GameManager
+                gameManager.endGame(game)
+                
+                plugin.logger.info("[$gameName] Partida ${game.id} finalizada correctamente")
+            } catch (e: Exception) {
+                plugin.logger.severe("[$gameName] Error finalizando partida ${game.id}: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+        
+        // Limpiar estado de partidas pero NO arenas ni configuración
+        lobbyManager.clearAll()
+        chainService.clearAll()
+        chainVisualizerService.clearAllChains()
+        scoreService.clearAll()
+        
+        plugin.logger.info("[$gameName] ✓ Todas las partidas finalizadas. Arenas y configuración preservadas.")
     }
 }

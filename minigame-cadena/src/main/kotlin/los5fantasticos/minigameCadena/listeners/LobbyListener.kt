@@ -95,6 +95,12 @@ class LobbyListener(private val minigame: MinigameCadena) : Listener {
         return material == Material.RED_WOOL ||
                material == Material.BLUE_WOOL ||
                material == Material.GREEN_WOOL ||
-               material == Material.YELLOW_WOOL
+               material == Material.YELLOW_WOOL ||
+               material == Material.ORANGE_WOOL ||
+               material == Material.PURPLE_WOOL ||
+               material == Material.CYAN_WOOL ||
+               material == Material.PINK_WOOL ||
+               material == Material.GRAY_WOOL ||
+               material == Material.WHITE_WOOL
     }
 }

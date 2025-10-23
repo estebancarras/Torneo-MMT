@@ -121,7 +121,7 @@ class MinigameHungergames(private val torneoPlugin: TorneoPlugin) : MinigameModu
     /**
      * Termina todos los juegos activos.
      */
-    private fun endAllGames() {
+    override fun endAllGames() {
         if (gameRunning) {
             endGame()
         }

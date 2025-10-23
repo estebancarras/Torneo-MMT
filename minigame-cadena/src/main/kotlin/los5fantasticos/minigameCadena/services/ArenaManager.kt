@@ -152,6 +152,60 @@ class ArenaManager {
     }
     
     /**
+     * Actualiza el spawn principal de una arena en edición.
+     */
+    fun updateSpawnLocation(playerName: String, location: Location) {
+        val arena = editingArenas[playerName] ?: return
+        // Crear una copia profunda preservando todas las listas
+        val newArena = Arena(
+            name = arena.name,
+            spawnLocation = location,
+            spawnLocations = arena.spawnLocations.toMutableList(), // Copia profunda
+            checkpoints = arena.checkpoints.toMutableList(), // Copia profunda
+            finishLocation = arena.finishLocation,
+            minHeight = arena.minHeight,
+            detectionRadius = arena.detectionRadius
+        )
+        editingArenas[playerName] = newArena
+    }
+    
+    /**
+     * Actualiza la ubicación de meta de una arena en edición.
+     */
+    fun updateFinishLocation(playerName: String, location: Location) {
+        val arena = editingArenas[playerName] ?: return
+        // Crear una copia profunda preservando todas las listas
+        val newArena = Arena(
+            name = arena.name,
+            spawnLocation = arena.spawnLocation,
+            spawnLocations = arena.spawnLocations.toMutableList(), // Copia profunda
+            checkpoints = arena.checkpoints.toMutableList(), // Copia profunda
+            finishLocation = location,
+            minHeight = arena.minHeight,
+            detectionRadius = arena.detectionRadius
+        )
+        editingArenas[playerName] = newArena
+    }
+    
+    /**
+     * Actualiza la altura mínima de una arena en edición.
+     */
+    fun updateMinHeight(playerName: String, height: Double) {
+        val arena = editingArenas[playerName] ?: return
+        // Crear una copia profunda preservando todas las listas
+        val newArena = Arena(
+            name = arena.name,
+            spawnLocation = arena.spawnLocation,
+            spawnLocations = arena.spawnLocations.toMutableList(), // Copia profunda
+            checkpoints = arena.checkpoints.toMutableList(), // Copia profunda
+            finishLocation = arena.finishLocation,
+            minHeight = height,
+            detectionRadius = arena.detectionRadius
+        )
+        editingArenas[playerName] = newArena
+    }
+    
+    /**
      * Establece la ubicación del lobby.
      */
     fun setLobbyLocation(location: Location) {
@@ -205,13 +259,23 @@ class ArenaManager {
         arenas.forEach { (name, arena) ->
             val path = "arenas.$name"
             
-            // Spawn location
+            // Spawn location (principal - para compatibilidad)
             config.set("$path.spawn.world", arena.spawnLocation.world?.name)
             config.set("$path.spawn.x", arena.spawnLocation.x)
             config.set("$path.spawn.y", arena.spawnLocation.y)
             config.set("$path.spawn.z", arena.spawnLocation.z)
             config.set("$path.spawn.yaw", arena.spawnLocation.yaw)
             config.set("$path.spawn.pitch", arena.spawnLocation.pitch)
+            
+            // Spawn locations (múltiples spawns para equipos)
+            arena.spawnLocations.forEachIndexed { index, spawnLoc ->
+                config.set("$path.spawns.$index.world", spawnLoc.world?.name)
+                config.set("$path.spawns.$index.x", spawnLoc.x)
+                config.set("$path.spawns.$index.y", spawnLoc.y)
+                config.set("$path.spawns.$index.z", spawnLoc.z)
+                config.set("$path.spawns.$index.yaw", spawnLoc.yaw)
+                config.set("$path.spawns.$index.pitch", spawnLoc.pitch)
+            }
             
             // Finish location
             config.set("$path.finish.world", arena.finishLocation.world?.name)
@@ -318,6 +382,28 @@ class ArenaManager {
                 minHeight = minHeight,
                 detectionRadius = detectionRadius
             )
+            
+            // Cargar spawn locations (múltiples spawns para equipos)
+            val spawnsSection = config.getConfigurationSection("$path.spawns")
+            if (spawnsSection != null) {
+                val spawnIndices = spawnsSection.getKeys(false).mapNotNull { it.toIntOrNull() }.sorted()
+                
+                for (index in spawnIndices) {
+                    val spWorldName = config.getString("$path.spawns.$index.world") ?: continue
+                    val spWorld = Bukkit.getWorld(spWorldName) ?: continue
+                    
+                    val spawnLoc = Location(
+                        spWorld,
+                        config.getDouble("$path.spawns.$index.x"),
+                        config.getDouble("$path.spawns.$index.y"),
+                        config.getDouble("$path.spawns.$index.z"),
+                        config.getDouble("$path.spawns.$index.yaw").toFloat(),
+                        config.getDouble("$path.spawns.$index.pitch").toFloat()
+                    )
+                    
+                    arena.addSpawnLocation(spawnLoc)
+                }
+            }
             
             // Cargar checkpoints
             val checkpointsSection = config.getConfigurationSection("$path.checkpoints")

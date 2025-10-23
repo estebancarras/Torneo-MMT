@@ -86,4 +86,21 @@ interface MinigameModule {
      * @return Mapa de nombre de comando a CommandExecutor. Vacío si no hay comandos.
      */
     fun getCommandExecutors(): Map<String, CommandExecutor> = emptyMap()
+    
+    /**
+     * Finaliza todas las partidas activas del minijuego sin deshabilitar el módulo.
+     * 
+     * Este método es llamado por /torneo end para terminar las partidas en curso
+     * pero mantener el módulo habilitado y su configuración (arenas, etc.) intacta.
+     * 
+     * IMPLEMENTACIÓN RECOMENDADA:
+     * - Finalizar todas las partidas activas
+     * - Devolver jugadores al lobby
+     * - Limpiar estado de partidas pero NO configuración persistente
+     * - NO llamar a onDisable() internamente
+     */
+    fun endAllGames() {
+        // Implementación por defecto: no hace nada
+        // Los módulos que necesiten esta funcionalidad deben sobrescribirla
+    }
 }

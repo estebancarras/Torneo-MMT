@@ -105,8 +105,8 @@ class GameManager(
      * Se encarga de teletransportar al jugador al lobby y entregarle la UI de selección.
      */
     private fun addPlayerToGame(player: Player, game: CadenaGame): Boolean {
-        // Verificar si hay espacio en la partida (máximo 16 jugadores = 4 equipos × 4 jugadores)
-        if (game.getTotalPlayers() >= 16) {
+        // Verificar si hay espacio en la partida (máximo 40 jugadores = 10 equipos × 4 jugadores)
+        if (game.getTotalPlayers() >= 40) {
             return false
         }
         
@@ -244,6 +244,9 @@ class GameManager(
                 // Obtener el jugador online
                 val player = org.bukkit.Bukkit.getPlayer(playerId)
                 if (player != null && player.isOnline) {
+                    // Limpiar inventario (eliminar lanas y cualquier item del juego)
+                    player.inventory.clear()
+                    
                     // Retornar al lobby global usando TournamentFlowManager
                     los5fantasticos.torneo.services.TournamentFlowManager.returnToLobby(player)
                 }
@@ -251,7 +254,7 @@ class GameManager(
             }
         }
         
-        // Remover de activas
+        // Remover de activas (pero NO limpiar la arena asignada)
         activeGames.remove(game.id)
         
         // Limpiar servicios
@@ -335,8 +338,10 @@ class GameManager(
             meta?.lore = lore
             item.itemMeta = meta
             
-            // Colocar en el inventario (slots 2, 3, 4, 5)
-            player.inventory.setItem(index + 2, item)
+            // Colocar en el inventario (slots 0-8 para primera fila, 9-17 para segunda fila)
+            // Distribuir los 10 equipos: primeros 9 en la primera fila, el décimo en la segunda
+            val slot = if (index < 9) index else 9
+            player.inventory.setItem(slot, item)
         }
     }
     

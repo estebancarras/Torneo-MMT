@@ -6,7 +6,7 @@ import org.bukkit.Location
  * Representa una arena de parkour para el minijuego Cadena.
  * 
  * Contiene todas las ubicaciones necesarias para una partida:
- * - Spawn inicial
+ * - Spawns iniciales (uno por equipo)
  * - Checkpoints intermedios
  * - Línea de meta
  * - Altura mínima (para detectar caídas)
@@ -19,8 +19,17 @@ data class Arena(
     
     /**
      * Ubicación de spawn donde aparecen los equipos al iniciar.
+     * DEPRECATED: Usar spawnLocations en su lugar.
      */
+    @Deprecated("Usar spawnLocations para soportar múltiples equipos")
     val spawnLocation: Location,
+    
+    /**
+     * Lista de ubicaciones de spawn para cada equipo.
+     * Cada equipo será teletransportado a un spawn diferente.
+     * Si está vacía, se usa spawnLocation como fallback.
+     */
+    val spawnLocations: MutableList<Location> = mutableListOf(),
     
     /**
      * Lista de checkpoints en orden.
@@ -99,5 +108,31 @@ data class Arena(
      */
     fun getCheckpoint(index: Int): Location? {
         return checkpoints.getOrNull(index)
+    }
+    
+    /**
+     * Añade una ubicación de spawn para equipos.
+     */
+    fun addSpawnLocation(location: Location) {
+        spawnLocations.add(location)
+    }
+    
+    /**
+     * Obtiene una ubicación de spawn por índice.
+     * Si no hay spawns configurados, devuelve el spawn principal.
+     */
+    fun getSpawnLocation(index: Int): Location {
+        return if (spawnLocations.isEmpty()) {
+            spawnLocation
+        } else {
+            spawnLocations.getOrNull(index % spawnLocations.size) ?: spawnLocation
+        }
+    }
+    
+    /**
+     * Limpia todas las ubicaciones de spawn.
+     */
+    fun clearSpawnLocations() {
+        spawnLocations.clear()
     }
 }

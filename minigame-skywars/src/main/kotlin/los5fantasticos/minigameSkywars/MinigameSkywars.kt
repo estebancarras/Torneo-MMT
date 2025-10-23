@@ -137,7 +137,7 @@ class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule, 
     /**
      * Termina todos los juegos activos.
      */
-    private fun endAllGames() {
+    override fun endAllGames() {
         if (gameRunning) {
             endGame()
         }

@@ -184,14 +184,20 @@ class ParkourService(private val minigame: MinigameCadena) {
     
     /**
      * Teletransporta todos los equipos de una partida al spawn de la arena.
+     * TAREA 4: Ahora soporta múltiples spawns, uno por equipo.
      * 
      * @param game Partida actual
      */
     fun teleportAllTeamsToSpawn(game: CadenaGame) {
         val arena = game.arena ?: return
         
-        game.teams.forEach { team ->
-            teleportTeam(team, arena.spawnLocation)
+        // Filtrar solo equipos con jugadores
+        val teamsWithPlayers = game.teams.filter { it.players.isNotEmpty() }
+        
+        teamsWithPlayers.forEachIndexed { index, team ->
+            // Obtener spawn específico para este equipo (o usar el principal si no hay suficientes)
+            val spawnLocation = arena.getSpawnLocation(index)
+            teleportTeam(team, spawnLocation)
             
             // Inicializar checkpoint del equipo
             game.teamCheckpoints[team.teamId] = -1
@@ -215,6 +221,13 @@ class ParkourService(private val minigame: MinigameCadena) {
         
         // Detener temporizador visual (BossBar)
         game.gameTimer?.stop()
+        
+        // Limpiar inventarios de todos los jugadores
+        game.teams.forEach { team ->
+            team.getOnlinePlayers().forEach { player ->
+                player.inventory.clear()
+            }
+        }
         
         // Calcular y asignar puntos
         minigame.scoreService.calculateAndAssignPoints(game)

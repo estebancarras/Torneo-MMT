@@ -53,6 +53,7 @@ class TorneoAdminCommand(
             "start" -> return handleStart(sender, args)
             "end" -> return handleEnd(sender)
             "status" -> return handleStatus(sender)
+            "scoreboard" -> return handleScoreboard(sender, args)
             else -> {
                 sender.sendMessage(Component.text("✗ Subcomando desconocido", NamedTextColor.RED))
                 showHelp(sender)
@@ -83,7 +84,85 @@ class TorneoAdminCommand(
             .append(Component.text(" - Finalizar minijuego activo", NamedTextColor.GRAY)))
         sender.sendMessage(Component.text("  /torneo status", NamedTextColor.YELLOW)
             .append(Component.text(" - Ver estado del torneo", NamedTextColor.GRAY)))
+        sender.sendMessage(Component.text("  /torneo scoreboard show", NamedTextColor.YELLOW)
+            .append(Component.text(" - Recargar scoreboard", NamedTextColor.GRAY)))
+        sender.sendMessage(Component.text("  /torneo scoreboard hide", NamedTextColor.YELLOW)
+            .append(Component.text(" - Ocultar scoreboard (test)", NamedTextColor.GRAY)))
         sender.sendMessage(Component.empty())
+    }
+    
+    private fun handleScoreboard(sender: CommandSender, args: Array<out String>): Boolean {
+        // Si no hay argumentos adicionales, mostrar ayuda
+        if (args.size < 2) {
+            sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+            sender.sendMessage(Component.text("  Comandos de Scoreboard", NamedTextColor.YELLOW, TextDecoration.BOLD))
+            sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+            sender.sendMessage(Component.text("  /torneo scoreboard show", NamedTextColor.YELLOW)
+                .append(Component.text(" - Mostrar/recargar scoreboard", NamedTextColor.GRAY)))
+            sender.sendMessage(Component.text("  /torneo scoreboard hide", NamedTextColor.YELLOW)
+                .append(Component.text(" - Ocultar scoreboard (testing)", NamedTextColor.GRAY)))
+            sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+            return true
+        }
+        
+        when (args[1].lowercase()) {
+            "show" -> return handleScoreboardShow(sender)
+            "hide" -> return handleScoreboardHide(sender)
+            else -> {
+                sender.sendMessage(Component.text("✗ Subcomando desconocido: ${args[1]}", NamedTextColor.RED))
+                sender.sendMessage(Component.text("Usa: /torneo scoreboard show|hide", NamedTextColor.YELLOW))
+                return true
+            }
+        }
+    }
+    
+    private fun handleScoreboardShow(sender: CommandSender): Boolean {
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        sender.sendMessage(Component.text("  Recargando Scoreboard", NamedTextColor.YELLOW, TextDecoration.BOLD))
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        
+        try {
+            val plugin = los5fantasticos.torneo.TorneoPlugin.instance
+            plugin.scoreboardService.showToAllPlayers()
+            
+            val playerCount = org.bukkit.Bukkit.getOnlinePlayers().size
+            sender.sendMessage(Component.text("✓ Scoreboard recargado exitosamente", NamedTextColor.GREEN))
+            sender.sendMessage(Component.text("  Jugadores actualizados: $playerCount", NamedTextColor.GRAY))
+            sender.sendMessage(Component.text("  La re-asignación automática lo mantendrá visible", NamedTextColor.GRAY))
+        } catch (e: Exception) {
+            sender.sendMessage(Component.text("✗ Error al recargar scoreboard: ${e.message}", NamedTextColor.RED))
+            e.printStackTrace()
+        }
+        
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        return true
+    }
+    
+    private fun handleScoreboardHide(sender: CommandSender): Boolean {
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        sender.sendMessage(Component.text("  Ocultando Scoreboard (Testing)", NamedTextColor.YELLOW, TextDecoration.BOLD))
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        
+        try {
+            val playerCount = org.bukkit.Bukkit.getOnlinePlayers().size
+            
+            // Crear un scoreboard vacío para cada jugador (simula el bug)
+            org.bukkit.Bukkit.getOnlinePlayers().forEach { player ->
+                val emptyScoreboard = org.bukkit.Bukkit.getScoreboardManager()!!.newScoreboard
+                player.scoreboard = emptyScoreboard
+            }
+            
+            sender.sendMessage(Component.text("✓ Scoreboard ocultado para testing", NamedTextColor.YELLOW))
+            sender.sendMessage(Component.text("  Jugadores afectados: $playerCount", NamedTextColor.GRAY))
+            sender.sendMessage(Component.text("  ⏱ Espera ~30 segundos para ver la re-asignación automática", NamedTextColor.AQUA))
+            sender.sendMessage(Component.text("  O usa: /torneo scoreboard show para restaurar ahora", NamedTextColor.GRAY))
+        } catch (e: Exception) {
+            sender.sendMessage(Component.text("✗ Error al ocultar scoreboard: ${e.message}", NamedTextColor.RED))
+            e.printStackTrace()
+        }
+        
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        return true
     }
     
     private fun handleWand(sender: CommandSender): Boolean {
@@ -252,7 +331,7 @@ class TorneoAdminCommand(
         args: Array<out String>
     ): List<String>? {
         if (args.size == 1) {
-            return listOf("wand", "setlobbyregion", "addspawn", "clearspawns", "start", "end", "status")
+            return listOf("wand", "setlobbyregion", "addspawn", "clearspawns", "start", "end", "status", "scoreboard")
                 .filter { it.startsWith(args[0].lowercase()) }
         }
         
@@ -260,6 +339,11 @@ class TorneoAdminCommand(
             return torneoManager.getAvailableMinigames()
                 .map { it.gameName }
                 .filter { it.lowercase().startsWith(args[1].lowercase()) }
+        }
+        
+        if (args.size == 2 && args[0].equals("scoreboard", true)) {
+            return listOf("show", "hide")
+                .filter { it.startsWith(args[1].lowercase()) }
         }
         
         return emptyList()

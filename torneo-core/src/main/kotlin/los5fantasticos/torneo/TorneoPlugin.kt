@@ -42,7 +42,8 @@ class TorneoPlugin : JavaPlugin() {
     /**
      * Servicio de scoreboard global.
      */
-    private lateinit var scoreboardService: GlobalScoreboardService
+    lateinit var scoreboardService: GlobalScoreboardService
+        private set
     
     /**
      * Mapa de módulos de minijuegos cargados.

@@ -148,8 +148,19 @@ class MemoriasManager(internal val torneoPlugin: TorneoPlugin) : MinigameModule 
             }
         }
         
-        plugin.logger.info("[Memorias] ✓ Torneo iniciado con ${players.size} jugadores")
-        plugin.logger.info("[Memorias] Usa /memorias admin startround para iniciar la ronda")
+        plugin.logger.info("[Memorias] ✓ ${players.size} jugadores añadidos al lobby")
+        
+        // INICIO AUTOMÁTICO: Iniciar la ronda automáticamente
+        plugin.logger.info("[Memorias] Iniciando ronda automáticamente...")
+        val error = gameManager.startRound()
+        
+        if (error != null) {
+            plugin.logger.severe("[Memorias] ✗ Error al iniciar ronda automáticamente: $error")
+            plugin.logger.severe("[Memorias] Los jugadores permanecen en el lobby")
+        } else {
+            plugin.logger.info("[Memorias] ✓ Ronda iniciada automáticamente")
+            plugin.logger.info("[Memorias] Los jugadores han sido asignados a sus parcelas")
+        }
     }
     
     /**
