@@ -44,7 +44,7 @@ class RobarCabezaGame(
     /**
      * Cooldowns de robo por jugador (timestamp en milisegundos).
      */
-    val tailCooldowns = mutableMapOf<UUID, Long>()
+    val stealCooldowns = mutableMapOf<UUID, Long>()
     
     /**
      * Cooldowns de invulnerabilidad por jugador (timestamp en milisegundos).

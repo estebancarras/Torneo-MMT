@@ -37,7 +37,7 @@ import kotlin.math.sin
  * - Gestionar arenas de juego
  */
 class GameManager(
-    private val plugin: Plugin,
+    val plugin: Plugin,
     private val torneoPlugin: TorneoPlugin,
     scoreService: ScoreService,
     private val visualService: VisualService,
@@ -378,40 +378,56 @@ class GameManager(
      * Roba la cabeza de un jugador a otro.
      */
     fun stealHead(victim: Player, attacker: Player) {
-        val game = activeGame ?: return
+        plugin.logger.info("[RobarCabeza] stealHead llamado: ${attacker.name} -> ${victim.name}")
+        
+        val game = activeGame
+        if (game == null) {
+            plugin.logger.warning("[RobarCabeza] No hay juego activo")
+            return
+        }
         
         // Verificar cooldown de robo
-        if (System.currentTimeMillis() - (game.tailCooldowns[attacker.uniqueId] ?: 0) < tailCooldownSeconds * 1000) {
+        val cooldownRemaining = tailCooldownSeconds * 1000 - (System.currentTimeMillis() - (game.stealCooldowns[attacker.uniqueId] ?: 0))
+        if (cooldownRemaining > 0) {
+            plugin.logger.info("[RobarCabeza] ${attacker.name} en cooldown: ${cooldownRemaining}ms restantes")
             attacker.sendMessage("${ChatColor.RED}¡Espera antes de robar otra cabeza!")
             return
         }
         
         // Verificar que la víctima tenga cabeza
         if (!game.playersWithTail.contains(victim.uniqueId)) {
+            plugin.logger.info("[RobarCabeza] ${victim.name} NO tiene cabeza")
             return
         }
         
         // Verificar invulnerabilidad de la víctima
         if (game.isInvulnerable(victim.uniqueId, RobarCabezaScoreConfig.INVULNERABILITY_COOLDOWN_SECONDS)) {
+            plugin.logger.info("[RobarCabeza] ${victim.name} es invulnerable")
             attacker.sendMessage("${ChatColor.YELLOW}¡${victim.name} es invulnerable!")
             return
         }
         
+        plugin.logger.info("[RobarCabeza] ✓ Todas las verificaciones pasadas, ejecutando robo...")
+        
         // Actualizar cooldowns
-        game.tailCooldowns[attacker.uniqueId] = System.currentTimeMillis()
+        game.stealCooldowns[attacker.uniqueId] = System.currentTimeMillis()
         game.invulnerabilityCooldowns[attacker.uniqueId] = System.currentTimeMillis()
         
         // Remover cabeza de la víctima
         removeHead(victim)
+        plugin.logger.info("[RobarCabeza] Cabeza removida de ${victim.name}")
         
         // Dar cabeza al atacante
         giveHead(attacker)
+        plugin.logger.info("[RobarCabeza] Cabeza dada a ${attacker.name}")
         
         // Otorgar puntos por robo
         scoreService.awardPointsForSteal(attacker)
         
         attacker.sendMessage("${ChatColor.GREEN}¡Le robaste la cabeza a ${victim.name}! ${ChatColor.GOLD}+${RobarCabezaScoreConfig.POINTS_STEAL_BONUS} puntos")
         victim.sendMessage("${ChatColor.RED}¡${attacker.name} te robó la cabeza!")
+        
+        plugin.logger.info("[RobarCabeza] ✓ Robo completado exitosamente")
     }
     
     /**

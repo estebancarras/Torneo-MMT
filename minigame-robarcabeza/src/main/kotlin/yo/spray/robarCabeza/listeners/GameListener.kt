@@ -59,21 +59,53 @@ class GameListener(
     
     /**
      * Maneja ataques entre jugadores y a ArmorStands.
+     * Usa HIGHEST priority para capturar el evento antes que otros plugins lo cancelen.
      */
-    @EventHandler
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = false)
     fun onAttack(event: EntityDamageByEntityEvent) {
         val victim = event.entity
         val attacker = event.damager as? Player ?: return
         
+        // Verificar que haya un juego activo
+        val game = gameManager.getActiveGame()
+        if (game == null) {
+            return
+        }
+        
+        // Verificar que el atacante esté en el juego
+        if (!game.players.contains(attacker.uniqueId)) {
+            return
+        }
+        
         // Caso 1: Golpe a ArmorStand (robo directo)
         if (victim is ArmorStand) {
+            event.isCancelled = true // Cancelar daño al ArmorStand
             handleArmorStandAttack(victim, attacker)
             return
         }
         
-        // Caso 2: Golpe por la espalda a otro jugador
+        // Caso 2: Golpe a otro jugador
         if (victim is Player) {
-            handlePlayerAttack(victim, attacker)
+            // Verificar que la víctima esté en el juego
+            if (!game.players.contains(victim.uniqueId)) {
+                return
+            }
+            
+            // Verificar si la víctima tiene cabeza
+            val victimHasHead = game.playersWithTail.contains(victim.uniqueId)
+            
+            gameManager.plugin.logger.info("[RobarCabeza] Evento de ataque: ${attacker.name} -> ${victim.name}, víctima tiene cabeza: $victimHasHead")
+            
+            if (victimHasHead) {
+                // La víctima tiene cabeza: FORZAR que el evento NO se cancele (permitir PvP)
+                event.isCancelled = false
+                gameManager.plugin.logger.info("[RobarCabeza] PvP forzado, procesando robo...")
+                handlePlayerAttack(victim, attacker)
+            } else {
+                // La víctima NO tiene cabeza: cancelar el daño (jugadores sin cabeza no se dañan entre sí)
+                event.isCancelled = true
+                gameManager.plugin.logger.info("[RobarCabeza] Daño cancelado (víctima sin cabeza)")
+            }
         }
     }
     
@@ -93,22 +125,12 @@ class GameListener(
     private fun handlePlayerAttack(victim: Player, attacker: Player) {
         val game = gameManager.getActiveGame() ?: return
         
-        // Verificar que ambos estén en el juego
-        if (!game.players.contains(victim.uniqueId) || !game.players.contains(attacker.uniqueId)) {
-            return
-        }
-        
         // Verificar que la víctima tenga cabeza
         if (!game.playersWithTail.contains(victim.uniqueId)) {
             return
         }
         
-        // Verificar que el ataque sea por la espalda
-        if (!isBehindVictim(attacker, victim)) {
-            return
-        }
-        
-        // Robar la cabeza (método renombrado de stealTail a stealHead)
+        // Robar la cabeza (se puede atacar desde cualquier ángulo)
         gameManager.stealHead(victim, attacker)
     }
     
