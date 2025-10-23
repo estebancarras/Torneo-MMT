@@ -8,11 +8,13 @@ import org.bukkit.configuration.file.FileConfiguration
 import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
+import yo.spray.robarCabeza.game.Arena
 import yo.spray.robarCabeza.listeners.GameListener
+import yo.spray.robarCabeza.services.ArenaManager
 import yo.spray.robarCabeza.services.GameManager
-import yo.spray.robarCabeza.services.HeadVisualService
 import yo.spray.robarCabeza.services.RobarCabezaScoreConfig
 import yo.spray.robarCabeza.services.ScoreService
+import yo.spray.robarCabeza.services.VisualService
 import java.io.File
 
 /**
@@ -24,6 +26,8 @@ import java.io.File
  * Arquitectura refactorizada:
  * - GameManager: Lógica central del juego
  * - ScoreService: Gestión de puntuación
+ * - VisualService: Gestión de cascos
+ * - ArenaManager: Gestión de arenas
  * - GameListener: Manejo de eventos
  * - RobarCabezaGame: Modelo de estado de partida
  */
@@ -31,7 +35,7 @@ import java.io.File
 class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
 
     override val gameName = "RobarCabeza"
-    override val version = "4.0"
+    override val version = "5.0"
     override val description = "Minijuego de robar la cabeza del creador"
 
     private lateinit var plugin: Plugin
@@ -42,14 +46,20 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
     private lateinit var config: FileConfiguration
     
     /**
-     * Servicio de visualización de cabezas.
+     * Servicio de visualización de cabezas (simplificado).
      */
-    private lateinit var headVisualService: HeadVisualService
+    private lateinit var visualService: VisualService
     
     /**
      * Servicio de puntuación.
      */
     private lateinit var scoreService: ScoreService
+    
+    /**
+     * Gestor de arenas.
+     */
+    lateinit var arenaManager: ArenaManager
+        private set
     
     /**
      * Gestor central del juego.
@@ -71,29 +81,33 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
         loadConfig()
         
         // Inicializar servicios
-        headVisualService = HeadVisualService(plugin)
-        configureHeadVisualService()
+        visualService = VisualService()
+        configureVisualService()
         
         scoreService = ScoreService(torneoPlugin, gameName)
         configureScoreService()
         
-        gameManager = GameManager(plugin, torneoPlugin, scoreService, headVisualService)
+        arenaManager = ArenaManager()
+        arenaManager.initialize(plugin.dataFolder)
+        
+        gameManager = GameManager(plugin, torneoPlugin, scoreService, visualService, arenaManager)
         gameListener = GameListener(gameManager)
         
-        // Cargar configuración de spawns
+        // Cargar configuración de spawns (legacy)
         loadSpawnFromConfig()
         
         // Registrar listener
         plugin.server.pluginManager.registerEvents(gameListener, plugin)
         
         // Registrar comandos
-        val commandExecutor = yo.spray.robarCabeza.commands.RobarCabezaCommands(this)
+        val commandExecutor = yo.spray.robarCabeza.commands.RobarCabezaCommands(this, arenaManager, torneoPlugin)
         torneoPlugin.getCommand("robarcabeza")?.setExecutor(commandExecutor)
         
         plugin.logger.info("✓ $gameName v$version habilitado")
         plugin.logger.info("  - Configuración cargada")
-        plugin.logger.info("  - HeadVisualService inicializado")
+        plugin.logger.info("  - VisualService inicializado")
         plugin.logger.info("  - ScoreService inicializado")
+        plugin.logger.info("  - ArenaManager inicializado (${arenaManager.getArenaCount()} arenas)")
         plugin.logger.info("  - GameManager inicializado")
         plugin.logger.info("  - GameListener registrado")
     }
@@ -104,9 +118,9 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
             gameManager.clearAll()
         }
         
-        // Limpiar recursos del HeadVisualService
-        if (::headVisualService.isInitialized) {
-            headVisualService.cleanup()
+        // Guardar arenas
+        if (::arenaManager.isInitialized) {
+            arenaManager.saveArenas()
         }
         
         plugin.logger.info("✓ $gameName deshabilitado")
@@ -184,7 +198,7 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
     fun giveTailToPlayer(player: Player) {
         val game = gameManager.getActiveGame()
         if (game != null && game.players.contains(player.uniqueId)) {
-            gameManager.giveTail(player)
+            gameManager.giveHead(player)
         } else {
             player.sendMessage("§c¡No estás en el juego!")
         }
@@ -215,11 +229,11 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
     /**
      * Inicia el juego manualmente (comando de admin).
      */
-    fun startGameExternal() {
+    fun startGameExternal(arena: Arena? = null) {
         if (!gameManager.isGameRunning()) {
             val game = gameManager.getActiveGame()
             if (game != null && game.players.size >= 2) {
-                gameManager.startGame()
+                gameManager.startGame(arena)
             }
         }
     }
@@ -280,18 +294,16 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
     }
     
     /**
-     * Configura el HeadVisualService con los valores del archivo de configuración.
+     * Configura el VisualService con los valores del archivo de configuración.
      */
-    private fun configureHeadVisualService() {
-        val scale = config.getDouble("visuals.scale", 1.5).toFloat()
-        val yOffset = config.getDouble("visuals.y-offset", -0.25)
+    private fun configureVisualService() {
         val creatorHeads = config.getStringList("visuals.creator-heads").ifEmpty {
             listOf("Notch")
         }
         
-        headVisualService.configure(scale, yOffset, creatorHeads)
+        visualService.configure(creatorHeads)
         
-        plugin.logger.info("[$gameName] Visual configurado: scale=$scale, offset=$yOffset, heads=${creatorHeads.size}")
+        plugin.logger.info("[$gameName] Visual configurado: heads=${creatorHeads.size}")
     }
     
     /**

@@ -8,17 +8,22 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
 import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.event.inventory.InventoryType.SlotType
 import yo.spray.robarCabeza.services.GameManager
 
 /**
- * Listener de eventos del juego RobarCola.
+ * Listener de eventos del juego RobarCabeza.
  * 
  * Responsabilidades:
  * - Escuchar eventos de Bukkit relacionados con el juego
  * - Delegar la lógica al GameManager
  * - Manejar interacciones de jugadores (ataques, clics, desconexiones)
+ * - Proteger el inventario (evitar que se quiten la cabeza)
+ * - Proteger los límites de la arena
  */
 class GameListener(
     private val gameManager: GameManager
@@ -73,13 +78,13 @@ class GameListener(
     }
     
     /**
-     * Maneja ataque a un ArmorStand de cola.
+     * Maneja ataque a un ArmorStand de cabeza (legacy).
      */
     private fun handleArmorStandAttack(armorStand: ArmorStand, attacker: Player) {
         val owner = gameManager.findTailOwner(armorStand) ?: return
         
-        // Intentar robar la cola
-        gameManager.stealTail(owner, attacker)
+        // Intentar robar la cabeza
+        gameManager.stealHead(owner, attacker)
     }
     
     /**
@@ -93,7 +98,7 @@ class GameListener(
             return
         }
         
-        // Verificar que la víctima tenga cola
+        // Verificar que la víctima tenga cabeza
         if (!game.playersWithTail.contains(victim.uniqueId)) {
             return
         }
@@ -103,8 +108,52 @@ class GameListener(
             return
         }
         
-        // Robar la cola
-        gameManager.stealTail(victim, attacker)
+        // Robar la cabeza (método renombrado de stealTail a stealHead)
+        gameManager.stealHead(victim, attacker)
+    }
+    
+    /**
+     * Protege el inventario para evitar que los jugadores se quiten la cabeza manualmente.
+     */
+    @EventHandler
+    fun onInventoryClick(event: InventoryClickEvent) {
+        val player = event.whoClicked as? Player ?: return
+        
+        // Verificar si el jugador está en una partida
+        if (!gameManager.isPlayerInGame(player)) {
+            return
+        }
+        
+        // Verificar si está intentando interactuar con el slot del casco
+        if (event.slotType == SlotType.ARMOR && event.rawSlot == 5) {
+            event.isCancelled = true
+            player.sendMessage("${ChatColor.RED}¡No puedes quitarte la cabeza durante el juego!")
+        }
+    }
+    
+    /**
+     * Protege los límites de la arena para evitar que los jugadores salgan.
+     */
+    @EventHandler
+    fun onPlayerMove(event: PlayerMoveEvent) {
+        val player = event.player
+        
+        // Verificar si el jugador está en una partida
+        if (!gameManager.isPlayerInGame(player)) {
+            return
+        }
+        
+        // Obtener la arena activa
+        val arena = gameManager.getActiveArena() ?: return
+        val playRegion = arena.playRegion ?: return
+        
+        // Verificar si el jugador está intentando salir de la región
+        val to = event.to ?: return
+        
+        if (!playRegion.contains(to)) {
+            event.isCancelled = true
+            player.sendMessage("${ChatColor.RED}¡No puedes salir de la arena!")
+        }
     }
     
     /**

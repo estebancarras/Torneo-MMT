@@ -1,0 +1,119 @@
+"Robar la Cabeza" con Sistema de Arenas Robusto
+ID de Característica: ROBARCABEZA-FEAT-05-HELMET-AND-ARENAS
+
+Autor: Arquitecto de Plugins Kotlin
+
+Fecha: 23 de octubre de 2025
+
+1. Resumen Ejecutivo
+Este documento detalla la arquitectura final y definitiva para el minijuego "Robar la Cabeza". Se implementará la mecánica central de una manera simple y de alto rendimiento: el "portador" será identificado porque llevará equipada una cabeza de jugador personalizada en el slot del casco. Este enfoque elimina la complejidad de las entidades ItemDisplay y las animaciones por tick, resultando en una solución más estable y eficiente.
+
+Paralelamente, se implementará un sistema de gestión de arenas completo, similar al de los módulos cadena y memorias. Esto permitirá a los administradores crear, configurar y gestionar múltiples zonas de juego persistentes, elevando el minijuego a los estándares de calidad del resto del proyecto. El sistema de puntuación dinámico por tiempo de posesión se mantiene como el núcleo competitivo.
+
+2. Filosofía de Diseño: Simplicidad Nativa y Flexibilidad Administrativa
+Simplicidad Nativa: Al usar el slot del casco del jugador, aprovechamos una mecánica nativa de Minecraft. Es visualmente claro, no consume recursos del servidor con animaciones y es inmune a problemas de sincronización visual. El objetivo es un ítem, no un efecto.
+
+Flexibilidad Administrativa: Un minijuego es tan bueno como las arenas en las que se juega. Al darle a los administradores un conjunto de herramientas de comando para crear múltiples arenas con diferentes spawns y límites, garantizamos una alta rejugabilidad y adaptabilidad a cualquier mapa del torneo.
+
+3. Arquitectura de la Solución (En Dos Partes)
+Parte A: Implementación de la Mecánica de Casco y Puntuación
+Objetivo: Refinar la lógica de juego existente para usar el inventario del jugador.
+
+VisualService.kt (Simplificado):
+
+La responsabilidad de esta clase se reduce drásticamente. Ya no necesita ItemDisplay ni BukkitRunnable.
+
+Métodos Clave:
+
+equipHead(player: Player, creatorName: String): Crea el ItemStack de la cabeza del creador y lo coloca en player.inventory.helmet.
+
+removeHead(player: Player): Establece player.inventory.helmet = null.
+
+GameManager.kt (Adaptado):
+
+Utilizará el VisualService simplificado. En giveHead(player), llamará a visualService.equipHead(...).
+
+La lógica de stealHead ahora incluirá obtener el ItemStack del casco de la víctima, quitárselo (removeHead), y ponérselo al atacante (equipHead).
+
+El GameTimer principal seguirá actualizando el mapa timeWithHead y el ActionBar cada segundo.
+
+GameListener.kt (Ajustado):
+
+Además de EntityDamageByEntityEvent para el robo, se debe escuchar InventoryClickEvent y cancelarlo si un jugador intenta quitarse la cabeza manualmente del slot del casco. La cabeza solo puede ser robada, no descartada.
+
+robarcabeza.yml (Actualizado):
+
+Se elimina la sección visuals de escala y offset. La configuración se simplifica:
+
+YAML
+
+game-settings:
+  creator-heads:
+    - "Brocoly776"
+    - "citt"
+    # ... y otros
+
+scoring:
+  points-per-second: 1
+Parte B: Implementación del Sistema de Arenas
+Objetivo: Dotar al minijuego de un sistema de arenas configurable y persistente, idéntico al de los módulos más avanzados.
+
+Creación de ArenaManager.kt:
+
+Ubicación: minigame-robarcabeza/src/main/kotlin/yo/spray/robarCabeza/services/.
+
+Responsabilidad: Cargar, guardar, crear y gestionar las arenas desde un archivo dedicado robarcabeza_arenas.yml.
+
+Debe manejar la persistencia de las arenas creadas por los administradores.
+
+Creación de Arena.kt:
+
+Ubicación: minigame-robarcabeza/src/main/kotlin/yo/spray/robarCabeza/game/.
+
+Propiedades:
+
+Kotlin
+
+data class Arena(
+    val name: String,
+    val spawns: MutableList<Location> = mutableListOf(),
+    var playRegion: Cuboid? = null // Límites del área de juego
+)
+Actualización del GameManager.kt:
+
+Debe tener una referencia a la arena activa: private var activeArena: Arena? = null.
+
+El método startGame(players) ahora debe recibir una Arena.
+
+Al iniciar, teletransportará a los jugadores a los spawns de la arena de forma aleatoria.
+
+El GameListener usará el playRegion del activeArena para evitar que los jugadores escapen de los límites.
+
+Expansión de RobarCabezaCommands.kt:
+
+Se añadirá una sección completa de comandos de administración bajo /robarcabeza admin:
+
+/robarcabeza admin create <nombre>: Crea una nueva arena.
+
+/robarcabeza admin list: Lista todas las arenas.
+
+/robarcabeza admin delete <nombre>: Elimina una arena.
+
+/robarcabeza admin addspawn <arena>: Añade un punto de aparición en la ubicación actual del admin.
+
+/robarcabeza admin setregion <arena>: Establece los límites del área de juego usando la varita de selección (SelectionManager del torneo-core).
+
+4. Criterios de Aceptación
+✅ El jugador portador tiene una cabeza de skin personalizada equipada como casco.
+
+✅ El casco se transfiere del inventario de la víctima al atacante en un robo exitoso.
+
+✅ Los jugadores no pueden quitarse la cabeza manualmente.
+
+✅ La puntuación por tiempo y el ActionBar con el temporizador funcionan correctamente.
+
+✅ Los administradores pueden crear múltiples arenas persistentes con spawns y límites definidos a través de comandos.
+
+✅ Al iniciar el juego (onTournamentStart), el GameManager selecciona una arena válida y teletransporta a los jugadores a sus puntos de aparición.
+
+✅ Durante el juego, los jugadores no pueden salir de la playRegion de la arena activa.

@@ -17,6 +17,7 @@ import org.bukkit.scheduler.BukkitRunnable
 import org.bukkit.util.Transformation
 import org.joml.Quaternionf
 import org.joml.Vector3f
+import yo.spray.robarCabeza.game.Arena
 import yo.spray.robarCabeza.game.GameState
 import yo.spray.robarCabeza.game.RobarCabezaGame
 import java.util.UUID
@@ -24,7 +25,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Gestor central de la lógica del juego RobarCola.
+ * Gestor central de la lógica del juego RobarCabeza.
  * 
  * Responsabilidades:
  * - Gestionar el ciclo de vida de las partidas
@@ -32,13 +33,15 @@ import kotlin.math.sin
  * - Manejar la lógica de cabezas (dar, robar, remover)
  * - Gestionar temporizadores y countdowns
  * - Coordinar con el ScoreService para puntuación
- * - Coordinar con el HeadVisualService para efectos visuales
+ * - Coordinar con el VisualService para efectos visuales
+ * - Gestionar arenas de juego
  */
 class GameManager(
     private val plugin: Plugin,
     private val torneoPlugin: TorneoPlugin,
     scoreService: ScoreService,
-    private val headVisualService: HeadVisualService
+    private val visualService: VisualService,
+    private val arenaManager: ArenaManager
 ) {
     
     private val scoreService: ScoreService = scoreService
@@ -49,13 +52,18 @@ class GameManager(
     private var activeGame: RobarCabezaGame? = null
     
     /**
+     * Arena activa de la partida actual.
+     */
+    private var activeArena: Arena? = null
+    
+    /**
      * Configuración del juego.
      */
     private val tailCooldownSeconds = 3
     private val gameTimeSeconds = 120
     
     /**
-     * Ubicaciones del juego.
+     * Ubicaciones del juego (legacy - para compatibilidad).
      */
     var gameSpawn: Location? = null
     var lobbySpawn: Location? = null
@@ -76,6 +84,18 @@ class GameManager(
     fun getActivePlayers(): List<Player> {
         return activeGame?.players?.mapNotNull { Bukkit.getPlayer(it) } ?: emptyList()
     }
+    
+    /**
+     * Verifica si un jugador está en una partida.
+     */
+    fun isPlayerInGame(player: Player): Boolean {
+        return activeGame?.players?.contains(player.uniqueId) == true
+    }
+    
+    /**
+     * Obtiene la arena activa.
+     */
+    fun getActiveArena(): Arena? = activeArena
     
     /**
      * Añade un jugador al juego.
@@ -124,34 +144,56 @@ class GameManager(
     }
     
     /**
-     * Inicia la partida.
+     * Inicia la partida con una arena específica.
      */
-    fun startGame() {
+    fun startGame(arena: Arena? = null) {
         val game = activeGame ?: return
         
         if (game.players.isEmpty() || game.state != GameState.LOBBY) {
             return
         }
         
+        // Seleccionar arena (usar la proporcionada o una aleatoria)
+        val selectedArena = arena ?: arenaManager.getRandomArena()
+        
+        if (selectedArena == null) {
+            broadcastToGame("${ChatColor.RED}¡No hay arenas configuradas! Contacta a un administrador.")
+            return
+        }
+        
+        // Verificar que la arena tenga spawns configurados
+        if (selectedArena.spawns.isEmpty()) {
+            broadcastToGame("${ChatColor.RED}¡La arena no tiene spawns configurados!")
+            return
+        }
+        
+        activeArena = selectedArena
         game.state = GameState.COUNTDOWN
         
         // Reiniciar puntos de sesión
         scoreService.resetSessionScores()
         
+        // Teletransportar jugadores a spawns aleatorios de la arena
+        val playersList = game.players.mapNotNull { Bukkit.getPlayer(it) }
+        playersList.forEach { player ->
+            val randomSpawn = selectedArena.spawns.random()
+            player.teleport(randomSpawn)
+        }
+        
         preStartCountdown {
             game.state = GameState.IN_GAME
             
-            // Dar colas a múltiples jugadores aleatorios
-            val playersList = game.players.toList()
+            // Dar cabezas a múltiples jugadores aleatorios
             val headsCount = minOf(RobarCabezaScoreConfig.INITIAL_HEADS_COUNT, playersList.size)
             
-            val selectedPlayers = playersList.shuffled().take(headsCount)
+            val selectedPlayers = game.players.toList().shuffled().take(headsCount)
             selectedPlayers.forEach { playerId ->
-                Bukkit.getPlayer(playerId)?.let { giveTail(it) }
+                Bukkit.getPlayer(playerId)?.let { giveHead(it) }
             }
             
             game.countdown = gameTimeSeconds
-            broadcastToGame("${ChatColor.YELLOW}¡Comienza el juego! ${ChatColor.GOLD}$headsCount jugadores tienen cola!")
+            broadcastToGame("${ChatColor.YELLOW}¡Comienza el juego! ${ChatColor.GOLD}$headsCount jugadores tienen cabeza!")
+            broadcastToGame("${ChatColor.GRAY}Arena: ${ChatColor.WHITE}${selectedArena.name}")
             startCountdown()
             startPointsTicker()
         }
@@ -297,24 +339,25 @@ class GameManager(
     private fun resetGame() {
         val game = activeGame ?: return
         
-        // Limpiar todas las colas
+        // Limpiar todas las cabezas
         cleanupAllTails()
         
-        // Limpiar la partida
+        // Limpiar la partida y arena
         activeGame = null
+        activeArena = null
     }
     
     /**
      * Da la cabeza a un jugador.
      */
-    fun giveTail(player: Player) {
+    fun giveHead(player: Player) {
         val game = activeGame ?: return
         
         // Añadir cabeza al jugador (no limpiar las demás, ahora hay múltiples cabezas)
         game.playersWithTail.add(player.uniqueId)
         
-        // Crear visualización de cabeza gigante
-        headVisualService.setCarrier(player)
+        // Equipar cabeza en el slot del casco
+        visualService.equipHead(player)
         
         // Aplicar efecto de GLOW
         player.addPotionEffect(PotionEffect(PotionEffectType.GLOWING, Int.MAX_VALUE, 0, false, false))
@@ -328,7 +371,7 @@ class GameManager(
     /**
      * Roba la cabeza de un jugador a otro.
      */
-    fun stealTail(victim: Player, attacker: Player) {
+    fun stealHead(victim: Player, attacker: Player) {
         val game = activeGame ?: return
         
         // Verificar cooldown de robo
@@ -353,10 +396,10 @@ class GameManager(
         game.invulnerabilityCooldowns[attacker.uniqueId] = System.currentTimeMillis()
         
         // Remover cabeza de la víctima
-        removeTail(victim)
+        removeHead(victim)
         
         // Dar cabeza al atacante
-        giveTail(attacker)
+        giveHead(attacker)
         
         // Otorgar puntos por robo
         scoreService.awardPointsForSteal(attacker)
@@ -368,13 +411,13 @@ class GameManager(
     /**
      * Remueve la cabeza de un jugador.
      */
-    private fun removeTail(player: Player) {
+    private fun removeHead(player: Player) {
         val game = activeGame ?: return
         
         game.playersWithTail.remove(player.uniqueId)
         
-        // Remover visualización de cabeza
-        headVisualService.removeCarrier()
+        // Remover cabeza del slot del casco
+        visualService.removeHead(player)
         
         // Limpiar referencias antiguas (por compatibilidad)
         game.playerTailDisplays.remove(player.uniqueId)?.remove()
@@ -483,7 +526,7 @@ class GameManager(
         val game = activeGame ?: return
         
         game.players.remove(player.uniqueId)
-        removeTail(player)
+        removeHead(player)
         
         // Si quedan menos de 2 jugadores, finalizar el juego
         if (game.state == GameState.IN_GAME && game.players.size < 2) {
