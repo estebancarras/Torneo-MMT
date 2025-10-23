@@ -109,25 +109,23 @@ class GameManager(
             return false
         }
         
-        // Verificar que el spawn esté configurado
-        if (gameSpawn == null) {
-            player.sendMessage("${ChatColor.RED}¡El spawn del minijuego no ha sido establecido!")
-            player.sendMessage("${ChatColor.YELLOW}Un administrador debe usar /robarcola setspawn primero")
-            return false
-        }
-        
         // Crear nueva partida si no existe
         val currentGame = game ?: createNewGame()
         
         // Añadir jugador
         currentGame.players.add(player.uniqueId)
-        player.teleport(gameSpawn!!)
-        player.addPotionEffect(PotionEffect(PotionEffectType.SPEED, 20 * 10, 0))
+        
+        // Solo teletransportar si hay un gameSpawn configurado (modo manual)
+        // En modo torneo, el TournamentFlowManager ya teletransportó a los jugadores
+        if (gameSpawn != null) {
+            player.teleport(gameSpawn!!)
+            player.addPotionEffect(PotionEffect(PotionEffectType.SPEED, 20 * 10, 0))
+        }
         
         broadcastToGame("${ChatColor.AQUA}${player.name} se unió al juego! (${currentGame.getTotalPlayers()})")
         
-        // Iniciar juego si hay suficientes jugadores
-        if (currentGame.hasMinimumPlayers() && currentGame.state == GameState.LOBBY) {
+        // Iniciar juego si hay suficientes jugadores (solo en modo manual)
+        if (currentGame.hasMinimumPlayers() && currentGame.state == GameState.LOBBY && gameSpawn != null) {
             Bukkit.getScheduler().runTaskLater(plugin, Runnable { startGame() }, 100L)
         }
         
@@ -327,6 +325,14 @@ class GameManager(
             game.players.mapNotNull { Bukkit.getPlayer(it) }.forEach { player ->
                 player.gameMode = GameMode.SURVIVAL
                 player.removePotionEffect(PotionEffectType.GLOWING)
+                
+                // Limpiar inventario completamente
+                player.inventory.clear()
+                player.inventory.helmet = null
+                player.inventory.chestplate = null
+                player.inventory.leggings = null
+                player.inventory.boots = null
+                
                 teleportToLobby(player)
             }
             resetGame()
@@ -365,7 +371,7 @@ class GameManager(
         // Sonido de nota cuando se obtiene la cabeza
         player.world.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f)
         
-        player.sendMessage("${ChatColor.GREEN}¡Ahora tienes la cabeza del creador! ${ChatColor.YELLOW}Ganas ${RobarCabezaScoreConfig.POINTS_PER_SECOND} punto(s) por segundo")
+        player.sendMessage("${ChatColor.GREEN}¡Ahora tienes la cabeza del creador! ${ChatColor.YELLOW}Ganas 2 puntos cada 10 segundos")
     }
     
     /**
@@ -419,6 +425,9 @@ class GameManager(
         // Remover cabeza del slot del casco
         visualService.removeHead(player)
         
+        // Limpiar el inventario del jugador (remover la cabeza física)
+        player.inventory.helmet = null
+        
         // Limpiar referencias antiguas (por compatibilidad)
         game.playerTailDisplays.remove(player.uniqueId)?.remove()
         game.playerTails.remove(player.uniqueId)?.remove()
@@ -432,6 +441,14 @@ class GameManager(
      */
     private fun cleanupAllTails() {
         val game = activeGame ?: return
+        
+        // Remover cabezas de todos los jugadores
+        game.playersWithTail.toList().forEach { playerId ->
+            Bukkit.getPlayer(playerId)?.let { player ->
+                player.inventory.helmet = null
+                player.removePotionEffect(PotionEffectType.GLOWING)
+            }
+        }
         
         game.playerTailDisplays.values.forEach { it.remove() }
         game.playerTails.values.forEach { it.remove() }
@@ -481,7 +498,7 @@ class GameManager(
     }
     
     /**
-     * Inicia el ticker que otorga puntos por segundo a los jugadores con cola.
+     * Inicia el ticker que otorga 2 puntos cada 10 segundos a los jugadores con cabeza.
      */
     private fun startPointsTicker() {
         val game = activeGame ?: return
@@ -489,7 +506,7 @@ class GameManager(
         // Cancelar ticker anterior si existe
         game.pointsTickerTask?.cancel()
         
-        // Crear nuevo ticker que se ejecuta cada segundo (20 ticks)
+        // Crear nuevo ticker que se ejecuta cada 10 segundos (200 ticks)
         game.pointsTickerTask = object : BukkitRunnable() {
             override fun run() {
                 // Verificar que el juego siga activo
@@ -498,25 +515,34 @@ class GameManager(
                     return
                 }
                 
-                // Otorgar puntos a cada jugador con cola
+                // Otorgar 2 puntos a cada jugador con cabeza cada 10 segundos
                 game.playersWithTail.forEach { playerId ->
                     Bukkit.getPlayer(playerId)?.let { player ->
-                        scoreService.awardPointsForHolding(player)
+                        // Otorgar 2 puntos directamente al torneo
+                        torneoPlugin.torneoManager.addScore(
+                            player.uniqueId,
+                            "RobarCabeza",
+                            2,
+                            "Retener cabeza"
+                        )
                         
                         // Mostrar partículas alrededor del jugador
                         player.world.spawnParticle(
                             Particle.VILLAGER_HAPPY,
                             player.location.add(0.0, 2.0, 0.0),
-                            3,
-                            0.3,
-                            0.3,
-                            0.3,
+                            5,
+                            0.5,
+                            0.5,
+                            0.5,
                             0.0
                         )
+                        
+                        // Sonido de confirmación
+                        player.playSound(player.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.5f)
                     }
                 }
             }
-        }.runTaskTimer(plugin, 20L, 20L) // Ejecutar cada segundo
+        }.runTaskTimer(plugin, 200L, 200L) // Ejecutar cada 10 segundos (200 ticks)
     }
     
     /**
@@ -563,8 +589,8 @@ class GameManager(
             if (player != null) {
                 val sessionScore = scoreService.getSessionScore(uuid)
                 val msg = if (game.playersWithTail.contains(uuid))
-                    "${ChatColor.GREEN}¡Tienes cola! ${ChatColor.GOLD}+${RobarCabezaScoreConfig.POINTS_PER_SECOND}/s"
-                else "${ChatColor.RED}Sin cola"
+                    "${ChatColor.GREEN}¡Tienes cabeza! ${ChatColor.GOLD}+2 cada 10s"
+                else "${ChatColor.RED}Sin cabeza"
                 player.spigot().sendMessage(
                     ChatMessageType.ACTION_BAR,
                     TextComponent("${ChatColor.GOLD}Puntos: ${ChatColor.WHITE}$sessionScore ${ChatColor.GRAY}| $msg")
@@ -577,9 +603,16 @@ class GameManager(
      * Teletransporta un jugador al lobby.
      */
     fun teleportToLobby(player: Player) {
-        val spawn = lobbySpawn ?: player.world.spawnLocation
-        player.teleport(spawn)
-        player.sendMessage("${ChatColor.GREEN}¡Regresaste al lobby!")
+        // Usar el lobby global del torneo a través de TournamentFlowManager
+        try {
+            los5fantasticos.torneo.services.TournamentFlowManager.returnToLobby(player)
+            player.sendMessage("${ChatColor.GREEN}¡Regresaste al lobby!")
+        } catch (e: Exception) {
+            // Fallback: usar lobbySpawn local o spawn del mundo
+            val spawn = lobbySpawn ?: player.world.spawnLocation
+            player.teleport(spawn)
+            player.sendMessage("${ChatColor.GREEN}¡Regresaste al lobby!")
+        }
     }
     
     /**
@@ -607,12 +640,14 @@ class GameManager(
             game.pointsTickerTask?.cancel()
             cleanupAllTails()
             
-            // Limpiar efectos de los jugadores
+            // Limpiar efectos e inventarios de los jugadores
             game.players.mapNotNull { Bukkit.getPlayer(it) }.forEach { player ->
                 player.removePotionEffect(PotionEffectType.GLOWING)
+                player.inventory.helmet = null
             }
         }
         activeGame = null
+        activeArena = null
         scoreService.resetSessionScores()
     }
 }

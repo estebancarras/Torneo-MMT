@@ -172,17 +172,17 @@ class TorneoPlugin : JavaPlugin() {
     private fun loadMinigames() {
         logger.info("Cargando módulos de minijuegos...")
         
-        // Intentar cargar RobarCola
+        // Intentar cargar RobarCabeza
         try {
-            val robarColaClass = Class.forName("yo.spray.robarCola.RobarColaManager")
-            val constructor = robarColaClass.getConstructor(TorneoPlugin::class.java)
-            val robarColaModule = constructor.newInstance(this) as MinigameModule
+            val robarCabezaClass = Class.forName("yo.spray.robarCabeza.RobarCabezaManager")
+            val constructor = robarCabezaClass.getConstructor(TorneoPlugin::class.java)
+            val robarCabezaModule = constructor.newInstance(this) as MinigameModule
             
-            registerMinigame(robarColaModule)
+            registerMinigame(robarCabezaModule)
         } catch (_: ClassNotFoundException) {
-            logger.warning("⚠ Módulo RobarCola no encontrado (esto es normal si no está compilado)")
+            logger.warning("⚠ Módulo RobarCabeza no encontrado (esto es normal si no está compilado)")
         } catch (e: Exception) {
-            logger.severe("✗ Error al cargar RobarCola: ${e.message}")
+            logger.severe("✗ Error al cargar RobarCabeza: ${e.message}")
             e.printStackTrace()
         }
         

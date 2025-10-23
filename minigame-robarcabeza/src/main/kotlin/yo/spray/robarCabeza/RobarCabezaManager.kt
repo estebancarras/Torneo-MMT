@@ -99,10 +99,6 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
         // Registrar listener
         plugin.server.pluginManager.registerEvents(gameListener, plugin)
         
-        // Registrar comandos
-        val commandExecutor = yo.spray.robarCabeza.commands.RobarCabezaCommands(this, arenaManager, torneoPlugin)
-        torneoPlugin.getCommand("robarcabeza")?.setExecutor(commandExecutor)
-        
         plugin.logger.info("✓ $gameName v$version habilitado")
         plugin.logger.info("  - Configuración cargada")
         plugin.logger.info("  - VisualService inicializado")
@@ -110,6 +106,16 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
         plugin.logger.info("  - ArenaManager inicializado (${arenaManager.getArenaCount()} arenas)")
         plugin.logger.info("  - GameManager inicializado")
         plugin.logger.info("  - GameListener registrado")
+    }
+
+    /**
+     * Proporciona los ejecutores de comandos para registro centralizado.
+     * Llamado por TorneoPlugin durante el registro del módulo.
+     */
+    override fun getCommandExecutors(): Map<String, org.bukkit.command.CommandExecutor> {
+        return mapOf(
+            "robarcabeza" to yo.spray.robarCabeza.commands.RobarCabezaCommands(this, arenaManager, torneoPlugin)
+        )
     }
 
     override fun onDisable() {
@@ -148,20 +154,33 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
      */
     override fun onTournamentStart(players: List<Player>) {
         plugin.logger.info("[$gameName] ═══ INICIO DE TORNEO ═══")
-        plugin.logger.info("[$gameName] Añadiendo ${players.size} jugadores al juego")
+        plugin.logger.info("[$gameName] Iniciando juego con ${players.size} jugadores")
         
-        // Añadir todos los jugadores al juego a través del GameManager
-        players.forEach { player ->
-            try {
-                gameManager.addPlayer(player)
-                plugin.logger.info("[$gameName] Jugador ${player.name} añadido al juego")
-            } catch (e: Exception) {
-                plugin.logger.severe("[$gameName] Error añadiendo ${player.name}: ${e.message}")
-                e.printStackTrace()
-            }
+        // Verificar que haya al menos una arena configurada
+        if (arenaManager.getArenaCount() == 0) {
+            plugin.logger.severe("[$gameName] No hay arenas configuradas. Usa /robarcabeza admin create <nombre>")
+            players.forEach { it.sendMessage("§c¡No hay arenas configuradas para RobarCabeza!") }
+            return
         }
         
-        plugin.logger.info("[$gameName] ✓ Torneo iniciado con ${players.size} jugadores")
+        // Crear una nueva partida y añadir todos los jugadores
+        val game = gameManager.getActiveGame() ?: run {
+            // Forzar creación de nueva partida añadiendo el primer jugador
+            gameManager.addPlayer(players.first())
+            gameManager.getActiveGame()!!
+        }
+        
+        // Añadir el resto de jugadores sin iniciar el juego todavía
+        players.drop(1).forEach { player ->
+            game.players.add(player.uniqueId)
+        }
+        
+        plugin.logger.info("[$gameName] ${players.size} jugadores añadidos a la partida")
+        
+        // Iniciar el juego inmediatamente con una arena aleatoria
+        gameManager.startGame()
+        
+        plugin.logger.info("[$gameName] ✓ Juego iniciado en modo torneo")
     }
     
     /**

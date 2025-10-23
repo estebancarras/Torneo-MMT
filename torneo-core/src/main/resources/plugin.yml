@@ -22,10 +22,10 @@ commands:
     usage: /<command> [setup|start|stop|size]
     permission: torneo.admin
   
-  robarcola:
-    description: Comandos del minijuego RobarCola
-    usage: /<command> [setspawn|setlobby|start|stop]
-    permission: torneo.admin
+  robarcabeza:
+    description: Comandos del minijuego Robar la Cabeza
+    usage: /<command> [join|leave|admin]
+    aliases: [rc]
   
   skywars:
     description: Comandos del minijuego SkyWars
@@ -58,6 +58,7 @@ permissions:
     children:
       torneo.play: true
       cadena.admin: true
+      robarcabeza.admin: true
 
   torneo.play:
     description: Permite jugar en los minijuegos del torneo
@@ -65,6 +66,10 @@ permissions:
   
   cadena.admin:
     description: Permite usar comandos de administración de Cadena
+    default: op
+
+  robarcabeza.admin:
+    description: Permite usar comandos de administración de RobarCabeza
     default: op
 
   laberinto.admin:

@@ -36,6 +36,10 @@ object TournamentFlowManager {
     var activeMinigame: MinigameModule? = null
         private set
     
+    // ===== CONFIGURACIÓN DE EXCLUSIÓN DE ADMINS =====
+    var excludeAdminsFromGames: Boolean = true
+        private set
+    
     // ===== PERSISTENCIA =====
     private var plugin: Plugin? = null
     private lateinit var configFile: File
@@ -126,13 +130,19 @@ object TournamentFlowManager {
             return "Error: Minijuego '$minigameName' no encontrado."
         }
         
-        // Obtener todos los jugadores online pero excluir administradores (ops o con permiso 'torneo.admin')
-        val players = Bukkit.getOnlinePlayers()
-            .filter { !it.isOp && !it.hasPermission("torneo.admin") }
-            .toList()
+        // Obtener todos los jugadores online
+        val players = if (excludeAdminsFromGames) {
+            // Excluir administradores (ops o con permiso 'torneo.admin')
+            Bukkit.getOnlinePlayers()
+                .filter { !it.isOp && !it.hasPermission("torneo.admin") }
+                .toList()
+        } else {
+            // Incluir a todos los jugadores
+            Bukkit.getOnlinePlayers().toList()
+        }
 
         if (players.isEmpty()) {
-            return "Error: No hay jugadores no-admin online para iniciar el minijuego."
+            return "Error: No hay jugadores online para iniciar el minijuego."
         }
         
         // Establecer como minijuego activo
@@ -224,6 +234,24 @@ object TournamentFlowManager {
     }
     
     /**
+     * Activa la exclusión de administradores de los juegos.
+     */
+    fun enableAdminExclusion() {
+        excludeAdminsFromGames = true
+        saveConfig()
+        Bukkit.getLogger().info("[TournamentFlow] Exclusión de admins ACTIVADA")
+    }
+    
+    /**
+     * Desactiva la exclusión de administradores de los juegos.
+     */
+    fun disableAdminExclusion() {
+        excludeAdminsFromGames = false
+        saveConfig()
+        Bukkit.getLogger().info("[TournamentFlow] Exclusión de admins DESACTIVADA")
+    }
+    
+    /**
      * Limpia todos los datos al desactivar el plugin.
      */
     fun cleanup() {
@@ -241,6 +269,9 @@ object TournamentFlowManager {
         try {
             // Limpiar configuración existente
             config.set("lobby", null)
+            
+            // Guardar configuración de exclusión de admins
+            config.set("settings.excludeAdmins", excludeAdminsFromGames)
             
             // Guardar región del lobby
             globalLobbyRegion?.let { region ->
@@ -277,6 +308,10 @@ object TournamentFlowManager {
      */
     private fun loadConfig() {
         try {
+            // Cargar configuración de exclusión de admins (por defecto true)
+            excludeAdminsFromGames = config.getBoolean("settings.excludeAdmins", true)
+            Bukkit.getLogger().info("[TournamentFlow] Exclusión de admins: ${if (excludeAdminsFromGames) "ACTIVADA" else "DESACTIVADA"}")
+            
             // Cargar región del lobby
             val regionSection = config.getConfigurationSection("lobby.region")
             if (regionSection != null) {

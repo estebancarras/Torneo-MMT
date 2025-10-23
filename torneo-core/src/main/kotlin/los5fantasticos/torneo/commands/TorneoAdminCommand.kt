@@ -54,6 +54,8 @@ class TorneoAdminCommand(
             "end" -> return handleEnd(sender)
             "status" -> return handleStatus(sender)
             "scoreboard" -> return handleScoreboard(sender, args)
+            "excludeadmins" -> return handleExcludeAdmins(sender)
+            "includeadmins" -> return handleIncludeAdmins(sender)
             else -> {
                 sender.sendMessage(Component.text("✗ Subcomando desconocido", NamedTextColor.RED))
                 showHelp(sender)
@@ -88,6 +90,12 @@ class TorneoAdminCommand(
             .append(Component.text(" - Recargar scoreboard", NamedTextColor.GRAY)))
         sender.sendMessage(Component.text("  /torneo scoreboard hide", NamedTextColor.YELLOW)
             .append(Component.text(" - Ocultar scoreboard (test)", NamedTextColor.GRAY)))
+        sender.sendMessage(Component.empty())
+        sender.sendMessage(Component.text("Configuración de Jugadores:", NamedTextColor.AQUA, TextDecoration.BOLD))
+        sender.sendMessage(Component.text("  /torneo excludeadmins", NamedTextColor.YELLOW)
+            .append(Component.text(" - Excluir admins de juegos", NamedTextColor.GRAY)))
+        sender.sendMessage(Component.text("  /torneo includeadmins", NamedTextColor.YELLOW)
+            .append(Component.text(" - Incluir admins en juegos", NamedTextColor.GRAY)))
         sender.sendMessage(Component.empty())
     }
     
@@ -324,6 +332,34 @@ class TorneoAdminCommand(
         return "(${loc.blockX}, ${loc.blockY}, ${loc.blockZ})"
     }
     
+    private fun handleExcludeAdmins(sender: CommandSender): Boolean {
+        TournamentFlowManager.enableAdminExclusion()
+        
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        sender.sendMessage(Component.text("✓ Exclusión de Admins ACTIVADA", NamedTextColor.GREEN, TextDecoration.BOLD))
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        sender.sendMessage(Component.empty())
+        sender.sendMessage(Component.text("Los administradores (OPs y con permiso 'torneo.admin')", NamedTextColor.GRAY))
+        sender.sendMessage(Component.text("NO serán incluidos en los minijuegos.", NamedTextColor.GRAY))
+        sender.sendMessage(Component.empty())
+        
+        return true
+    }
+    
+    private fun handleIncludeAdmins(sender: CommandSender): Boolean {
+        TournamentFlowManager.disableAdminExclusion()
+        
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        sender.sendMessage(Component.text("✓ Exclusión de Admins DESACTIVADA", NamedTextColor.YELLOW, TextDecoration.BOLD))
+        sender.sendMessage(Component.text("═══════════════════════════════════", NamedTextColor.GOLD))
+        sender.sendMessage(Component.empty())
+        sender.sendMessage(Component.text("Los administradores SERÁN incluidos", NamedTextColor.GRAY))
+        sender.sendMessage(Component.text("en los minijuegos junto con los demás jugadores.", NamedTextColor.GRAY))
+        sender.sendMessage(Component.empty())
+        
+        return true
+    }
+    
     override fun onTabComplete(
         sender: CommandSender,
         command: Command,
@@ -331,7 +367,7 @@ class TorneoAdminCommand(
         args: Array<out String>
     ): List<String>? {
         if (args.size == 1) {
-            return listOf("wand", "setlobbyregion", "addspawn", "clearspawns", "start", "end", "status", "scoreboard")
+            return listOf("wand", "setlobbyregion", "addspawn", "clearspawns", "start", "end", "status", "scoreboard", "excludeadmins", "includeadmins")
                 .filter { it.startsWith(args[0].lowercase()) }
         }
         

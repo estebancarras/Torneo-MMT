@@ -76,7 +76,7 @@
         
         <dependency>
             <groupId>los5fantasticos</groupId>
-            <artifactId>minigame-robarcola</artifactId>
+            <artifactId>minigame-robarcabeza</artifactId>
             <version>${project.version}</version>
         </dependency>
         

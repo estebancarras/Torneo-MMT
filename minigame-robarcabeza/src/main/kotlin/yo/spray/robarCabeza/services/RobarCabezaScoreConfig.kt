@@ -51,5 +51,5 @@ object RobarCabezaScoreConfig {
     /**
      * Número de cabezas iniciales a asignar al inicio del juego.
      */
-    const val INITIAL_HEADS_COUNT = 2
+    const val INITIAL_HEADS_COUNT = 1
 }
