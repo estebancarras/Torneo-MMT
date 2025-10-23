@@ -153,6 +153,19 @@ class ArenaManager {
             val minPlayers = config.getInt("minPlayers", 2)
             val maxPlayers = config.getInt("maxPlayers", 8)
             
+            // Cargar spectatorBounds si existe
+            var spectatorBounds: BoundingBox? = null
+            if (config.contains("spectatorBounds.minX") && config.contains("spectatorBounds.maxX")) {
+                spectatorBounds = BoundingBox(
+                    config.getDouble("spectatorBounds.minX"),
+                    config.getDouble("spectatorBounds.minY"),
+                    config.getDouble("spectatorBounds.minZ"),
+                    config.getDouble("spectatorBounds.maxX"),
+                    config.getDouble("spectatorBounds.maxY"),
+                    config.getDouble("spectatorBounds.maxZ")
+                )
+            }
+            
             return Arena(
                 name = name,
                 world = world,
@@ -162,6 +175,7 @@ class ArenaManager {
                 gameDuration = gameDuration,
                 minPlayers = minPlayers,
                 maxPlayers = maxPlayers
+                , spectatorBounds = spectatorBounds
             )
             
         } catch (e: Exception) {
@@ -179,9 +193,15 @@ class ArenaManager {
         }
         
         try {
+            // Si no hay arenas y no hay lobby configurado, no sobreescribir el archivo existente
+            if (arenas.isEmpty() && lobbyLocation == null && arenasFile!!.exists()) {
+                // Nada que guardar
+                return
+            }
+
             val config = YamlConfiguration()
             
-            // Guardar ubicación del lobby
+            // Guardar ubicación del lobby (si existe)
             if (lobbyLocation != null) {
                 config.set("lobby.world", lobbyLocation!!.world?.name)
                 config.set("lobby.x", lobbyLocation!!.x)
@@ -189,6 +209,18 @@ class ArenaManager {
                 config.set("lobby.z", lobbyLocation!!.z)
                 config.set("lobby.yaw", lobbyLocation!!.yaw.toDouble())
                 config.set("lobby.pitch", lobbyLocation!!.pitch.toDouble())
+            } else {
+                // Si existe un archivo previo que contiene lobby, mantenerlo leyendo antes
+                if (arenasFile!!.exists()) {
+                    try {
+                        val existing = YamlConfiguration.loadConfiguration(arenasFile!!)
+                        if (existing.contains("lobby")) {
+                            config.set("lobby", existing.getConfigurationSection("lobby"))
+                        }
+                    } catch (_: Exception) {
+                        // ignore
+                    }
+                }
             }
             
             // Guardar arenas
@@ -227,6 +259,16 @@ class ArenaManager {
                 arenaSection.set("gameDuration", arena.gameDuration)
                 arenaSection.set("minPlayers", arena.minPlayers)
                 arenaSection.set("maxPlayers", arena.maxPlayers)
+                
+                // Guardar lmites de espectador si existen
+                arena.spectatorBounds?.let { bounds ->
+                    arenaSection.set("spectatorBounds.minX", bounds.minX)
+                    arenaSection.set("spectatorBounds.minY", bounds.minY)
+                    arenaSection.set("spectatorBounds.minZ", bounds.minZ)
+                    arenaSection.set("spectatorBounds.maxX", bounds.maxX)
+                    arenaSection.set("spectatorBounds.maxY", bounds.maxY)
+                    arenaSection.set("spectatorBounds.maxZ", bounds.maxZ)
+                }
             }
             
             config.save(arenasFile!!)

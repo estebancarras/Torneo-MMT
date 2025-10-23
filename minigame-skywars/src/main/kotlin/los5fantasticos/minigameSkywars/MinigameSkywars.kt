@@ -10,6 +10,8 @@ import com.walrusone.skywarsreloaded.events.SkyWarsWinEvent
 import com.walrusone.skywarsreloaded.events.SkyWarsKillEvent
 import los5fantasticos.minigameSkywars.commands.SkywarsCommand
 import org.bukkit.command.CommandExecutor
+import los5fantasticos.torneo.services.TournamentFlowManager
+import com.walrusone.skywarsreloaded.events.SkyWarsLeaveEvent
 
 /**
  * Manager del minijuego SkyWars.
@@ -26,6 +28,8 @@ class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule, 
     
     private val activePlayers = mutableSetOf<Player>()
     private var gameRunning = false
+    // Set de guardia para evitar reentradas/recursión al devolver jugadores al lobby
+    private val returningPlayers = mutableSetOf<Player>()
     
     override fun onEnable(plugin: Plugin) {
         this.plugin = plugin
@@ -188,6 +192,49 @@ class MinigameSkywars(private val torneoPlugin: TorneoPlugin) : MinigameModule, 
             torneoPlugin.torneoManager.addScore(killer.uniqueId, gameName, 10, "Asesinato en SkyWars")
 
             plugin.logger.info("10 puntos asignados a ${killer.name} por asesinato de ${killed.name} en SkyWars")
+        }
+    }
+
+    /**
+     * Listener para cuando un jugador sale de una partida de SkyWarsReloaded.
+     * Enviar al jugador de vuelta al lobby global del torneo usando TournamentFlowManager.
+     */
+    @EventHandler
+    fun onSkyWarsLeave(event: SkyWarsLeaveEvent) {
+        val player = event.player
+
+        // Evitar procesar si ya estamos devolviendo a este jugador (protección contra reentradas)
+        if (returningPlayers.contains(player)) {
+            plugin.logger.fine("Ignorando SkyWarsLeaveEvent de ${player.name} porque ya se está devolviendo al lobby")
+            return
+        }
+
+        // Eliminar de la lista de jugadores activos del minijuego si estaba presente
+        if (activePlayers.remove(player)) {
+            plugin.logger.info("Jugador ${player.name} eliminado de activePlayers de SkyWars")
+        }
+
+        // Marcar y programar la devolución al lobby en la siguiente tick para romper la cadena de eventos
+        returningPlayers.add(player)
+        try {
+            // Ejecutar en la siguiente tick para evitar event reentrancy/teleport recursivo
+            plugin.server.scheduler.runTask(plugin, Runnable {
+                try {
+                    TournamentFlowManager.returnToLobby(player)
+                    plugin.logger.info("Jugador ${player.name} enviado al lobby por SkyWarsLeaveEvent (scheduled)")
+                } catch (e: Exception) {
+                    plugin.logger.warning("Fallo al enviar ${player.name} al lobby (scheduled): ${e.message}")
+                    e.printStackTrace()
+                } finally {
+                    // Quitar la marca de guardia
+                    returningPlayers.remove(player)
+                }
+            })
+        } catch (e: Exception) {
+            // En caso de que el scheduler lance error, limpiar la marca
+            returningPlayers.remove(player)
+            plugin.logger.warning("No se pudo programar devolución al lobby para ${player.name}: ${e.message}")
+            e.printStackTrace()
         }
     }
 }

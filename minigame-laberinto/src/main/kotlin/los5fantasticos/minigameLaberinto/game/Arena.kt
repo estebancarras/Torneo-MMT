@@ -58,7 +58,7 @@ data class Arena(
      */
     fun isComplete(): Boolean {
         return startLocation.world != null &&
-               jumpscareLocations.isNotEmpty()
+        jumpscareLocations.isNotEmpty()
     }
     
     /**

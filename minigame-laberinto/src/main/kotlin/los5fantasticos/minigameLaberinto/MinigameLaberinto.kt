@@ -93,9 +93,7 @@ class MinigameLaberinto(val torneoPlugin: TorneoPlugin) : MinigameModule {
         if (::gameManager.isInitialized) {
             gameManager.clearAll()
         }
-        if (::arenaManager.isInitialized) {
-            arenaManager.clearAll()
-        }
+        // NO limpiar arenas ni archivos en onDisable: solo detener partidas activas.
         if (::scoreService.isInitialized) {
             scoreService.clearAll()
         }
@@ -122,22 +120,48 @@ class MinigameLaberinto(val torneoPlugin: TorneoPlugin) : MinigameModule {
         // Obtener el lobby del laberinto
         val lobbyLocation = arenaManager.getLobbyLocation()
         if (lobbyLocation == null) {
-            plugin.logger.severe("[$gameName] No hay lobby configurado")
-            return
-        }
-        
-        // Teletransportar todos los jugadores al lobby
-        players.forEach { player ->
-            try {
-                player.teleport(lobbyLocation)
-                plugin.logger.info("[$gameName] Jugador ${player.name} teletransportado al lobby")
-            } catch (e: Exception) {
-                plugin.logger.severe("[$gameName] Error teletransportando ${player.name}: ${e.message}")
-                e.printStackTrace()
+            plugin.logger.warning("[$gameName] No hay lobby configurado para Laberinto — continuando sin teletransporte. Asegúrate de configurar con /laberinto admin setlobby")
+        } else {
+            // Teletransportar todos los jugadores al lobby
+            players.forEach { player ->
+                try {
+                    player.teleport(lobbyLocation)
+                    plugin.logger.info("[$gameName] Jugador ${player.name} teletransportado al lobby")
+                } catch (e: Exception) {
+                    plugin.logger.severe("[$gameName] Error teletransportando ${player.name}: ${e.message}")
+                    e.printStackTrace()
+                }
             }
         }
         
-        plugin.logger.info("[$gameName] ✓ Torneo iniciado con ${players.size} jugadores")
+        // Crear partidas automáticamente y distribuir jugadores
+        try {
+            val arenas = arenaManager.getAllArenas().filter { it.isComplete() }
+            if (arenas.isEmpty()) {
+                plugin.logger.warning("[$gameName] No hay arenas completas para iniciar partidas automatically")
+                return
+            }
+
+            // Lista de juegos creados (uno por arena inicialmente)
+            val games = mutableListOf<los5fantasticos.minigameLaberinto.game.LaberintoGame>()
+            arenas.forEach { arena ->
+                val g = gameManager.createNewGame(arena)
+                games.add(g)
+            }
+
+            // Distribuir jugadores round-robin entre juegos disponibles
+            var idx = 0
+            players.forEach { player ->
+                val targetGame = games[idx % games.size]
+                gameManager.addPlayerToGame(player, targetGame.gameId)
+                idx++
+            }
+
+            plugin.logger.info("[$gameName] Torneo iniciado y ${players.size} jugadores distribuidos en ${games.size} partidas")
+        } catch (e: Exception) {
+            plugin.logger.severe("[$gameName] Error al crear/añadir jugadores a las partidas: ${e.message}")
+            e.printStackTrace()
+        }
     }
     
 }

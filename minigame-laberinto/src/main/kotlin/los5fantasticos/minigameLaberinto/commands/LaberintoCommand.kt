@@ -57,6 +57,15 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
             .firstOrNull { it.state == GameState.LOBBY && it.players.size < it.arena.maxPlayers }
         
         if (availableGame != null) {
+            // Teletransportar al lobby del laberinto si está configurado
+            val lobbyLoc = minigame.arenaManager.getLobbyLocation()
+            if (lobbyLoc != null) {
+                try {
+                    sender.teleport(lobbyLoc)
+                } catch (_: Exception) {
+                    // ignore
+                }
+            }
             if (minigame.gameManager.addPlayerToGame(sender, availableGame.gameId)) {
                 sender.sendMessage(Component.text("¡Te has unido a una partida de Laberinto!").color(NamedTextColor.GREEN))
                 sender.sendMessage(Component.text("Arena: ${availableGame.arena.name}").color(NamedTextColor.YELLOW))
@@ -77,6 +86,15 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
             if (availableArenas.isNotEmpty()) {
                 val arena = availableArenas.first()
                 val newGame = minigame.gameManager.createNewGame(arena)
+                // Teletransportar al lobby del laberinto si está configurado
+                val lobbyLoc2 = minigame.arenaManager.getLobbyLocation()
+                if (lobbyLoc2 != null) {
+                    try {
+                        sender.teleport(lobbyLoc2)
+                    } catch (_: Exception) {
+                        // ignore
+                    }
+                }
                 if (minigame.gameManager.addPlayerToGame(sender, newGame.gameId)) {
                     sender.sendMessage(Component.text("¡Te has unido a una nueva partida de Laberinto!").color(NamedTextColor.GREEN))
                     sender.sendMessage(Component.text("Arena: ${arena.name}").color(NamedTextColor.YELLOW))
@@ -102,7 +120,6 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
             sender.sendMessage(Component.text("Este comando solo puede ser usado por jugadores.").color(NamedTextColor.RED))
             return
         }
-        
         if (minigame.gameManager.removePlayerFromGame(sender)) {
             sender.sendMessage(Component.text("Has abandonado la partida de Laberinto.").color(NamedTextColor.YELLOW))
         } else {
@@ -197,6 +214,9 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
         
         when (args[1].lowercase()) {
             "setlobby" -> handleSetLobbyCommand(sender)
+            "setmin" -> handleSetMinCommand(sender, args)
+            "setmax" -> handleSetMaxCommand(sender, args)
+            "forcestart" -> handleAdminStartCommand(sender, args)
             "create" -> handleCreateArenaCommand(sender, args)
             "setstart" -> handleSetStartCommand(sender, args)
             "setend" -> handleSetEndCommand(sender, args)
@@ -291,7 +311,7 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
         // Crear una nueva arena con la región de meta actualizada
         val updatedArena = arena.copy(finishRegion = finishRegion)
         minigame.arenaManager.arenas[arenaName] = updatedArena
-        
+            
         player.sendMessage(Component.text("Región de meta establecida para la arena '$arenaName'.").color(NamedTextColor.GREEN))
     }
     
@@ -318,7 +338,7 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
         // Crear una nueva arena con la ubicación de jumpscare añadida
         val updatedArena = arena.copy(jumpscareLocations = updatedJumpscares)
         minigame.arenaManager.arenas[arenaName] = updatedArena
-        
+            
         player.sendMessage(Component.text("Zona de jumpscare añadida a la arena '$arenaName'.").color(NamedTextColor.GREEN))
         player.sendMessage(Component.text("Total de zonas de jumpscare: ${updatedJumpscares.size}").color(NamedTextColor.YELLOW))
     }
@@ -377,7 +397,7 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
         // Crear una nueva arena con los límites de espectador actualizados
         val updatedArena = arena.copy(spectatorBounds = spectatorBounds)
         minigame.arenaManager.arenas[arenaName] = updatedArena
-        
+            
         val diameter = (radius * 2).toInt()
         player.sendMessage(Component.text("Límites de espectador establecidos para la arena '$arenaName'.").color(NamedTextColor.GREEN))
         player.sendMessage(Component.text("Los espectadores no podrán salir de un área de ${diameter}x${diameter}x${diameter} bloques.").color(NamedTextColor.YELLOW))
@@ -446,14 +466,14 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
         // Crear una nueva arena con los límites de espectador actualizados
         val updatedArena = arena.copy(spectatorBounds = spectatorBounds)
         minigame.arenaManager.arenas[arenaName] = updatedArena
-        
+            
         // Limpiar metadata
         player.removeMetadata("laberinto_corner1_$arenaName", minigame.plugin)
-        
+            
         val width = (spectatorBounds.maxX - spectatorBounds.minX).toInt()
         val height = (spectatorBounds.maxY - spectatorBounds.minY).toInt()
         val length = (spectatorBounds.maxZ - spectatorBounds.minZ).toInt()
-        
+            
         player.sendMessage(Component.text("Límites de espectador establecidos para la arena '$arenaName'.").color(NamedTextColor.GREEN))
         player.sendMessage(Component.text("Área personalizada: ${width}x${height}x${length} bloques").color(NamedTextColor.YELLOW))
         player.sendMessage(Component.text("Esquina 1: ${corner1.x.toInt()}, ${corner1.y.toInt()}, ${corner1.z.toInt()}").color(NamedTextColor.AQUA))
@@ -466,6 +486,88 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
     private fun handleSaveCommand(player: Player) {
         minigame.arenaManager.saveArenas()
         player.sendMessage(Component.text("Configuraciones guardadas.").color(NamedTextColor.GREEN))
+    }
+
+    /**
+     * Establece el mínimo de jugadores para una arena.
+     */
+    private fun handleSetMinCommand(player: Player, args: Array<out String>) {
+        if (args.size < 4) {
+            player.sendMessage(Component.text("Uso: /laberinto admin setmin <arena> <minPlayers>").color(NamedTextColor.RED))
+            return
+        }
+
+        val arenaName = args[2]
+        val minPlayers = try {
+            args[3].toInt()
+        } catch (_: NumberFormatException) {
+            player.sendMessage(Component.text("minPlayers debe ser un número entero.").color(NamedTextColor.RED))
+            return
+        }
+
+        if (minPlayers < 1) {
+            player.sendMessage(Component.text("minPlayers debe ser al menos 1.").color(NamedTextColor.RED))
+            return
+        }
+
+        if (minigame.gameManager.setArenaMinPlayers(arenaName, minPlayers)) {
+            player.sendMessage(Component.text("Mínimo de jugadores para '$arenaName' establecido a $minPlayers.").color(NamedTextColor.GREEN))
+            minigame.arenaManager.saveArenas()
+        } else {
+            player.sendMessage(Component.text("No existe una arena con el nombre '$arenaName'.").color(NamedTextColor.RED))
+        }
+    }
+
+    /**
+     * Establece el máximo de jugadores para una arena.
+     */
+    private fun handleSetMaxCommand(player: Player, args: Array<out String>) {
+        if (args.size < 4) {
+            player.sendMessage(Component.text("Uso: /laberinto admin setmax <arena> <maxPlayers>").color(NamedTextColor.RED))
+            return
+        }
+
+        val arenaName = args[2]
+        val maxPlayers = try {
+            args[3].toInt()
+        } catch (_: NumberFormatException) {
+            player.sendMessage(Component.text("maxPlayers debe ser un número entero.").color(NamedTextColor.RED))
+            return
+        }
+
+        if (maxPlayers < 1) {
+            player.sendMessage(Component.text("maxPlayers debe ser al menos 1.").color(NamedTextColor.RED))
+            return
+        }
+
+        if (minigame.gameManager.setArenaMaxPlayers(arenaName, maxPlayers)) {
+            player.sendMessage(Component.text("Máximo de jugadores para '$arenaName' establecido a $maxPlayers.").color(NamedTextColor.GREEN))
+            minigame.arenaManager.saveArenas()
+        } else {
+            player.sendMessage(Component.text("No existe una arena con el nombre '$arenaName'.").color(NamedTextColor.RED))
+        }
+    }
+
+    /**
+     * Fuerza el inicio de la partida para la arena donde está el jugador (o la primera activa).
+     */
+    private fun handleAdminStartCommand(player: Player, args: Array<out String>) {
+        // Buscar la partida del jugador primero
+        val playerGame = minigame.gameManager.getPlayerGame(player)
+        if (playerGame != null) {
+            minigame.gameManager.forceStartGame(playerGame)
+            player.sendMessage(Component.text("Inicio forzado de la partida de '${playerGame.arena.name}'.").color(NamedTextColor.GREEN))
+            return
+        }
+
+        // Si el jugador no está en partida, intentar forzar la primera partida en lobby
+        val firstLobby = minigame.gameManager.getActiveGames().firstOrNull { it.state == los5fantasticos.minigameLaberinto.game.GameState.LOBBY }
+        if (firstLobby != null) {
+            minigame.gameManager.forceStartGame(firstLobby)
+            player.sendMessage(Component.text("Inicio forzado de la partida de '${firstLobby.arena.name}'.").color(NamedTextColor.GREEN))
+        } else {
+            player.sendMessage(Component.text("No hay partidas en lobby para forzar inicio.").color(NamedTextColor.RED))
+        }
     }
     
     /**
@@ -535,6 +637,9 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
         player.sendMessage(Component.text("/laberinto admin save - Guardar configuraciones").color(NamedTextColor.YELLOW))
         player.sendMessage(Component.text("/laberinto admin list - Listar arenas").color(NamedTextColor.YELLOW))
         player.sendMessage(Component.text("/laberinto admin delete <nombre> - Eliminar arena").color(NamedTextColor.YELLOW))
+        player.sendMessage(Component.text("/laberinto admin setmin <arena> <minPlayers> - Establecer mínimo").color(NamedTextColor.YELLOW))
+        player.sendMessage(Component.text("/laberinto admin setmax <arena> <maxPlayers> - Establecer máximo").color(NamedTextColor.YELLOW))
+        player.sendMessage(Component.text("/laberinto admin forcestart - Forzar inicio de la partida").color(NamedTextColor.YELLOW))
     }
     
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): List<String> {
@@ -547,7 +652,7 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
         }
         
         if (args.size == 2 && args[0].equals("admin", ignoreCase = true) && sender.hasPermission("laberinto.admin")) {
-            val adminCompletions = listOf("setlobby", "create", "setstart", "setend", "addjumpscare", "setspectatorbounds", "setspectatorcorners", "setspectatorcorners2", "save", "list", "delete")
+            val adminCompletions = listOf("setlobby", "create", "setstart", "setend", "addjumpscare", "setspectatorbounds", "setspectatorcorners", "setspectatorcorners2", "save", "list", "delete", "setmin", "setmax", "forcestart")
             return adminCompletions.filter { it.startsWith(args[1], ignoreCase = true) }
         }
         
@@ -555,6 +660,25 @@ class LaberintoCommand(private val minigame: MinigameLaberinto) : CommandExecuto
             when (args[1].lowercase()) {
                 "setstart", "setend", "addjumpscare", "setspectatorbounds", "setspectatorcorners", "setspectatorcorners2", "delete" -> {
                     return minigame.arenaManager.getArenaNames().filter { it.startsWith(args[2], ignoreCase = true) }
+                }
+            }
+        }
+        
+        // Autocompletado para setmin y setmax: sugerir nombres de arena en arg 3 y números en arg 4
+        if (args.size == 3 && args[0].equals("admin", ignoreCase = true) && sender.hasPermission("laberinto.admin")) {
+            when (args[1].lowercase()) {
+                "setmin", "setmax" -> {
+                    return minigame.arenaManager.getArenaNames().filter { it.startsWith(args[2], ignoreCase = true) }
+                }
+            }
+        }
+
+        if (args.size == 4 && args[0].equals("admin", ignoreCase = true) && sender.hasPermission("laberinto.admin")) {
+            when (args[1].lowercase()) {
+                "setmin", "setmax" -> {
+                    // Sugerir algunos valores razonables para min/max
+                    val suggestions = listOf("1", "2", "4", "6", "8", "10")
+                    return suggestions.filter { it.startsWith(args[3]) }
                 }
             }
         }

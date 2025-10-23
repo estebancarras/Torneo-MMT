@@ -35,7 +35,6 @@ commands:
   laberinto:
     description: Comandos del minijuego Laberinto
     usage: /<command> [setup|start|stop]
-    permission: torneo.admin
   
   carrera:
     description: Comandos del minijuego Carrera de Barcos
@@ -66,4 +65,8 @@ permissions:
   
   cadena.admin:
     description: Permite usar comandos de administración de Cadena
+    default: op
+
+  laberinto.admin:
+    description: Permite usar comandos de administración de Laberinto
     default: op

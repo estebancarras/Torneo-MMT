@@ -126,11 +126,13 @@ object TournamentFlowManager {
             return "Error: Minijuego '$minigameName' no encontrado."
         }
         
-        // Obtener todos los jugadores online
-        val players = Bukkit.getOnlinePlayers().toList()
-        
+        // Obtener todos los jugadores online pero excluir administradores (ops o con permiso 'torneo.admin')
+        val players = Bukkit.getOnlinePlayers()
+            .filter { !it.isOp && !it.hasPermission("torneo.admin") }
+            .toList()
+
         if (players.isEmpty()) {
-            return "Error: No hay jugadores online para iniciar el minijuego."
+            return "Error: No hay jugadores no-admin online para iniciar el minijuego."
         }
         
         // Establecer como minijuego activo
@@ -139,8 +141,8 @@ object TournamentFlowManager {
         // Iniciar el minijuego para todos los jugadores
         try {
             minigame.onTournamentStart(players)
-            
-            Bukkit.getLogger().info("[TournamentFlow] Minijuego '${minigame.gameName}' iniciado con ${players.size} jugadores")
+
+            Bukkit.getLogger().info("[TournamentFlow] Minijuego '${minigame.gameName}' iniciado con ${players.size} jugadores (excluyendo administradores)")
             
             // Notificar a todos
             val mensaje = Component.text("═══════════════════════════════════", NamedTextColor.GOLD)

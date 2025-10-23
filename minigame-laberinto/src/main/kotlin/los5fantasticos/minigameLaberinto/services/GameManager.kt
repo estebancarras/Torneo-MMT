@@ -202,15 +202,72 @@ class GameManager(private val minigame: MinigameLaberinto) {
         
         game.removePlayer(player)
         playerGames.remove(player.uniqueId)
+
+        // Enviar al jugador de vuelta al lobby (si está online y hay spawns configurados)
+        try {
+            los5fantasticos.torneo.services.TournamentFlowManager.returnToLobby(player)
+        } catch (_: Exception) {
+            // ignorar si no se puede teletransportar (por ejemplo, jugador desconectándose)
+        }
         
         // Actualizar carteles
         updateAllLaberintoSigns()
-        
+        // Si la partida estaba en COUNTDOWN y ahora tiene menos de minPlayers, cancelar la cuenta regresiva
+        if (game.state == GameState.COUNTDOWN) {
+            if (game.players.size < game.arena.minPlayers) {
+                countdownTimer?.stop()
+                game.setState(GameState.LOBBY)
+                game.players.forEach { it.sendMessage(Component.text("Cuenta regresiva cancelada: jugadores insuficientes.").color(NamedTextColor.YELLOW)) }
+                updateAllLaberintoSigns()
+            }
+        }
+
+        // Si la partida estaba en IN_GAME y queda 1 jugador (o ninguno), finalizar y declarar ganador
+        if (game.state == GameState.IN_GAME) {
+            val unfinished = game.getUnfinishedPlayers()
+            if (unfinished.size <= 1) {
+                // Otorgar puntos y finalizar
+                endGame(game)
+                return true
+            }
+        }
+
         // Si no quedan jugadores, limpiar la partida
         if (game.players.isEmpty()) {
             cleanupGame(game)
         }
-        
+
+        return true
+    }
+
+    /**
+     * Fuerza el inicio de una partida aunque no se cumpla el mínimo de jugadores.
+     */
+    fun forceStartGame(game: LaberintoGame) {
+        if (game.state != GameState.LOBBY) return
+        // Forzar inicio: no mutamos la arena persistente, simplemente iniciamos la cuenta regresiva
+        startCountdown(game)
+        // Restaurar minPlayers en la arena manager (se mantiene modificado hasta que admin lo cambie o se guarde)
+        // No revertimos aquí para evitar carreras de estado inesperadas
+    }
+
+    /**
+     * Ajusta el mínimo de jugadores para una arena en tiempo de ejecución.
+     */
+    fun setArenaMinPlayers(arenaName: String, minPlayers: Int): Boolean {
+        val arena = minigame.arenaManager.getArena(arenaName) ?: return false
+        val updatedArena = arena.copy(minPlayers = minPlayers)
+        minigame.arenaManager.arenas[arenaName] = updatedArena
+        return true
+    }
+
+    /**
+     * Ajusta el máximo de jugadores para una arena en tiempo de ejecución.
+     */
+    fun setArenaMaxPlayers(arenaName: String, maxPlayers: Int): Boolean {
+        val arena = minigame.arenaManager.getArena(arenaName) ?: return false
+        val updatedArena = arena.copy(maxPlayers = maxPlayers)
+        minigame.arenaManager.arenas[arenaName] = updatedArena
         return true
     }
     
@@ -229,9 +286,14 @@ class GameManager(private val minigame: MinigameLaberinto) {
         // Actualizar carteles
         updateAllLaberintoSigns()
         
-        // Teletransportar jugadores al punto de inicio
+        // Teletransportar jugadores al punto de inicio y ajustar gamemode a AVENTURA
         game.players.forEach { player ->
             player.teleport(game.arena.startLocation)
+            try {
+                player.gameMode = org.bukkit.GameMode.ADVENTURE
+            } catch (_: Exception) {
+                // ignore if cannot set
+            }
             player.sendMessage(Component.text("¡La partida comenzará en 10 segundos!").color(NamedTextColor.GREEN))
         }
         
@@ -440,6 +502,13 @@ class GameManager(private val minigame: MinigameLaberinto) {
         }
         
         minigame.plugin.logger.info("${player.name} completó el laberinto en partida ${game.gameId}")
+
+        // Si todos han finalizado o no quedan jugadores por terminar, finalizar la partida
+        val unfinished = game.getUnfinishedPlayers()
+        if (unfinished.isEmpty()) {
+            // Todos completaron: finalizar ahora
+            endGame(game)
+        }
     }
     
     /**
