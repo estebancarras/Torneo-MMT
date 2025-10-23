@@ -39,8 +39,8 @@ class SkywarsCommand(
     }
 
     private fun showHelp(sender: CommandSender) {
-        sender.sendMessage(Component.text("§6SkyWars (Torneo) - Comandos", NamedTextColor.GOLD))
-        sender.sendMessage(Component.text("/skywars joinall [map] §7- Envía a todos los jugadores sin permisos de administrador al mapa opcionalmente indicado", NamedTextColor.YELLOW))
+    sender.sendMessage(Component.text("§6SkyWars (Torneo) - Comandos", NamedTextColor.GOLD))
+    sender.sendMessage(Component.text("/skywars joinall [map] [incluirAdmins] §7- Envía a todos los jugadores sin permisos de administrador (o a todos si incluirAdmins=true) al mapa opcionalmente indicado", NamedTextColor.YELLOW))
     }
 
     private fun checkAdmin(sender: CommandSender): Boolean {
@@ -52,12 +52,20 @@ class SkywarsCommand(
     private fun handleJoinAll(sender: CommandSender, args: Array<out String>): Boolean {
         if (!checkAdmin(sender)) return true
 
-        val mapName: String? = if (args.size >= 2) args[1] else null
+        val mapName: String? = if (args.size >= 2) args[1].takeIf { !it.equals("true", true) && !it.equals("false", true) } else null
+        val includeAdmins: Boolean =
+            if (args.size >= 3) args[2].equals("true", true)
+            else if (args.size == 2 && (args[1].equals("true", true) || args[1].equals("false", true))) args[1].equals("true", true)
+            else false
 
-        val targets = Bukkit.getOnlinePlayers().filter { !it.hasPermission("torneo.admin") }
+        val targets = if (includeAdmins) {
+            Bukkit.getOnlinePlayers().toList()
+        } else {
+            Bukkit.getOnlinePlayers().filter { !it.hasPermission("torneo.admin") }
+        }
 
         if (targets.isEmpty()) {
-            sender.sendMessage(Component.text("No se encontraron jugadores sin permisos de administrador.", NamedTextColor.YELLOW))
+            sender.sendMessage(Component.text("No se encontraron jugadores${if (includeAdmins) " conectados" else " sin permisos de administrador"}.", NamedTextColor.YELLOW))
             return true
         }
 
@@ -127,6 +135,9 @@ class SkywarsCommand(
             } catch (_: Exception) {
                 // ignore
             }
+            completions.addAll(listOf("true", "false").filter { it.startsWith(args[1].lowercase()) })
+        } else if (args.size == 3 && args[0].lowercase() == "joinall") {
+            completions.addAll(listOf("true", "false").filter { it.startsWith(args[2].lowercase()) })
         }
         return completions
     }
