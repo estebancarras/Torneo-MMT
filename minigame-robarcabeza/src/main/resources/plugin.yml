@@ -1,0 +1,19 @@
+name: RobarCabeza
+version: 4.0
+main: yo.spray.robarCabeza.RobarCabezaManager
+api-version: 1.20
+depend: [TorneoCore]
+
+commands:
+  robarcabeza:
+    description: Comandos del minijuego Robar Cabeza
+    usage: /robarcabeza <join|leave|setspawn|setlobby|start|stop>
+    permission: robarcabeza.use
+
+permissions:
+  robarcabeza.use:
+    description: Permite usar comandos básicos del minijuego
+    default: true
+  robarcabeza.admin:
+    description: Permite usar comandos de administración
+    default: op

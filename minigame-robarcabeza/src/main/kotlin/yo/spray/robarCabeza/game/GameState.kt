@@ -1,7 +1,7 @@
-package yo.spray.robarCola.game
+package yo.spray.robarCabeza.game
 
 /**
- * Estados posibles de una partida de RobarCola.
+ * Estados posibles de una partida de Robar Cabeza.
  */
 enum class GameState {
     /**

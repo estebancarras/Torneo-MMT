@@ -1,11 +1,11 @@
-package yo.spray.robarCola.services
+package yo.spray.robarCabeza.services
 
 import los5fantasticos.torneo.TorneoPlugin
 import org.bukkit.entity.Player
 import java.util.UUID
 
 /**
- * Servicio de puntuación para el minijuego RobarCola.
+ * Servicio de puntuación para el minijuego Robar Cabeza.
  * 
  * Responsabilidades:
  * - Otorgar puntos a los jugadores según sus acciones
@@ -27,37 +27,37 @@ class ScoreService(
     private val sessionScores = mutableMapOf<UUID, Int>()
     
     /**
-     * Otorga puntos por retener la cola durante un segundo.
+     * Otorga puntos por retener la cabeza durante un segundo.
      * 
-     * @param player Jugador que retiene la cola
+     * @param player Jugador que retiene la cabeza
      */
     fun awardPointsForHolding(player: Player) {
         torneoManager.addScore(
             player.uniqueId,
             gameName,
-            RobarColaScoreConfig.POINTS_PER_SECOND,
-            "Retener cola"
+            RobarCabezaScoreConfig.POINTS_PER_SECOND,
+            "Retener cabeza"
         )
         
         // Actualizar puntos de sesión
-        sessionScores[player.uniqueId] = (sessionScores[player.uniqueId] ?: 0) + RobarColaScoreConfig.POINTS_PER_SECOND
+        sessionScores[player.uniqueId] = (sessionScores[player.uniqueId] ?: 0) + RobarCabezaScoreConfig.POINTS_PER_SECOND
     }
     
     /**
-     * Otorga puntos bonus por robar una cola exitosamente.
+     * Otorga puntos bonus por robar una cabeza exitosamente.
      * 
-     * @param player Jugador que robó la cola
+     * @param player Jugador que robó la cabeza
      */
     fun awardPointsForSteal(player: Player) {
         torneoManager.addScore(
             player.uniqueId,
             gameName,
-            RobarColaScoreConfig.POINTS_STEAL_BONUS,
-            "Robo de cola"
+            RobarCabezaScoreConfig.POINTS_STEAL_BONUS,
+            "Robo de cabeza"
         )
         
         // Actualizar puntos de sesión
-        sessionScores[player.uniqueId] = (sessionScores[player.uniqueId] ?: 0) + RobarColaScoreConfig.POINTS_STEAL_BONUS
+        sessionScores[player.uniqueId] = (sessionScores[player.uniqueId] ?: 0) + RobarCabezaScoreConfig.POINTS_STEAL_BONUS
     }
     
     /**
@@ -68,9 +68,9 @@ class ScoreService(
      */
     fun awardPointsForFinalPosition(player: Player, position: Int) {
         val points = when (position) {
-            1 -> RobarColaScoreConfig.POINTS_FIRST_PLACE
-            2 -> RobarColaScoreConfig.POINTS_SECOND_PLACE
-            3 -> RobarColaScoreConfig.POINTS_THIRD_PLACE
+            1 -> RobarCabezaScoreConfig.POINTS_FIRST_PLACE
+            2 -> RobarCabezaScoreConfig.POINTS_SECOND_PLACE
+            3 -> RobarCabezaScoreConfig.POINTS_THIRD_PLACE
             else -> 0
         }
         
@@ -97,7 +97,7 @@ class ScoreService(
         torneoManager.addScore(
             player.uniqueId,
             gameName,
-            RobarColaScoreConfig.POINTS_PARTICIPATION,
+            RobarCabezaScoreConfig.POINTS_PARTICIPATION,
             "Participación"
         )
         torneoManager.recordGamePlayed(player, gameName)

@@ -1,17 +1,22 @@
-package yo.spray.robarCola
+package yo.spray.robarCabeza
 
 import los5fantasticos.torneo.TorneoPlugin
 import los5fantasticos.torneo.api.MinigameModule
 import org.bukkit.Bukkit
 import org.bukkit.Location
+import org.bukkit.configuration.file.FileConfiguration
+import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
-import yo.spray.robarCola.listeners.GameListener
-import yo.spray.robarCola.services.GameManager
-import yo.spray.robarCola.services.ScoreService
+import yo.spray.robarCabeza.listeners.GameListener
+import yo.spray.robarCabeza.services.GameManager
+import yo.spray.robarCabeza.services.HeadVisualService
+import yo.spray.robarCabeza.services.RobarCabezaScoreConfig
+import yo.spray.robarCabeza.services.ScoreService
+import java.io.File
 
 /**
- * Módulo principal de RobarCola.
+ * Módulo principal de Robar Cabeza.
  * 
  * Actúa como punto de entrada del minijuego y orquestador de servicios.
  * Toda la lógica de juego ha sido delegada a servicios especializados.
@@ -20,16 +25,26 @@ import yo.spray.robarCola.services.ScoreService
  * - GameManager: Lógica central del juego
  * - ScoreService: Gestión de puntuación
  * - GameListener: Manejo de eventos
- * - RobarColaGame: Modelo de estado de partida
+ * - RobarCabezaGame: Modelo de estado de partida
  */
 @Suppress("unused")
-class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
+class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
 
-    override val gameName = "RobarCola"
-    override val version = "3.0"
-    override val description = "Minijuego dinámico de robar colas entre jugadores"
+    override val gameName = "RobarCabeza"
+    override val version = "4.0"
+    override val description = "Minijuego de robar la cabeza del creador"
 
     private lateinit var plugin: Plugin
+    
+    /**
+     * Configuración del minijuego.
+     */
+    private lateinit var config: FileConfiguration
+    
+    /**
+     * Servicio de visualización de cabezas.
+     */
+    private lateinit var headVisualService: HeadVisualService
     
     /**
      * Servicio de puntuación.
@@ -52,22 +67,32 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
     override fun onEnable(plugin: Plugin) {
         this.plugin = plugin
         
+        // Cargar configuración del minijuego
+        loadConfig()
+        
         // Inicializar servicios
+        headVisualService = HeadVisualService(plugin)
+        configureHeadVisualService()
+        
         scoreService = ScoreService(torneoPlugin, gameName)
-        gameManager = GameManager(plugin, torneoPlugin, scoreService)
+        configureScoreService()
+        
+        gameManager = GameManager(plugin, torneoPlugin, scoreService, headVisualService)
         gameListener = GameListener(gameManager)
         
-        // Cargar configuración
+        // Cargar configuración de spawns
         loadSpawnFromConfig()
         
         // Registrar listener
         plugin.server.pluginManager.registerEvents(gameListener, plugin)
         
         // Registrar comandos
-        val commandExecutor = yo.spray.robarCola.commands.RobarColaCommands(this)
-        torneoPlugin.getCommand("robarcola")?.setExecutor(commandExecutor)
+        val commandExecutor = yo.spray.robarCabeza.commands.RobarCabezaCommands(this)
+        torneoPlugin.getCommand("robarcabeza")?.setExecutor(commandExecutor)
         
         plugin.logger.info("✓ $gameName v$version habilitado")
+        plugin.logger.info("  - Configuración cargada")
+        plugin.logger.info("  - HeadVisualService inicializado")
         plugin.logger.info("  - ScoreService inicializado")
         plugin.logger.info("  - GameManager inicializado")
         plugin.logger.info("  - GameListener registrado")
@@ -77,6 +102,11 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
         // Limpiar recursos del GameManager
         if (::gameManager.isInitialized) {
             gameManager.clearAll()
+        }
+        
+        // Limpiar recursos del HeadVisualService
+        if (::headVisualService.isInitialized) {
+            headVisualService.cleanup()
         }
         
         plugin.logger.info("✓ $gameName deshabilitado")
@@ -135,21 +165,21 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
     // ===== Métodos públicos para comandos =====
 
     /**
-     * Añade un jugador al juego (comando /robarcola join).
+     * Añade un jugador al juego (comando /robarcabeza join).
      */
     fun joinGame(player: Player) {
         gameManager.addPlayer(player)
     }
 
     /**
-     * Remueve un jugador del juego (comando /robarcola leave).
+     * Remueve un jugador del juego (comando /robarcabeza leave).
      */
     fun removePlayerFromGame(player: Player) {
         gameManager.removePlayer(player)
     }
 
     /**
-     * Da la cola a un jugador específico (comando de admin).
+     * Da la cabeza a un jugador específico (comando de admin).
      */
     fun giveTailToPlayer(player: Player) {
         val game = gameManager.getActiveGame()
@@ -165,9 +195,9 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
      */
     fun setGameSpawn(location: Location) {
         gameManager.gameSpawn = location
-        torneoPlugin.config.set("robarcola.gameSpawn.x", location.x)
-        torneoPlugin.config.set("robarcola.gameSpawn.y", location.y)
-        torneoPlugin.config.set("robarcola.gameSpawn.z", location.z)
+        torneoPlugin.config.set("robarcabeza.gameSpawn.x", location.x)
+        torneoPlugin.config.set("robarcabeza.gameSpawn.y", location.y)
+        torneoPlugin.config.set("robarcabeza.gameSpawn.z", location.z)
         torneoPlugin.saveConfig()
     }
 
@@ -176,9 +206,9 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
      */
     fun setLobbySpawn(location: Location) {
         gameManager.lobbySpawn = location
-        torneoPlugin.config.set("robarcola.lobbySpawn.x", location.x)
-        torneoPlugin.config.set("robarcola.lobbySpawn.y", location.y)
-        torneoPlugin.config.set("robarcola.lobbySpawn.z", location.z)
+        torneoPlugin.config.set("robarcabeza.lobbySpawn.x", location.x)
+        torneoPlugin.config.set("robarcabeza.lobbySpawn.y", location.y)
+        torneoPlugin.config.set("robarcabeza.lobbySpawn.z", location.z)
         torneoPlugin.saveConfig()
     }
 
@@ -210,26 +240,67 @@ class RobarColaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
         val cfg = torneoPlugin.config
         val world = Bukkit.getWorlds().first()
 
-        gameManager.gameSpawn = if (cfg.contains("robarcola.gameSpawn.x")) {
+        gameManager.gameSpawn = if (cfg.contains("robarcabeza.gameSpawn.x")) {
             Location(
                 world,
-                cfg.getDouble("robarcola.gameSpawn.x"),
-                cfg.getDouble("robarcola.gameSpawn.y"),
-                cfg.getDouble("robarcola.gameSpawn.z")
+                cfg.getDouble("robarcabeza.gameSpawn.x"),
+                cfg.getDouble("robarcabeza.gameSpawn.y"),
+                cfg.getDouble("robarcabeza.gameSpawn.z")
             )
         } else {
             world.spawnLocation
         }
 
-        gameManager.lobbySpawn = if (cfg.contains("robarcola.lobbySpawn.x")) {
+        gameManager.lobbySpawn = if (cfg.contains("robarcabeza.lobbySpawn.x")) {
             Location(
                 world,
-                cfg.getDouble("robarcola.lobbySpawn.x"),
-                cfg.getDouble("robarcola.lobbySpawn.y"),
-                cfg.getDouble("robarcola.lobbySpawn.z")
+                cfg.getDouble("robarcabeza.lobbySpawn.x"),
+                cfg.getDouble("robarcabeza.lobbySpawn.y"),
+                cfg.getDouble("robarcabeza.lobbySpawn.z")
             )
         } else {
             world.spawnLocation
         }
+    }
+    
+    /**
+     * Carga el archivo de configuración robarcabeza.yml.
+     */
+    private fun loadConfig() {
+        val configFile = File(plugin.dataFolder, "robarcabeza.yml")
+        
+        // Si no existe, copiar desde resources
+        if (!configFile.exists()) {
+            plugin.dataFolder.mkdirs()
+            plugin.saveResource("robarcabeza.yml", false)
+        }
+        
+        config = YamlConfiguration.loadConfiguration(configFile)
+        plugin.logger.info("[$gameName] Configuración cargada desde robarcabeza.yml")
+    }
+    
+    /**
+     * Configura el HeadVisualService con los valores del archivo de configuración.
+     */
+    private fun configureHeadVisualService() {
+        val scale = config.getDouble("visuals.scale", 1.5).toFloat()
+        val yOffset = config.getDouble("visuals.y-offset", -0.25)
+        val creatorHeads = config.getStringList("visuals.creator-heads").ifEmpty {
+            listOf("Notch")
+        }
+        
+        headVisualService.configure(scale, yOffset, creatorHeads)
+        
+        plugin.logger.info("[$gameName] Visual configurado: scale=$scale, offset=$yOffset, heads=${creatorHeads.size}")
+    }
+    
+    /**
+     * Configura el ScoreService con los valores del archivo de configuración.
+     */
+    private fun configureScoreService() {
+        val pointsPerSecond = config.getInt("scoring.points-per-second", 1)
+        RobarCabezaScoreConfig.POINTS_PER_SECOND = pointsPerSecond
+        
+        plugin.logger.info("[$gameName] Puntuación configurada: $pointsPerSecond puntos/segundo")
     }
 }

@@ -1,0 +1,23 @@
+# Configuración del minijuego "Robar la Cabeza del Creador"
+# Archivo: robarcabeza.yml
+
+# Configuración visual de la cabeza gigante
+visuals:
+  # Factor de escala de la cabeza (1.0 = tamaño normal, 1.5 = 50% más grande)
+  scale: 1.5
+  
+  # Offset vertical desde la altura de los ojos del jugador
+  # Valores negativos bajan la cabeza, positivos la suben
+  y-offset: -0.25
+  
+  # Lista de nombres de jugadores cuyas skins se usarán para las cabezas
+  # Se selecciona uno al azar cada vez que se asigna una cabeza
+  creator-heads:
+    - "Brocoly776"
+    - "citt"
+    - "Notch"
+
+# Configuración de puntuación
+scoring:
+  # Puntos otorgados por cada segundo que un jugador retiene la cabeza
+  points-per-second: 1

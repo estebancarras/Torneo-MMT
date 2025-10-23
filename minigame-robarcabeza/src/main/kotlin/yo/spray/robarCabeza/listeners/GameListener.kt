@@ -1,4 +1,4 @@
-package yo.spray.robarCola.listeners
+package yo.spray.robarCabeza.listeners
 
 import org.bukkit.ChatColor
 import org.bukkit.block.Sign
@@ -10,7 +10,7 @@ import org.bukkit.event.block.Action
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerQuitEvent
-import yo.spray.robarCola.services.GameManager
+import yo.spray.robarCabeza.services.GameManager
 
 /**
  * Listener de eventos del juego RobarCola.
@@ -117,3 +117,4 @@ class GameListener(
         return dot < -0.5 && attacker.location.distance(victim.location) <= 3.0
     }
 }
+

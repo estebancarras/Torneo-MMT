@@ -1,4 +1,4 @@
-package yo.spray.robarCola.game
+package yo.spray.robarCabeza.game
 
 import los5fantasticos.torneo.util.GameTimer
 import org.bukkit.entity.ArmorStand
@@ -7,17 +7,17 @@ import org.bukkit.scheduler.BukkitTask
 import java.util.UUID
 
 /**
- * Representa una instancia de partida del minijuego RobarCola.
+ * Representa una instancia de partida del minijuego Robar Cabeza.
  * 
  * Contiene todo el estado de una partida en curso:
  * - Jugadores participantes
- * - Jugadores con cola
- * - Entidades de visualización de colas
+ * - Jugadores con cabeza
+ * - Entidades de visualización de cabezas
  * - Cooldowns de robo e invulnerabilidad
  * - Temporizador del juego
  * - Sistema de puntuación dinámica
  */
-class RobarColaGame(
+class RobarCabezaGame(
     val id: UUID = UUID.randomUUID(),
     var state: GameState = GameState.LOBBY
 ) {
@@ -27,17 +27,17 @@ class RobarColaGame(
     val players = mutableSetOf<UUID>()
     
     /**
-     * Jugadores que actualmente tienen cola.
+     * Jugadores que actualmente tienen cabeza.
      */
     val playersWithTail = mutableSetOf<UUID>()
     
     /**
-     * Mapa de jugadores a sus ArmorStands de cola (fallback).
+     * Mapa de jugadores a sus ArmorStands de cabeza (fallback).
      */
     val playerTails = mutableMapOf<UUID, ArmorStand>()
     
     /**
-     * Mapa de jugadores a sus ItemDisplays de cola.
+     * Mapa de jugadores a sus ItemDisplays de cabeza.
      */
     val playerTailDisplays = mutableMapOf<UUID, ItemDisplay>()
     
@@ -48,7 +48,7 @@ class RobarColaGame(
     
     /**
      * Cooldowns de invulnerabilidad por jugador (timestamp en milisegundos).
-     * Después de robar una cola, el jugador es invulnerable por unos segundos.
+     * Después de robar una cabeza, el jugador es invulnerable por unos segundos.
      */
     val invulnerabilityCooldowns = mutableMapOf<UUID, Long>()
     
@@ -58,7 +58,7 @@ class RobarColaGame(
     var gameTimer: GameTimer? = null
     
     /**
-     * Tarea que otorga puntos por segundo a los jugadores con cola.
+     * Tarea que otorga puntos por segundo a los jugadores con cabeza.
      */
     var pointsTickerTask: BukkitTask? = null
     

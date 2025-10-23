@@ -1,4 +1,4 @@
-package yo.spray.robarCola.services
+package yo.spray.robarCabeza.services
 
 import los5fantasticos.torneo.TorneoPlugin
 import los5fantasticos.torneo.util.GameTimer
@@ -17,8 +17,8 @@ import org.bukkit.scheduler.BukkitRunnable
 import org.bukkit.util.Transformation
 import org.joml.Quaternionf
 import org.joml.Vector3f
-import yo.spray.robarCola.game.GameState
-import yo.spray.robarCola.game.RobarColaGame
+import yo.spray.robarCabeza.game.GameState
+import yo.spray.robarCabeza.game.RobarCabezaGame
 import java.util.UUID
 import kotlin.math.cos
 import kotlin.math.sin
@@ -29,14 +29,16 @@ import kotlin.math.sin
  * Responsabilidades:
  * - Gestionar el ciclo de vida de las partidas
  * - Controlar el estado del juego
- * - Manejar la lógica de colas (dar, robar, remover)
+ * - Manejar la lógica de cabezas (dar, robar, remover)
  * - Gestionar temporizadores y countdowns
  * - Coordinar con el ScoreService para puntuación
+ * - Coordinar con el HeadVisualService para efectos visuales
  */
 class GameManager(
     private val plugin: Plugin,
     private val torneoPlugin: TorneoPlugin,
-    scoreService: ScoreService
+    scoreService: ScoreService,
+    private val headVisualService: HeadVisualService
 ) {
     
     private val scoreService: ScoreService = scoreService
@@ -44,7 +46,7 @@ class GameManager(
     /**
      * Partida activa actual.
      */
-    private var activeGame: RobarColaGame? = null
+    private var activeGame: RobarCabezaGame? = null
     
     /**
      * Configuración del juego.
@@ -61,7 +63,7 @@ class GameManager(
     /**
      * Obtiene la partida activa.
      */
-    fun getActiveGame(): RobarColaGame? = activeGame
+    fun getActiveGame(): RobarCabezaGame? = activeGame
     
     /**
      * Verifica si hay una partida en curso.
@@ -115,8 +117,8 @@ class GameManager(
     /**
      * Crea una nueva partida.
      */
-    private fun createNewGame(): RobarColaGame {
-        val game = RobarColaGame()
+    private fun createNewGame(): RobarCabezaGame {
+        val game = RobarCabezaGame()
         activeGame = game
         return game
     }
@@ -141,7 +143,7 @@ class GameManager(
             
             // Dar colas a múltiples jugadores aleatorios
             val playersList = game.players.toList()
-            val headsCount = minOf(RobarColaScoreConfig.INITIAL_HEADS_COUNT, playersList.size)
+            val headsCount = minOf(RobarCabezaScoreConfig.INITIAL_HEADS_COUNT, playersList.size)
             
             val selectedPlayers = playersList.shuffled().take(headsCount)
             selectedPlayers.forEach { playerId ->
@@ -303,45 +305,45 @@ class GameManager(
     }
     
     /**
-     * Da la cola a un jugador.
+     * Da la cabeza a un jugador.
      */
     fun giveTail(player: Player) {
         val game = activeGame ?: return
         
-        // Añadir cola al jugador (no limpiar las demás, ahora hay múltiples colas)
+        // Añadir cabeza al jugador (no limpiar las demás, ahora hay múltiples cabezas)
         game.playersWithTail.add(player.uniqueId)
         
-        // Crear visualización de cola
-        createTailDisplay(player)
+        // Crear visualización de cabeza gigante
+        headVisualService.setCarrier(player)
         
         // Aplicar efecto de GLOW
         player.addPotionEffect(PotionEffect(PotionEffectType.GLOWING, Int.MAX_VALUE, 0, false, false))
         
-        // Sonido de nota cuando se obtiene la cola
+        // Sonido de nota cuando se obtiene la cabeza
         player.world.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f)
         
-        player.sendMessage("${ChatColor.GREEN}¡Ahora tienes una cola! ${ChatColor.YELLOW}Ganas ${RobarColaScoreConfig.POINTS_PER_SECOND} punto(s) por segundo")
+        player.sendMessage("${ChatColor.GREEN}¡Ahora tienes la cabeza del creador! ${ChatColor.YELLOW}Ganas ${RobarCabezaScoreConfig.POINTS_PER_SECOND} punto(s) por segundo")
     }
     
     /**
-     * Roba la cola de un jugador a otro.
+     * Roba la cabeza de un jugador a otro.
      */
     fun stealTail(victim: Player, attacker: Player) {
         val game = activeGame ?: return
         
         // Verificar cooldown de robo
         if (System.currentTimeMillis() - (game.tailCooldowns[attacker.uniqueId] ?: 0) < tailCooldownSeconds * 1000) {
-            attacker.sendMessage("${ChatColor.RED}¡Espera antes de robar otra cola!")
+            attacker.sendMessage("${ChatColor.RED}¡Espera antes de robar otra cabeza!")
             return
         }
         
-        // Verificar que la víctima tenga cola
+        // Verificar que la víctima tenga cabeza
         if (!game.playersWithTail.contains(victim.uniqueId)) {
             return
         }
         
         // Verificar invulnerabilidad de la víctima
-        if (game.isInvulnerable(victim.uniqueId, RobarColaScoreConfig.INVULNERABILITY_COOLDOWN_SECONDS)) {
+        if (game.isInvulnerable(victim.uniqueId, RobarCabezaScoreConfig.INVULNERABILITY_COOLDOWN_SECONDS)) {
             attacker.sendMessage("${ChatColor.YELLOW}¡${victim.name} es invulnerable!")
             return
         }
@@ -350,26 +352,31 @@ class GameManager(
         game.tailCooldowns[attacker.uniqueId] = System.currentTimeMillis()
         game.invulnerabilityCooldowns[attacker.uniqueId] = System.currentTimeMillis()
         
-        // Remover cola de la víctima
+        // Remover cabeza de la víctima
         removeTail(victim)
         
-        // Dar cola al atacante
+        // Dar cabeza al atacante
         giveTail(attacker)
         
         // Otorgar puntos por robo
         scoreService.awardPointsForSteal(attacker)
         
-        attacker.sendMessage("${ChatColor.GREEN}¡Le robaste la cola a ${victim.name}! ${ChatColor.GOLD}+${RobarColaScoreConfig.POINTS_STEAL_BONUS} puntos")
-        victim.sendMessage("${ChatColor.RED}¡${attacker.name} te robó la cola!")
+        attacker.sendMessage("${ChatColor.GREEN}¡Le robaste la cabeza a ${victim.name}! ${ChatColor.GOLD}+${RobarCabezaScoreConfig.POINTS_STEAL_BONUS} puntos")
+        victim.sendMessage("${ChatColor.RED}¡${attacker.name} te robó la cabeza!")
     }
     
     /**
-     * Remueve la cola de un jugador.
+     * Remueve la cabeza de un jugador.
      */
     private fun removeTail(player: Player) {
         val game = activeGame ?: return
         
         game.playersWithTail.remove(player.uniqueId)
+        
+        // Remover visualización de cabeza
+        headVisualService.removeCarrier()
+        
+        // Limpiar referencias antiguas (por compatibilidad)
         game.playerTailDisplays.remove(player.uniqueId)?.remove()
         game.playerTails.remove(player.uniqueId)?.remove()
         
@@ -513,7 +520,7 @@ class GameManager(
             if (player != null) {
                 val sessionScore = scoreService.getSessionScore(uuid)
                 val msg = if (game.playersWithTail.contains(uuid))
-                    "${ChatColor.GREEN}¡Tienes cola! ${ChatColor.GOLD}+${RobarColaScoreConfig.POINTS_PER_SECOND}/s"
+                    "${ChatColor.GREEN}¡Tienes cola! ${ChatColor.GOLD}+${RobarCabezaScoreConfig.POINTS_PER_SECOND}/s"
                 else "${ChatColor.RED}Sin cola"
                 player.spigot().sendMessage(
                     ChatMessageType.ACTION_BAR,
@@ -566,3 +573,4 @@ class GameManager(
         scoreService.resetSessionScores()
     }
 }
+

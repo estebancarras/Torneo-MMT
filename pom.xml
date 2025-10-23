@@ -14,7 +14,7 @@
 
     <modules>
         <module>torneo-core</module>
-        <module>minigame-robarcola</module>
+        <module>minigame-robarcabeza</module>
         <module>minigame-memorias</module>
         <module>minigame-skywars</module>
         <module>minigame-laberinto</module>

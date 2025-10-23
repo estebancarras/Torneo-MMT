@@ -1,4 +1,4 @@
-package yo.spray.robarCola.commands
+package yo.spray.robarCabeza.commands
 
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -8,14 +8,14 @@ import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
-import yo.spray.robarCola.RobarColaManager
+import yo.spray.robarCabeza.RobarCabezaManager
 
 /**
- * Ejecutor de comandos para el minijuego RobarCola.
- * Formato de comandos: /robarcola <subcomando>
+ * Ejecutor de comandos para el minijuego Robar Cabeza.
+ * Formato de comandos: /robarcabeza <subcomando>
  */
 @Suppress("unused")
-class RobarColaCommands(private val manager: RobarColaManager) : CommandExecutor {
+class RobarCabezaCommands(private val manager: RobarCabezaManager) : CommandExecutor {
     
     override fun onCommand(
         sender: CommandSender,
@@ -24,22 +24,22 @@ class RobarColaCommands(private val manager: RobarColaManager) : CommandExecutor
         args: Array<out String>
     ): Boolean {
         if (args.isEmpty()) {
-            sender.sendMessage(Component.text("=== Comandos de RobarCola ===", NamedTextColor.YELLOW))
-            sender.sendMessage(Component.text("/robarcola join ", NamedTextColor.YELLOW)
+            sender.sendMessage(Component.text("=== Comandos de robarcabeza ===", NamedTextColor.YELLOW))
+            sender.sendMessage(Component.text("/robarcabeza join ", NamedTextColor.YELLOW)
                 .append(Component.text("- Unirse al juego", NamedTextColor.GRAY)))
-            sender.sendMessage(Component.text("/robarcola leave ", NamedTextColor.YELLOW)
+            sender.sendMessage(Component.text("/robarcabeza leave ", NamedTextColor.YELLOW)
                 .append(Component.text("- Salir del juego", NamedTextColor.GRAY)))
-            if (sender.hasPermission("robarcola.admin") || sender.isOp) {
+            if (sender.hasPermission("robarcabeza.admin") || sender.isOp) {
                 sender.sendMessage(Component.text("=== Comandos de Admin ===", NamedTextColor.GOLD))
-                sender.sendMessage(Component.text("/robarcola setspawn ", NamedTextColor.YELLOW)
+                sender.sendMessage(Component.text("/robarcabeza setspawn ", NamedTextColor.YELLOW)
                     .append(Component.text("- Establecer spawn del juego", NamedTextColor.GRAY)))
-                sender.sendMessage(Component.text("/robarcola setlobby ", NamedTextColor.YELLOW)
+                sender.sendMessage(Component.text("/robarcabeza setlobby ", NamedTextColor.YELLOW)
                     .append(Component.text("- Establecer spawn del lobby", NamedTextColor.GRAY)))
-                sender.sendMessage(Component.text("/robarcola startgame ", NamedTextColor.YELLOW)
+                sender.sendMessage(Component.text("/robarcabeza startgame ", NamedTextColor.YELLOW)
                     .append(Component.text("- Iniciar juego manualmente", NamedTextColor.GRAY)))
-                sender.sendMessage(Component.text("/robarcola stopgame ", NamedTextColor.YELLOW)
+                sender.sendMessage(Component.text("/robarcabeza stopgame ", NamedTextColor.YELLOW)
                     .append(Component.text("- Detener juego", NamedTextColor.GRAY)))
-                sender.sendMessage(Component.text("/robarcola darcola <jugador> ", NamedTextColor.YELLOW)
+                sender.sendMessage(Component.text("/robarcabeza darcola <jugador> ", NamedTextColor.YELLOW)
                     .append(Component.text("- Dar cola a un jugador", NamedTextColor.GRAY)))
             }
             return true
@@ -54,7 +54,7 @@ class RobarColaCommands(private val manager: RobarColaManager) : CommandExecutor
             "startgame", "start" -> return handleStartGame(sender)
             "stopgame", "stop" -> return handleStopGame(sender)
             else -> {
-                sender.sendMessage(Component.text("Subcomando desconocido. Usa /robarcola para ver los comandos disponibles.", NamedTextColor.RED))
+                sender.sendMessage(Component.text("Subcomando desconocido. Usa /robarcabeza para ver los comandos disponibles.", NamedTextColor.RED))
                 return true
             }
         }
@@ -77,19 +77,19 @@ class RobarColaCommands(private val manager: RobarColaManager) : CommandExecutor
         }
         
         manager.removePlayerFromGame(sender)
-        sender.sendMessage(Component.text("Has salido del juego RobarCola.", NamedTextColor.YELLOW))
+        sender.sendMessage(Component.text("Has salido del juego Robar Cabeza.", NamedTextColor.YELLOW))
         return true
     }
     
     private fun handleGiveTail(sender: CommandSender, args: Array<out String>): Boolean {
-        if (!sender.hasPermission("robarcola.admin") && !sender.isOp) {
+        if (!sender.hasPermission("robarcabeza.admin") && !sender.isOp) {
             sender.sendMessage(Component.text("No tienes permiso para usar este comando.", NamedTextColor.RED))
             return true
         }
         
         when {
             args.size < 2 -> {
-                sender.sendMessage(Component.text("Uso: /robarcola darcola <jugador>", NamedTextColor.RED))
+                sender.sendMessage(Component.text("Uso: /robarcabeza darcola <jugador>", NamedTextColor.RED))
             }
             else -> {
                 val target = Bukkit.getPlayer(args[1])
@@ -105,7 +105,7 @@ class RobarColaCommands(private val manager: RobarColaManager) : CommandExecutor
     }
     
     private fun handleSetGameSpawn(sender: CommandSender): Boolean {
-        if (!sender.hasPermission("robarcola.admin") && !sender.isOp) {
+        if (!sender.hasPermission("robarcabeza.admin") && !sender.isOp) {
             sender.sendMessage(Component.text("No tienes permiso para usar este comando.", NamedTextColor.RED))
             return true
         }
@@ -123,7 +123,7 @@ class RobarColaCommands(private val manager: RobarColaManager) : CommandExecutor
     }
     
     private fun handleSetLobby(sender: CommandSender): Boolean {
-        if (!sender.hasPermission("robarcola.admin") && !sender.isOp) {
+        if (!sender.hasPermission("robarcabeza.admin") && !sender.isOp) {
             sender.sendMessage(Component.text("No tienes permiso para usar este comando.", NamedTextColor.RED))
             return true
         }
@@ -141,7 +141,7 @@ class RobarColaCommands(private val manager: RobarColaManager) : CommandExecutor
     }
     
     private fun handleStartGame(sender: CommandSender): Boolean {
-        if (!sender.hasPermission("robarcola.admin") && !sender.isOp) {
+        if (!sender.hasPermission("robarcabeza.admin") && !sender.isOp) {
             sender.sendMessage(Component.text("No tienes permiso para usar este comando.", NamedTextColor.RED))
             return true
         }
@@ -156,7 +156,7 @@ class RobarColaCommands(private val manager: RobarColaManager) : CommandExecutor
     }
     
     private fun handleStopGame(sender: CommandSender): Boolean {
-        if (!sender.hasPermission("robarcola.admin") && !sender.isOp) {
+        if (!sender.hasPermission("robarcabeza.admin") && !sender.isOp) {
             sender.sendMessage(Component.text("No tienes permiso para usar este comando.", NamedTextColor.RED))
             return true
         }
@@ -170,3 +170,4 @@ class RobarColaCommands(private val manager: RobarColaManager) : CommandExecutor
         return true
     }
 }
+

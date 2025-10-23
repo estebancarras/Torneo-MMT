@@ -10,11 +10,11 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>minigame-robarcola</artifactId>
+    <artifactId>minigame-robarcabeza</artifactId>
     <packaging>jar</packaging>
 
-    <name>Minigame - Robar Cola</name>
-    <description>Minijuego de Robar Cola para el torneo</description>
+    <name>Minigame - Robar Cabeza</name>
+    <description>Minijuego de Robar la Cabeza del Creador para el torneo</description>
 
     <build>
         <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
