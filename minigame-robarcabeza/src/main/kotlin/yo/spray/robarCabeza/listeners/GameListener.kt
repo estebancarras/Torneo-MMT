@@ -12,6 +12,8 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.event.player.PlayerDropItemEvent
+import org.bukkit.Material
 import org.bukkit.event.inventory.InventoryType.SlotType
 import yo.spray.robarCabeza.services.GameManager
 
@@ -135,7 +137,7 @@ class GameListener(
     }
     
     /**
-     * Protege el inventario para evitar que los jugadores se quiten la cabeza manualmente.
+     * Protege el inventario para evitar que los jugadores se quiten la cabeza o muevan pociones del kit.
      */
     @EventHandler
     fun onInventoryClick(event: InventoryClickEvent) {
@@ -150,6 +152,14 @@ class GameListener(
         if (event.slotType == SlotType.ARMOR && event.rawSlot == 5) {
             event.isCancelled = true
             player.sendMessage("${ChatColor.RED}¡No puedes quitarte la cabeza durante el juego!")
+            return
+        }
+        
+        // Verificar si está intentando mover una poción del kit
+        val slot = event.slot
+        if (gameManager.itemKitService.isKitItem(slot)) {
+            event.isCancelled = true
+            player.sendMessage("${ChatColor.RED}¡No puedes mover las pociones del kit!")
         }
     }
     
@@ -187,5 +197,66 @@ class GameListener(
         val dot = victimDir.dot(toAttacker)
         return dot < -0.5 && attacker.location.distance(victim.location) <= 3.0
     }
+    
+    /**
+     * Maneja el uso de pociones del kit.
+     */
+    @EventHandler
+    fun onPotionUse(event: PlayerInteractEvent) {
+        val player = event.player
+        
+        // Verificar si el jugador está en una partida
+        if (!gameManager.isPlayerInGame(player)) {
+            return
+        }
+        
+        // Verificar si está lanzando una poción
+        if (event.action != Action.RIGHT_CLICK_AIR && event.action != Action.RIGHT_CLICK_BLOCK) {
+            return
+        }
+        
+        val item = event.item ?: return
+        
+        // Verificar si es una poción arrojadiza
+        if (item.type != Material.SPLASH_POTION) {
+            return
+        }
+        
+        // Obtener el slot del ítem
+        val slot = player.inventory.heldItemSlot
+        
+        // Verificar si es un ítem del kit
+        if (!gameManager.itemKitService.isKitItem(slot)) {
+            return
+        }
+        
+        // Manejar el uso de la poción (iniciar cooldown)
+        gameManager.itemKitService.handlePotionUse(player, slot)
+    }
+    
+    /**
+     * Previene que los jugadores tiren pociones del kit.
+     */
+    @EventHandler
+    fun onItemDrop(event: PlayerDropItemEvent) {
+        val player = event.player
+        
+        // Verificar si el jugador está en una partida
+        if (!gameManager.isPlayerInGame(player)) {
+            return
+        }
+        
+        val item = event.itemDrop.itemStack
+        
+        // Verificar si es una poción del kit
+        if (item.type == Material.SPLASH_POTION) {
+            // Obtener el slot desde donde se tiró
+            val slot = player.inventory.first(item)
+            
+            if (slot != -1 && gameManager.itemKitService.isKitItem(slot)) {
+                event.isCancelled = true
+                player.sendMessage("${ChatColor.RED}¡No puedes tirar las pociones del kit!")
+            }
+        }
+    }
 }
-

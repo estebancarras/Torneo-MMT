@@ -21,3 +21,11 @@ visuals:
 scoring:
   # Puntos otorgados por cada segundo que un jugador retiene la cabeza
   points-per-second: 1
+
+# Kit de pociones con cooldowns
+potion-kit:
+  # Define las habilidades que cada jugador recibirá
+  # Formato: "TIPO_POCION:NIVEL:SLOT_INVENTARIO:COOLDOWN_EN_SEGUNDOS"
+  items:
+    - "SLOW:0:0:15"   # Poción de Lentitud I en el slot 0, reaparece en 15 segundos
+    - "SPEED:0:1:25"  # Poción de Velocidad I en el slot 1, reaparece en 25 segundos

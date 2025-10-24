@@ -41,7 +41,8 @@ class GameManager(
     private val torneoPlugin: TorneoPlugin,
     scoreService: ScoreService,
     private val visualService: VisualService,
-    private val arenaManager: ArenaManager
+    private val arenaManager: ArenaManager,
+    val itemKitService: ItemKitService
 ) {
     
     private val scoreService: ScoreService = scoreService
@@ -180,6 +181,11 @@ class GameManager(
         
         preStartCountdown {
             game.state = GameState.IN_GAME
+            
+            // Dar kit de pociones a todos los jugadores
+            playersList.forEach { player ->
+                itemKitService.giveFullKit(player)
+            }
             
             // Dar cabezas a múltiples jugadores aleatorios
             val headsCount = minOf(RobarCabezaScoreConfig.INITIAL_HEADS_COUNT, playersList.size)
@@ -325,6 +331,9 @@ class GameManager(
             game.players.mapNotNull { Bukkit.getPlayer(it) }.forEach { player ->
                 player.gameMode = GameMode.SURVIVAL
                 player.removePotionEffect(PotionEffectType.GLOWING)
+                
+                // Limpiar cooldowns del kit
+                itemKitService.clearCooldowns(player)
                 
                 // Limpiar inventario completamente
                 player.inventory.clear()
@@ -569,6 +578,9 @@ class GameManager(
         
         game.players.remove(player.uniqueId)
         removeHead(player)
+        
+        // Limpiar cooldowns del kit
+        itemKitService.clearCooldowns(player)
         
         // Si quedan menos de 2 jugadores, finalizar el juego
         if (game.state == GameState.IN_GAME && game.players.size < 2) {

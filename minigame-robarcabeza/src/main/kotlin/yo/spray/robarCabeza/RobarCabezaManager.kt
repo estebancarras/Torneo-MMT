@@ -12,6 +12,7 @@ import yo.spray.robarCabeza.game.Arena
 import yo.spray.robarCabeza.listeners.GameListener
 import yo.spray.robarCabeza.services.ArenaManager
 import yo.spray.robarCabeza.services.GameManager
+import yo.spray.robarCabeza.services.ItemKitService
 import yo.spray.robarCabeza.services.RobarCabezaScoreConfig
 import yo.spray.robarCabeza.services.ScoreService
 import yo.spray.robarCabeza.services.VisualService
@@ -71,6 +72,11 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
      * Listener de eventos del juego.
      */
     private lateinit var gameListener: GameListener
+    
+    /**
+     * Servicio de kit de pociones con cooldowns.
+     */
+    private lateinit var itemKitService: ItemKitService
 
     // ===== Ciclo de vida del módulo =====
 
@@ -90,7 +96,10 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
         arenaManager = ArenaManager()
         arenaManager.initialize(plugin.dataFolder)
         
-        gameManager = GameManager(plugin, torneoPlugin, scoreService, visualService, arenaManager)
+        itemKitService = ItemKitService(plugin)
+        itemKitService.loadKitFromConfig(config)
+        
+        gameManager = GameManager(plugin, torneoPlugin, scoreService, visualService, arenaManager, itemKitService)
         gameListener = GameListener(gameManager)
         
         // Cargar configuración de spawns (legacy)
@@ -104,6 +113,7 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
         plugin.logger.info("  - VisualService inicializado")
         plugin.logger.info("  - ScoreService inicializado")
         plugin.logger.info("  - ArenaManager inicializado (${arenaManager.getArenaCount()} arenas)")
+        plugin.logger.info("  - ItemKitService inicializado")
         plugin.logger.info("  - GameManager inicializado")
         plugin.logger.info("  - GameListener registrado")
     }
@@ -119,6 +129,11 @@ class RobarCabezaManager(val torneoPlugin: TorneoPlugin) : MinigameModule {
     }
 
     override fun onDisable() {
+        // Limpiar recursos del ItemKitService
+        if (::itemKitService.isInitialized) {
+            itemKitService.clearAll()
+        }
+        
         // Limpiar recursos del GameManager
         if (::gameManager.isInitialized) {
             gameManager.clearAll()
