@@ -50,6 +50,11 @@ commands:
     description: Comandos del minijuego Hunger Games
     usage: /<command> [setup|start|stop]
     permission: torneo.admin
+  
+  coliseo:
+    description: Comandos del minijuego Coliseo (Élite vs Horda)
+    usage: /<command> [admin]
+    permission: torneo.admin
 
 permissions:
   torneo.admin:
@@ -59,6 +64,7 @@ permissions:
       torneo.play: true
       cadena.admin: true
       robarcabeza.admin: true
+      coliseo.admin: true
 
   torneo.play:
     description: Permite jugar en los minijuegos del torneo

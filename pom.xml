@@ -21,6 +21,7 @@
         <module>minigame-carrerabarcos</module>
         <module>minigame-cadena</module>
         <module>minigame-hungergames</module>
+        <module>minigame-coliseo</module>
         <module>torneo-assembly</module>
     </modules>
 

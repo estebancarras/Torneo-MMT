@@ -270,6 +270,20 @@ class TorneoPlugin : JavaPlugin() {
             e.printStackTrace()
         }
         
+        // Intentar cargar Coliseo
+        try {
+            val coliseoClass = Class.forName("los5fantasticos.minigameColiseo.ColiseoModule")
+            val constructor = coliseoClass.getConstructor(TorneoPlugin::class.java)
+            val coliseoModule = constructor.newInstance(this) as MinigameModule
+            
+            registerMinigame(coliseoModule)
+        } catch (_: ClassNotFoundException) {
+            logger.warning("⚠ Módulo Coliseo no encontrado (esto es normal si no está compilado)")
+        } catch (e: Exception) {
+            logger.severe("✗ Error al cargar Coliseo: ${e.message}")
+            e.printStackTrace()
+        }
+        
         if (minigameModules.isEmpty()) {
             logger.warning("⚠ No se cargaron minijuegos. Verifica que los módulos estén compilados correctamente.")
         }

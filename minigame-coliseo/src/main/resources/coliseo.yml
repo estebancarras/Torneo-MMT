@@ -1,0 +1,53 @@
+# Configuración del minijuego Coliseo: Élite vs Horda
+
+# Duración de la partida en minutos
+game-duration-minutes: 10
+
+# Configuración de balanceo de equipos
+team-balance:
+  # Porcentaje de jugadores que formarán el equipo Élite
+  percentage: 0.25
+  # Mínimo de jugadores en el equipo Élite
+  min-elite-players: 3
+  # Máximo de jugadores en el equipo Élite
+  max-elite-players: 10
+
+# Configuración de kits asimétricos
+kits:
+  elite:
+    armor:
+      helmet: "DIAMOND_HELMET:PROTECTION_ENVIRONMENTAL:2"
+      chestplate: "DIAMOND_CHESTPLATE:PROTECTION_ENVIRONMENTAL:2"
+      leggings: "DIAMOND_LEGGINGS:PROTECTION_ENVIRONMENTAL:2"
+      boots: "DIAMOND_BOOTS:PROTECTION_ENVIRONMENTAL:2"
+    weapons:
+      sword: "DIAMOND_SWORD:DAMAGE_ALL:2"
+      shield: true
+    items:
+      - "GOLDEN_APPLE:1"
+      - "SPLASH_POTION,HEAL:1"
+      - "CYAN_TERRACOTTA:16"
+    effects:
+      - "SLOW:0"  # Lentitud I
+  
+  horde:
+    armor:
+      helmet: "IRON_HELMET"
+      chestplate: "IRON_CHESTPLATE"
+      leggings: "IRON_LEGGINGS"
+      boots: "IRON_BOOTS"
+    weapons:
+      sword: "IRON_SWORD"
+      crossbow: "CROSSBOW:PIERCING:1"
+    items:
+      - "ARROW:16"
+      - "COOKED_BEEF:8"
+      - "LAVA_BUCKET:1"
+      - "WHITE_WOOL:32"
+
+# Configuración de puntuación
+scoring:
+  elite-victory: 50
+  horde-victory: 30
+  participation: 5
+  per-kill: 2
