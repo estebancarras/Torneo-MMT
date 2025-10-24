@@ -31,6 +31,7 @@ class ColiseoModule(private val torneoPlugin: TorneoPlugin) : MinigameModule {
     private lateinit var teamManager: TeamManager
     private lateinit var kitService: KitService
     private lateinit var scoreService: ScoreService
+    private lateinit var coliseoScoreboardService: ColiseoScoreboardService
     private lateinit var gameManager: GameManager
     private lateinit var gameListener: GameListener
     
@@ -59,12 +60,23 @@ class ColiseoModule(private val torneoPlugin: TorneoPlugin) : MinigameModule {
             gameDuration
         )
         
+        coliseoScoreboardService = ColiseoScoreboardService(
+            plugin,
+            gameManager,
+            teamManager,
+            torneoPlugin.scoreboardService
+        )
+        
+        // Inyectar el servicio de scoreboard en el GameManager
+        gameManager.setScoreboardService(coliseoScoreboardService)
+        
         gameListener = GameListener(
             plugin,
             gameManager,
             teamManager,
             kitService,
-            scoreService
+            scoreService,
+            coliseoScoreboardService
         )
         
         // Registrar listener
@@ -75,6 +87,7 @@ class ColiseoModule(private val torneoPlugin: TorneoPlugin) : MinigameModule {
         plugin.logger.info("  - TeamManager inicializado")
         plugin.logger.info("  - KitService inicializado")
         plugin.logger.info("  - ScoreService inicializado")
+        plugin.logger.info("  - ColiseoScoreboardService inicializado")
         plugin.logger.info("  - GameManager inicializado")
         plugin.logger.info("  - GameListener registrado")
     }

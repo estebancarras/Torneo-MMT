@@ -1,6 +1,7 @@
 package los5fantasticos.minigameColiseo.listeners
 
 import los5fantasticos.minigameColiseo.game.GameState
+import los5fantasticos.minigameColiseo.services.ColiseoScoreboardService
 import los5fantasticos.minigameColiseo.services.GameManager
 import los5fantasticos.minigameColiseo.services.KitService
 import los5fantasticos.minigameColiseo.services.ScoreService
@@ -16,14 +17,13 @@ import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.event.player.PlayerQuitEvent
-import org.bukkit.event.player.PlayerRespawnEvent
 import org.bukkit.plugin.Plugin
 
 /**
  * Listener de eventos del Coliseo.
  * 
  * Responsabilidades:
- * - Manejar muertes y respawns
+ * - Manejar muertes (eliminación permanente, sin respawn)
  * - Controlar construcción (colocación/rotura de bloques)
  * - Manejar desconexiones
  */
@@ -32,11 +32,13 @@ class GameListener(
     private val gameManager: GameManager,
     private val teamManager: TeamManager,
     private val kitService: KitService,
-    private val scoreService: ScoreService
+    private val scoreService: ScoreService,
+    private val coliseoScoreboardService: ColiseoScoreboardService
 ) : Listener {
     
     /**
      * Maneja la muerte de un jugador.
+     * TODOS los jugadores son eliminados permanentemente (sin respawn).
      */
     @EventHandler
     fun onPlayerDeath(event: PlayerDeathEvent) {
@@ -48,81 +50,47 @@ class GameListener(
         // Verificar si el jugador está en la partida
         if (!game.getAllPlayers().contains(player.uniqueId)) return
         
-        // Limpiar drops
+        // Limpiar drops e inventario
         event.drops.clear()
         event.droppedExp = 0
+        player.inventory.clear()
         
-        // Obtener killer para puntos
+        // Obtener killer para puntos y registro de kills
         val killer = player.killer
         if (killer != null && game.getAllPlayers().contains(killer.uniqueId)) {
             scoreService.awardKillPoints(killer)
+            coliseoScoreboardService.recordKill(killer)
         }
         
-        // Verificar si es de la Élite
-        if (game.isElite(player.uniqueId)) {
-            handleEliteDeath(player, game)
-        } else if (game.isHorde(player.uniqueId)) {
-            handleHordeDeath(player, game)
+        // Determinar equipo para el mensaje
+        val teamName = if (game.isElite(player.uniqueId)) {
+            "${ChatColor.GOLD}[ÉLITE]"
+        } else {
+            "${ChatColor.WHITE}[HORDA]"
         }
-    }
-    
-    /**
-     * Maneja la muerte de un jugador Élite.
-     */
-    private fun handleEliteDeath(player: Player, game: los5fantasticos.minigameColiseo.game.ColiseoGame) {
-        plugin.logger.info("[Coliseo] Jugador Élite eliminado: ${player.name}")
+        
+        plugin.logger.info("[Coliseo] Jugador eliminado: ${player.name}")
         
         // Marcar como eliminado
         teamManager.markAsEliminated(player.uniqueId, game)
         
-        // Poner en modo espectador
+        // Poner en modo espectador inmediatamente
         Bukkit.getScheduler().runTaskLater(plugin, Runnable {
             player.gameMode = GameMode.SPECTATOR
             player.sendMessage("${ChatColor.RED}Has sido eliminado. Ahora eres espectador.")
+            
+            // Teletransportar al centro de la arena para observar
+            game.arena?.let { arena ->
+                val centerSpawn = arena.eliteSpawns.firstOrNull() ?: arena.hordeSpawns.firstOrNull()
+                centerSpawn?.let { player.teleport(it) }
+            }
         }, 1L)
         
-        // Anunciar eliminación
+        // Anunciar eliminación a todos
         game.getAllPlayers().forEach { playerId ->
             Bukkit.getPlayer(playerId)?.sendMessage(
-                "${ChatColor.GOLD}[ÉLITE] ${ChatColor.WHITE}${player.name} ${ChatColor.RED}ha sido eliminado!"
+                "$teamName ${ChatColor.WHITE}${player.name} ${ChatColor.RED}ha sido eliminado!"
             )
-        }
-    }
-    
-    /**
-     * Maneja la muerte de un jugador Horda.
-     */
-    private fun handleHordeDeath(player: Player, game: los5fantasticos.minigameColiseo.game.ColiseoGame) {
-        plugin.logger.info("[Coliseo] Jugador Horda eliminado: ${player.name} (reaparecerá)")
-        
-        // La Horda reaparece
-        player.sendMessage("${ChatColor.YELLOW}Reaparecerás en 3 segundos...")
-    }
-    
-    /**
-     * Maneja el respawn de jugadores.
-     */
-    @EventHandler
-    fun onPlayerRespawn(event: PlayerRespawnEvent) {
-        val player = event.player
-        val game = gameManager.getActiveGame() ?: return
-        
-        if (game.state != GameState.IN_GAME) return
-        
-        // Solo la Horda reaparece
-        if (game.isHorde(player.uniqueId)) {
-            Bukkit.getScheduler().runTaskLater(plugin, Runnable {
-                // Teletransportar a spawn de Horda
-                val spawn = game.arena?.getRandomHordeSpawn()
-                if (spawn != null) {
-                    player.teleport(spawn)
-                    
-                    // Reaplicar kit
-                    kitService.applyHordeKit(player)
-                    
-                    player.sendMessage("${ChatColor.GREEN}¡Has reaparecido!")
-                }
-            }, 60L) // 3 segundos
         }
     }
     

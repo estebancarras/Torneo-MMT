@@ -111,6 +111,24 @@ class TeamManager(private val plugin: org.bukkit.plugin.Plugin) {
     }
     
     /**
+     * Obtiene los jugadores vivos del equipo Élite.
+     */
+    fun getElitePlayersAlive(game: ColiseoGame): List<Player> {
+        return game.elitePlayers
+            .filter { !game.eliminatedPlayers.contains(it) }
+            .mapNotNull { Bukkit.getPlayer(it) }
+    }
+    
+    /**
+     * Obtiene los jugadores vivos del equipo Horda.
+     */
+    fun getHordePlayersAlive(game: ColiseoGame): List<Player> {
+        return game.hordePlayers
+            .filter { !game.eliminatedPlayers.contains(it) }
+            .mapNotNull { Bukkit.getPlayer(it) }
+    }
+    
+    /**
      * Limpia los equipos y efectos visuales.
      */
     fun cleanup() {

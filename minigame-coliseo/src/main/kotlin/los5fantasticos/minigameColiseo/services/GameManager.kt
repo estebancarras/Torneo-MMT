@@ -36,6 +36,17 @@ class GameManager(
     private val gameDurationMinutes: Int
 ) {
     
+    // Referencia al servicio de scoreboard (se inyecta después de la creación)
+    private var coliseoScoreboardService: ColiseoScoreboardService? = null
+    
+    /**
+     * Inyecta el servicio de scoreboard.
+     * Necesario porque hay dependencia circular.
+     */
+    fun setScoreboardService(service: ColiseoScoreboardService) {
+        this.coliseoScoreboardService = service
+    }
+    
     private var activeGame: ColiseoGame? = null
     
     /**
@@ -72,6 +83,9 @@ class GameManager(
         val game = ColiseoGame(arena = arena)
         activeGame = game
         
+        // Reiniciar contador de kills
+        coliseoScoreboardService?.resetKills()
+        
         // Balancear y formar equipos
         balanceTeams(players, game)
         
@@ -83,6 +97,11 @@ class GameManager(
         
         // Aplicar kits
         applyKits(game)
+        
+        // Mostrar scoreboard del Coliseo a todos los jugadores
+        players.forEach { player ->
+            coliseoScoreboardService?.showScoreboard(player)
+        }
         
         // Iniciar cuenta regresiva
         startCountdown(game)
@@ -305,6 +324,13 @@ class GameManager(
         // Limpiar bloques colocados
         currentGame.placedBlocks.forEach { it.type = Material.AIR }
         currentGame.placedBlocks.clear()
+        
+        // Ocultar scoreboard del Coliseo y restaurar el global
+        currentGame.getAllPlayers().forEach { playerId ->
+            Bukkit.getPlayer(playerId)?.let { player ->
+                coliseoScoreboardService?.hideScoreboard(player)
+            }
+        }
         
         // Teletransportar jugadores al lobby
         Bukkit.getScheduler().runTaskLater(plugin, Runnable {

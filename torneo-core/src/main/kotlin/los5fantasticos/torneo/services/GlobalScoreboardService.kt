@@ -207,6 +207,28 @@ class GlobalScoreboardService(
     }
     
     /**
+     * Muestra el scoreboard global a un jugador.
+     * Alias de showToPlayer para consistencia con hideScoreboard.
+     */
+    fun showScoreboard(player: Player) {
+        showToPlayer(player)
+    }
+    
+    /**
+     * Oculta el scoreboard global de un jugador.
+     * Útil cuando un minijuego quiere mostrar su propio scoreboard.
+     */
+    fun hideScoreboard(player: Player) {
+        try {
+            // Crear un scoreboard vacío temporal
+            val emptyScoreboard = Bukkit.getScoreboardManager()!!.newScoreboard
+            player.scoreboard = emptyScoreboard
+        } catch (e: Exception) {
+            plugin.logger.warning("Error al ocultar scoreboard de ${player.name}: ${e.message}")
+        }
+    }
+    
+    /**
      * Detiene el servicio y cancela la tarea de actualización.
      */
     fun shutdown() {
