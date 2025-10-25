@@ -71,6 +71,9 @@ class TeamManager(private val plugin: org.bukkit.plugin.Plugin) {
      * Añade un jugador a un equipo.
      */
     fun addToTeam(player: Player, teamType: TeamType, game: ColiseoGame) {
+        // Añadir a la lista de todos los participantes
+        game.allParticipants.add(player.uniqueId)
+        
         when (teamType) {
             TeamType.ELITE -> {
                 game.elitePlayers.add(player.uniqueId)
@@ -134,8 +137,50 @@ class TeamManager(private val plugin: org.bukkit.plugin.Plugin) {
     }
     
     /**
-     * Limpia los equipos y efectos visuales.
+     * Limpia los equipos y efectos visuales de todos los participantes.
+     * Debe ser llamado al finalizar la partida para remover completamente
+     * los efectos de brillo y las asignaciones de equipo.
      */
+    fun cleanupTeams(game: ColiseoGame) {
+        plugin.logger.info("[Coliseo] Limpiando equipos y efectos visuales...")
+        
+        // Obtener todos los participantes (vivos y eliminados)
+        val allParticipants = game.getAllPlayers()
+        
+        plugin.logger.info("[Coliseo] Limpiando ${allParticipants.size} participantes")
+        
+        // Remover cada jugador de su equipo y quitar brillo
+        allParticipants.forEach { playerId ->
+            Bukkit.getPlayer(playerId)?.let { player ->
+                // Remover del equipo Élite
+                eliteTeam?.removeEntry(player.name)
+                
+                // Remover del equipo Horda
+                hordeTeam?.removeEntry(player.name)
+                
+                // Quitar efecto de brillo
+                player.isGlowing = false
+                
+                plugin.logger.info("[Coliseo] Limpiado: ${player.name}")
+            }
+        }
+        
+        // Desregistrar los equipos del scoreboard
+        eliteTeam?.unregister()
+        hordeTeam?.unregister()
+        
+        // Limpiar referencias
+        eliteTeam = null
+        hordeTeam = null
+        
+        plugin.logger.info("[Coliseo] Equipos completamente limpiados")
+    }
+    
+    /**
+     * Limpia los equipos (versión legacy sin parámetros).
+     * @deprecated Usar cleanupTeams(game) en su lugar
+     */
+    @Deprecated("Usar cleanupTeams(game) para limpieza completa")
     fun cleanup() {
         eliteTeam?.unregister()
         hordeTeam?.unregister()

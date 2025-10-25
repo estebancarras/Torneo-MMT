@@ -59,9 +59,15 @@ class ColiseoGame(
     fun getTotalPlayers(): Int = elitePlayers.size + hordePlayers.size
     
     /**
-     * Obtiene todos los jugadores de la partida.
+     * Todos los jugadores que participaron en la partida (vivos y eliminados).
+     * Esta lista NO se modifica cuando un jugador muere.
      */
-    fun getAllPlayers(): Set<UUID> = elitePlayers + hordePlayers
+    val allParticipants = mutableSetOf<UUID>()
+    
+    /**
+     * Obtiene todos los jugadores de la partida (vivos y eliminados).
+     */
+    fun getAllPlayers(): Set<UUID> = allParticipants
     
     /**
      * Verifica si un jugador está en el equipo Élite.

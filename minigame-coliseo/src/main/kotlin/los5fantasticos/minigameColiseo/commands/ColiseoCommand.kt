@@ -62,6 +62,7 @@ class ColiseoCommand(
             "create" -> handleCreate(sender, args)
             "addelitespawn" -> handleAddEliteSpawn(sender, args)
             "addhordespawn" -> handleAddHordeSpawn(sender, args)
+            "setspectatorspawn" -> handleSetSpectatorSpawn(sender, args)
             "setregion" -> handleSetRegion(sender, args)
             "list" -> handleList(sender)
             "delete" -> handleDelete(sender, args)
@@ -141,6 +142,32 @@ class ColiseoCommand(
         arenaManager.saveArenas()
         
         sender.sendMessage(Component.text("✓ Spawn Horda ${arena.hordeSpawns.size} añadido", NamedTextColor.GREEN))
+    }
+    
+    private fun handleSetSpectatorSpawn(sender: CommandSender, args: Array<String>) {
+        if (sender !is Player) {
+            sender.sendMessage(Component.text("Este comando solo puede ser ejecutado por jugadores.", NamedTextColor.RED))
+            return
+        }
+        
+        if (args.size < 2) {
+            sender.sendMessage(Component.text("Uso: /coliseo admin setspectatorspawn <arena>", NamedTextColor.RED))
+            return
+        }
+        
+        val arenaName = args[1]
+        val arena = arenaManager.getArena(arenaName)
+        
+        if (arena == null) {
+            sender.sendMessage(Component.text("No existe una arena con ese nombre.", NamedTextColor.RED))
+            return
+        }
+        
+        arena.spectatorSpawn = sender.location.clone()
+        arenaManager.saveArenas()
+        
+        sender.sendMessage(Component.text("✓ Spawn de espectadores establecido", NamedTextColor.GREEN))
+        sender.sendMessage(Component.text("Los jugadores eliminados aparecerán aquí", NamedTextColor.GRAY))
     }
     
     private fun handleSetRegion(sender: CommandSender, args: Array<String>) {

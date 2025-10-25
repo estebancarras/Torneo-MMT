@@ -15,6 +15,7 @@ data class Arena(
     val name: String,
     val eliteSpawns: MutableList<Location> = mutableListOf(),
     val hordeSpawns: MutableList<Location> = mutableListOf(),
+    var spectatorSpawn: Location? = null,
     var playRegion: Cuboid? = null
 ) {
     /**
@@ -29,6 +30,16 @@ data class Arena(
      */
     fun getRandomHordeSpawn(): Location? {
         return hordeSpawns.randomOrNull()?.clone()
+    }
+    
+    /**
+     * Obtiene el spawn para espectadores.
+     * Si no está configurado, usa el centro de la arena o un spawn aleatorio.
+     */
+    fun getSpectatorSpawnLocation(): Location? {
+        return spectatorSpawn?.clone() 
+            ?: playRegion?.getCenter() 
+            ?: eliteSpawns.firstOrNull()?.clone()
     }
     
     /**

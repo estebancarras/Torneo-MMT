@@ -228,6 +228,27 @@ class GameManager(
             )
         }
         
+        // Enviar reglas de PvP según el equipo
+        Bukkit.getScheduler().runTaskLater(plugin, Runnable {
+            game.elitePlayers.forEach { playerId ->
+                Bukkit.getPlayer(playerId)?.sendMessage("")
+                Bukkit.getPlayer(playerId)?.sendMessage("${ChatColor.GOLD}${ChatColor.BOLD}═══ ÉLITE ═══")
+                Bukkit.getPlayer(playerId)?.sendMessage("${ChatColor.YELLOW}Eres parte de la élite, pero recuerda:")
+                Bukkit.getPlayer(playerId)?.sendMessage("${ChatColor.RED}${ChatColor.ITALIC}Solo puede quedar uno...")
+                Bukkit.getPlayer(playerId)?.sendMessage("${ChatColor.GRAY}Puedes atacar a cualquiera, incluso a tu propio equipo")
+                Bukkit.getPlayer(playerId)?.sendMessage("")
+            }
+            
+            game.hordePlayers.forEach { playerId ->
+                Bukkit.getPlayer(playerId)?.sendMessage("")
+                Bukkit.getPlayer(playerId)?.sendMessage("${ChatColor.WHITE}${ChatColor.BOLD}═══ HORDA ═══")
+                Bukkit.getPlayer(playerId)?.sendMessage("${ChatColor.GRAY}Eres parte de la horda:")
+                Bukkit.getPlayer(playerId)?.sendMessage("${ChatColor.GREEN}¡Trabajan en equipo! No pueden atacarse entre ustedes")
+                Bukkit.getPlayer(playerId)?.sendMessage("${ChatColor.YELLOW}Unan fuerzas para derrotar a la élite")
+                Bukkit.getPlayer(playerId)?.sendMessage("")
+            }
+        }, 60L) // 3 segundos después del inicio
+        
         // Crear temporizador
         val timer = GameTimer(
             plugin = torneoPlugin,
@@ -357,6 +378,10 @@ class GameManager(
             plugin.logger.info("[Coliseo] KeepInventory restaurado a: ${currentGame.originalKeepInventory}")
         }
         
+        // IMPORTANTE: Limpiar equipos y efectos visuales ANTES de restaurar estado
+        plugin.logger.info("[Coliseo] Limpiando equipos y efectos visuales...")
+        teamManager.cleanupTeams(currentGame)
+        
         // Restaurar estado de todos los jugadores (incluidos espectadores)
         plugin.logger.info("[Coliseo] Restaurando estado de ${currentGame.getAllPlayers().size} jugadores...")
         currentGame.getAllPlayers().forEach { playerId ->
@@ -379,9 +404,6 @@ class GameManager(
                 // Restaurar modo de juego
                 player.gameMode = GameMode.ADVENTURE
                 
-                // Quitar brillo
-                player.isGlowing = false
-                
                 // Ocultar scoreboard del Coliseo y restaurar el global
                 coliseoScoreboardService?.hideScoreboard(player)
             }
@@ -394,9 +416,6 @@ class GameManager(
                     los5fantasticos.torneo.services.TournamentFlowManager.returnToLobby(player)
                 }
             }
-            
-            // Limpiar equipos
-            teamManager.cleanup()
             
             // Limpiar partida
             activeGame = null
