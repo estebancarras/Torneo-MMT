@@ -15,8 +15,12 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
+import org.bukkit.entity.Item
+import org.bukkit.event.entity.EntityRegainHealthEvent
+import org.bukkit.event.entity.ItemSpawnEvent
 import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.event.player.PlayerRespawnEvent
 import org.bukkit.plugin.Plugin
 
 /**
@@ -50,10 +54,13 @@ class GameListener(
         // Verificar si el jugador está en la partida
         if (!game.getAllPlayers().contains(player.uniqueId)) return
         
-        // Limpiar drops e inventario
-        event.drops.clear()
+        // IMPORTANTE: Mantener los drops (NO limpiar event.drops)
+        // Esto permite que los ítems caigan naturalmente
+        event.keepInventory = false // Asegurar que los ítems caigan
         event.droppedExp = 0
-        player.inventory.clear()
+        
+        // Log para debug
+        plugin.logger.info("[Coliseo] ${player.name} murió. Drops: ${event.drops.size} ítems")
         
         // Obtener killer para puntos y registro de kills
         val killer = player.killer
@@ -71,20 +78,8 @@ class GameListener(
         
         plugin.logger.info("[Coliseo] Jugador eliminado: ${player.name}")
         
-        // Marcar como eliminado
+        // Marcar como eliminado (pero NO remover de la lista principal)
         teamManager.markAsEliminated(player.uniqueId, game)
-        
-        // Poner en modo espectador inmediatamente
-        Bukkit.getScheduler().runTaskLater(plugin, Runnable {
-            player.gameMode = GameMode.SPECTATOR
-            player.sendMessage("${ChatColor.RED}Has sido eliminado. Ahora eres espectador.")
-            
-            // Teletransportar al centro de la arena para observar
-            game.arena?.let { arena ->
-                val centerSpawn = arena.eliteSpawns.firstOrNull() ?: arena.hordeSpawns.firstOrNull()
-                centerSpawn?.let { player.teleport(it) }
-            }
-        }, 1L)
         
         // Anunciar eliminación a todos
         game.getAllPlayers().forEach { playerId ->
@@ -92,6 +87,37 @@ class GameListener(
                 "$teamName ${ChatColor.WHITE}${player.name} ${ChatColor.RED}ha sido eliminado!"
             )
         }
+    }
+    
+    /**
+     * Maneja el respawn del jugador para ponerlo en modo espectador.
+     */
+    @EventHandler
+    fun onPlayerRespawn(event: org.bukkit.event.player.PlayerRespawnEvent) {
+        val player = event.player
+        val game = gameManager.getActiveGame() ?: return
+        
+        if (game.state != GameState.IN_GAME) return
+        
+        // Verificar si el jugador está en la partida y fue eliminado
+        if (!game.getAllPlayers().contains(player.uniqueId)) return
+        if (!game.eliminatedPlayers.contains(player.uniqueId)) return
+        
+        plugin.logger.info("[Coliseo] Respawn de ${player.name} - convirtiéndolo en espectador")
+        
+        // Establecer ubicación de respawn en la arena
+        game.arena?.let { arena ->
+            val centerSpawn = arena.eliteSpawns.firstOrNull() ?: arena.hordeSpawns.firstOrNull()
+            centerSpawn?.let { 
+                event.respawnLocation = it
+            }
+        }
+        
+        // Poner en modo espectador inmediatamente después del respawn
+        Bukkit.getScheduler().runTask(plugin, Runnable {
+            player.gameMode = GameMode.SPECTATOR
+            player.sendMessage("${ChatColor.RED}Has sido eliminado. Ahora eres espectador.")
+        })
     }
     
     /**
@@ -172,5 +198,23 @@ class GameListener(
             // Remover de la lista
             game.placedBlocks.remove(block)
         }
+    }
+    
+    /**
+     * Rastrea los ítems que aparecen en la arena durante la partida.
+     */
+    @EventHandler
+    fun onItemSpawn(event: ItemSpawnEvent) {
+        val game = gameManager.getActiveGame() ?: return
+        
+        if (game.state != GameState.IN_GAME) return
+        
+        val item = event.entity
+        val arena = game.arena ?: return
+        
+        // Verificar si el ítem está dentro de la arena
+        // Asumiendo que la arena tiene un método para verificar si una ubicación está dentro
+        // Si no existe, simplemente rastreamos todos los ítems durante la partida
+        game.droppedItems.add(item)
     }
 }

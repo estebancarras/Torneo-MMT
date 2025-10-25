@@ -65,6 +65,9 @@ class ColiseoScoreboardService(
         // Crear nuevo scoreboard para el jugador
         val board = Bukkit.getScoreboardManager()!!.newScoreboard
         
+        // IMPORTANTE: Copiar los equipos del mainScoreboard para mantener los colores de brillo
+        copyTeamsFromMainScoreboard(board)
+        
         // Crear objetivo con título estilizado
         val title = Component.text("⚔ ", NamedTextColor.GOLD, TextDecoration.BOLD)
             .append(Component.text("COLISEO", NamedTextColor.RED, TextDecoration.BOLD))
@@ -90,6 +93,56 @@ class ColiseoScoreboardService(
         }, 20L, 20L)
         
         updateTasks[player.uniqueId] = task
+    }
+    
+    /**
+     * Copia los equipos del mainScoreboard al scoreboard personalizado.
+     * Esto es necesario para mantener los colores de brillo (glowing effect).
+     */
+    private fun copyTeamsFromMainScoreboard(targetBoard: org.bukkit.scoreboard.Scoreboard) {
+        val mainScoreboard = Bukkit.getScoreboardManager()!!.mainScoreboard
+        
+        // Copiar equipo Élite
+        mainScoreboard.getTeam("ColiseoElite")?.let { mainTeam ->
+            val newTeam = targetBoard.registerNewTeam("ColiseoElite")
+            // Copiar color (convertir TextColor a NamedTextColor si es necesario)
+            mainTeam.color()?.let { color ->
+                if (color is NamedTextColor) {
+                    newTeam.color(color)
+                } else {
+                    newTeam.color(NamedTextColor.YELLOW) // Fallback a amarillo
+                }
+            }
+            newTeam.prefix(mainTeam.prefix())
+            newTeam.suffix(mainTeam.suffix())
+            newTeam.setOption(org.bukkit.scoreboard.Team.Option.COLLISION_RULE, org.bukkit.scoreboard.Team.OptionStatus.NEVER)
+            
+            // Copiar todas las entradas (jugadores)
+            mainTeam.entries.forEach { entry ->
+                newTeam.addEntry(entry)
+            }
+        }
+        
+        // Copiar equipo Horda
+        mainScoreboard.getTeam("ColiseoHorde")?.let { mainTeam ->
+            val newTeam = targetBoard.registerNewTeam("ColiseoHorde")
+            // Copiar color (convertir TextColor a NamedTextColor si es necesario)
+            mainTeam.color()?.let { color ->
+                if (color is NamedTextColor) {
+                    newTeam.color(color)
+                } else {
+                    newTeam.color(NamedTextColor.WHITE) // Fallback a blanco
+                }
+            }
+            newTeam.prefix(mainTeam.prefix())
+            newTeam.suffix(mainTeam.suffix())
+            newTeam.setOption(org.bukkit.scoreboard.Team.Option.COLLISION_RULE, org.bukkit.scoreboard.Team.OptionStatus.NEVER)
+            
+            // Copiar todas las entradas (jugadores)
+            mainTeam.entries.forEach { entry ->
+                newTeam.addEntry(entry)
+            }
+        }
     }
     
     /**

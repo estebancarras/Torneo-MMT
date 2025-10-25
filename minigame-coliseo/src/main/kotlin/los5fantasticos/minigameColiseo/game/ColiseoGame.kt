@@ -39,9 +39,19 @@ class ColiseoGame(
     val placedBlocks = mutableSetOf<Block>()
     
     /**
+     * Ítems dropeados durante la partida (para limpieza).
+     */
+    val droppedItems = mutableListOf<org.bukkit.entity.Item>()
+    
+    /**
      * Temporizador visual de la partida.
      */
     var gameTimer: GameTimer? = null
+    
+    /**
+     * Estado original del gamerule keepInventory (para restaurarlo al finalizar).
+     */
+    var originalKeepInventory: Boolean = false
     
     /**
      * Obtiene el número total de jugadores.

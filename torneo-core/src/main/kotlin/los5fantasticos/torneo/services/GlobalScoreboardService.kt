@@ -40,6 +40,12 @@ class GlobalScoreboardService(
     private var updateTask: BukkitTask? = null
     
     /**
+     * Set de jugadores que están usando scoreboards personalizados de minijuegos.
+     * Estos jugadores no recibirán el scoreboard global automáticamente.
+     */
+    private val excludedPlayers = mutableSetOf<java.util.UUID>()
+    
+    /**
      * Inicializa el servicio de scoreboard.
      * Crea el scoreboard, objetivo y teams pre-configurados.
      */
@@ -120,10 +126,12 @@ class GlobalScoreboardService(
     /**
      * Re-asigna silenciosamente el scoreboard a todos los jugadores.
      * Solo lo hace si el jugador no tiene el scoreboard correcto.
+     * Respeta a los jugadores excluidos (en minijuegos).
      */
     private fun reassignToAllPlayers() {
         Bukkit.getOnlinePlayers().forEach { player ->
-            if (player.scoreboard != scoreboard) {
+            // No re-asignar si el jugador está excluido (usando scoreboard de minijuego)
+            if (!excludedPlayers.contains(player.uniqueId) && player.scoreboard != scoreboard) {
                 showToPlayer(player)
             }
         }
@@ -207,25 +215,32 @@ class GlobalScoreboardService(
     }
     
     /**
-     * Muestra el scoreboard global a un jugador.
-     * Alias de showToPlayer para consistencia con hideScoreboard.
-     */
-    fun showScoreboard(player: Player) {
-        showToPlayer(player)
-    }
-    
-    /**
      * Oculta el scoreboard global de un jugador.
      * Útil cuando un minijuego quiere mostrar su propio scoreboard.
+     * Añade al jugador a la lista de excluidos para evitar re-asignación automática.
      */
     fun hideScoreboard(player: Player) {
         try {
+            // Añadir a la lista de excluidos
+            excludedPlayers.add(player.uniqueId)
+            
             // Crear un scoreboard vacío temporal
             val emptyScoreboard = Bukkit.getScoreboardManager()!!.newScoreboard
             player.scoreboard = emptyScoreboard
         } catch (e: Exception) {
             plugin.logger.warning("Error al ocultar scoreboard de ${player.name}: ${e.message}")
         }
+    }
+    
+    /**
+     * Muestra el scoreboard global a un jugador y lo remueve de la lista de excluidos.
+     */
+    fun showScoreboard(player: Player) {
+        // Remover de la lista de excluidos
+        excludedPlayers.remove(player.uniqueId)
+        
+        // Mostrar el scoreboard global
+        showToPlayer(player)
     }
     
     /**

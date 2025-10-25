@@ -83,6 +83,14 @@ class GameManager(
         val game = ColiseoGame(arena = arena)
         activeGame = game
         
+        // Guardar y desactivar keepInventory para permitir drops
+        val world = arena.eliteSpawns.firstOrNull()?.world ?: arena.hordeSpawns.firstOrNull()?.world
+        if (world != null) {
+            game.originalKeepInventory = world.getGameRuleValue(org.bukkit.GameRule.KEEP_INVENTORY) ?: false
+            world.setGameRule(org.bukkit.GameRule.KEEP_INVENTORY, false)
+            plugin.logger.info("[Coliseo] KeepInventory desactivado (original: ${game.originalKeepInventory})")
+        }
+        
         // Reiniciar contador de kills
         coliseoScoreboardService?.resetKills()
         
@@ -321,13 +329,60 @@ class GameManager(
         // Detener temporizador
         currentGame.gameTimer?.stop()
         
+        plugin.logger.info("[Coliseo] Iniciando limpieza de la arena...")
+        
+        // Limpiar ítems dropeados
+        plugin.logger.info("[Coliseo] Limpiando ${currentGame.droppedItems.size} ítems dropeados...")
+        currentGame.droppedItems.forEach { item ->
+            if (item.isValid) {
+                item.remove()
+            }
+        }
+        currentGame.droppedItems.clear()
+        
         // Limpiar bloques colocados
-        currentGame.placedBlocks.forEach { it.type = Material.AIR }
+        plugin.logger.info("[Coliseo] Limpiando ${currentGame.placedBlocks.size} bloques colocados...")
+        currentGame.placedBlocks.forEach { block ->
+            block.type = Material.AIR
+        }
         currentGame.placedBlocks.clear()
         
-        // Ocultar scoreboard del Coliseo y restaurar el global
+        plugin.logger.info("[Coliseo] Limpieza completada")
+        
+        // Restaurar gamerule keepInventory
+        val world = currentGame.arena?.eliteSpawns?.firstOrNull()?.world 
+            ?: currentGame.arena?.hordeSpawns?.firstOrNull()?.world
+        if (world != null) {
+            world.setGameRule(org.bukkit.GameRule.KEEP_INVENTORY, currentGame.originalKeepInventory)
+            plugin.logger.info("[Coliseo] KeepInventory restaurado a: ${currentGame.originalKeepInventory}")
+        }
+        
+        // Restaurar estado de todos los jugadores (incluidos espectadores)
+        plugin.logger.info("[Coliseo] Restaurando estado de ${currentGame.getAllPlayers().size} jugadores...")
         currentGame.getAllPlayers().forEach { playerId ->
             Bukkit.getPlayer(playerId)?.let { player ->
+                // Restaurar salud
+                player.health = player.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH)?.value ?: 20.0
+                
+                // Restaurar hambre
+                player.foodLevel = 20
+                player.saturation = 5.0f
+                
+                // Limpiar inventario
+                player.inventory.clear()
+                
+                // Limpiar efectos de poción
+                player.activePotionEffects.forEach { effect ->
+                    player.removePotionEffect(effect.type)
+                }
+                
+                // Restaurar modo de juego
+                player.gameMode = GameMode.ADVENTURE
+                
+                // Quitar brillo
+                player.isGlowing = false
+                
+                // Ocultar scoreboard del Coliseo y restaurar el global
                 coliseoScoreboardService?.hideScoreboard(player)
             }
         }
@@ -336,9 +391,6 @@ class GameManager(
         Bukkit.getScheduler().runTaskLater(plugin, Runnable {
             currentGame.getAllPlayers().forEach { playerId ->
                 Bukkit.getPlayer(playerId)?.let { player ->
-                    player.gameMode = GameMode.SURVIVAL
-                    player.isGlowing = false
-                    player.inventory.clear()
                     los5fantasticos.torneo.services.TournamentFlowManager.returnToLobby(player)
                 }
             }
@@ -348,6 +400,8 @@ class GameManager(
             
             // Limpiar partida
             activeGame = null
+            
+            plugin.logger.info("[Coliseo] Partida finalizada y limpiada correctamente")
         }, 100L)
     }
     

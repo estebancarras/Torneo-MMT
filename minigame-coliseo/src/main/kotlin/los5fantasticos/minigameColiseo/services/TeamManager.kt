@@ -32,25 +32,27 @@ class TeamManager(private val plugin: org.bukkit.plugin.Plugin) {
         scoreboard.getTeam("ColiseoElite")?.unregister()
         scoreboard.getTeam("ColiseoHorde")?.unregister()
         
-        // Crear equipo Élite
+        // Crear equipo Élite con aura dorada/amarilla
         eliteTeam = scoreboard.registerNewTeam("ColiseoElite").apply {
-            color(NamedTextColor.GOLD)
+            // Usar YELLOW para un brillo más visible (dorado brillante)
+            color(NamedTextColor.YELLOW)
             setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER)
             prefix(net.kyori.adventure.text.Component.text("[ÉLITE] ", NamedTextColor.GOLD))
         }
         
-        // Crear equipo Horda
+        // Crear equipo Horda con aura blanca
         hordeTeam = scoreboard.registerNewTeam("ColiseoHorde").apply {
             color(NamedTextColor.WHITE)
             setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER)
             prefix(net.kyori.adventure.text.Component.text("[HORDA] ", NamedTextColor.WHITE))
         }
         
-        // Añadir jugadores a los equipos
+        // Añadir jugadores a los equipos y aplicar brillo
         game.elitePlayers.forEach { playerId ->
             Bukkit.getPlayer(playerId)?.let { player ->
                 eliteTeam?.addEntry(player.name)
                 player.isGlowing = true
+                // El color del brillo se hereda del color del equipo (GOLD)
             }
         }
         
@@ -58,8 +60,11 @@ class TeamManager(private val plugin: org.bukkit.plugin.Plugin) {
             Bukkit.getPlayer(playerId)?.let { player ->
                 hordeTeam?.addEntry(player.name)
                 player.isGlowing = true
+                // El color del brillo se hereda del color del equipo (WHITE)
             }
         }
+        
+        plugin.logger.info("[Coliseo] Equipos configurados - Élite (GOLD): ${game.elitePlayers.size}, Horda (WHITE): ${game.hordePlayers.size}")
     }
     
     /**
